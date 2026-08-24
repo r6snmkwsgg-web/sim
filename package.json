@@ -1,0 +1,20 @@
+{
+  "name": "opencivilization",
+  "version": "0.1.0",
+  "description": "An artificial civilization laboratory. Milestone 0: the vertical slice.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "tsc",
+    "sim": "npm run -s build && node dist/cli/run.js",
+    "demo": "npm run -s build && node dist/cli/run.js --seed 11 --stream 1 --out runs/demo && node dist/cli/run.js --seed 11 --stream 1 --ablate-social --out runs/demo-ablated",
+    "sweep": "npm run -s build && node dist/cli/sweep.js",
+    "trace": "npm run -s build && node dist/cli/trace.js",
+    "view": "npm run -s build && node dist/cli/serve.js",
+    "test": "npm run -s build && node --test dist/test/*.test.js"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "typescript": "^5.9.3"
+  }
+}

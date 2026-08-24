@@ -1,0 +1,623 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><circle cx='8' cy='8' r='6' fill='%23E0A02E'/></svg>">
+<title>OpenCivilization — L3</title>
+<style>
+  /* §6.2 — survey cartography, not game UI */
+  :root {
+    --abyss:   #0B1A2A;
+    --bathyal: #16394F;
+    --shelf:   #3E7A8C;
+    --lowland: #7A8B5C;
+    --upland:  #C8A97E;
+    --summit:  #EDE4D2;
+    --ink:     #1C1A17;
+    --signal:  #E0A02E;
+    --isogloss:#B5479A;
+    --panel:   #0e2133;
+    --line:    #1e3a50;
+    --dim:     #7d94a6;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--abyss); color: var(--summit);
+    font-family: var(--sans); font-size: 13px;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  header {
+    display: flex; align-items: baseline; gap: 14px;
+    padding: 8px 14px; border-bottom: 1px solid var(--line);
+    flex-wrap: wrap;
+  }
+  header h1 { font-size: 14px; font-weight: 600; letter-spacing: .06em; }
+  header h1 span { color: var(--dim); font-weight: 400; }
+  header .grow { flex: 1; }
+  select, button {
+    background: var(--panel); color: var(--summit);
+    border: 1px solid var(--line); border-radius: 3px;
+    font-family: var(--mono); font-size: 12px; padding: 3px 8px;
+    cursor: pointer;
+  }
+  button.tog[data-on="1"] { border-color: var(--signal); color: var(--signal); }
+  #atmos { font-family: var(--mono); font-size: 12px; color: var(--dim); }
+  #atmos b { color: var(--summit); font-weight: 600; }
+  #atmos .open { color: var(--signal); }
+  main { flex: 1; display: flex; min-height: 0; }
+  #maphold { flex: 1; position: relative; min-width: 0; }
+  #map { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; }
+  aside {
+    width: 340px; border-left: 1px solid var(--line);
+    display: flex; flex-direction: column; min-height: 0;
+  }
+  nav { display: flex; border-bottom: 1px solid var(--line); }
+  nav button {
+    flex: 1; border: 0; border-radius: 0; background: none; color: var(--dim);
+    padding: 7px 0; letter-spacing: .08em; font-size: 11px;
+  }
+  nav button[data-on="1"] { color: var(--summit); box-shadow: inset 0 -2px var(--signal); }
+  #panel { flex: 1; overflow-y: auto; padding: 10px 12px; font-family: var(--mono); font-size: 12px; }
+  #panel h2 { font-size: 11px; letter-spacing: .12em; color: var(--dim); margin: 10px 0 6px; font-family: var(--sans); }
+  #panel .bar { height: 6px; background: var(--panel); border-radius: 3px; overflow: hidden; margin: 2px 0 6px; }
+  #panel .bar i { display: block; height: 100%; background: var(--shelf); }
+  .ev { padding: 3px 4px; border-left: 2px solid transparent; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ev:hover { background: var(--panel); }
+  .ev.sel { background: var(--panel); border-left-color: var(--signal); }
+  .ev .t { color: var(--dim); }
+  .ev.give { color: var(--signal); }
+  .ev.take, .ev.loot { color: var(--isogloss); }
+  .ev.attack { color: #d66; }
+  .ev.death { color: var(--dim); }
+  .ev.signal { color: var(--shelf); }
+  #trace { font-size: 11px; line-height: 1.5; }
+  #trace ul { list-style: none; padding-left: 14px; border-left: 1px solid var(--line); margin-left: 4px; }
+  #trace > ul { border: 0; padding-left: 0; margin-left: 0; }
+  #trace .k { color: var(--dim); font-size: 10px; }
+  #trace .give { color: var(--signal); }
+  #trace .trust { color: var(--isogloss); }
+  #stat td { padding: 2px 8px 2px 0; }
+  #stat td:first-child { color: var(--dim); }
+  footer { border-top: 1px solid var(--line); padding: 6px 14px 10px; }
+  #timeline { width: 100%; height: 54px; display: block; cursor: ew-resize; }
+  #controls { display: flex; gap: 10px; align-items: center; margin-top: 4px; font-family: var(--mono); font-size: 12px; }
+  #tick { color: var(--signal); min-width: 90px; }
+  .legend { color: var(--dim); font-size: 11px; margin-left: auto; }
+  .legend i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin: 0 3px 0 10px; vertical-align: -1px; }
+  #drop { position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
+          background: rgba(11,26,42,.92); z-index: 5; font-size: 15px; color: var(--dim); }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>OPENCIVILIZATION <span>· M0 vertical slice · layer L3</span></h1>
+  <select id="runsel">
+    <option value="runs/demo">demo (seed 11)</option>
+    <option value="runs/demo-ablated">demo — social memory ablated</option>
+  </select>
+  <button class="tog" id="tog-flows" data-on="1">gift flows</button>
+  <button class="tog" id="tog-trust" data-on="0">trust web (final)</button>
+  <button class="tog" id="tog-nodes" data-on="1">resources</button>
+  <div class="grow"></div>
+  <div id="atmos"></div>
+</header>
+<main>
+  <div id="maphold"><canvas id="map"></canvas>
+    <div id="drop">drop a recording.json here</div>
+  </div>
+  <aside>
+    <nav>
+      <button data-tab="dossier" data-on="1">DOSSIER</button>
+      <button data-tab="events" data-on="0">EVENTS</button>
+      <button data-tab="trace" data-on="0">TRACE</button>
+      <button data-tab="metrics" data-on="0">METRICS</button>
+    </nav>
+    <div id="panel"></div>
+  </aside>
+</main>
+<footer>
+  <canvas id="timeline"></canvas>
+  <div id="controls">
+    <button id="play">▶</button>
+    <select id="speed">
+      <option value="1">1×</option><option value="4">4×</option>
+      <option value="16" selected>16×</option><option value="64">64×</option>
+    </select>
+    <span id="tick"></span>
+    <span class="legend">
+      <i style="background:var(--summit)"></i>thren (r0, seasonal)
+      <i style="background:var(--lowland)"></i>pith (r1)
+      <i style="background:var(--upland)"></i>osk (r2)
+      <i style="background:var(--signal)"></i>gift
+      <i style="background:var(--isogloss)"></i>defection
+    </span>
+  </div>
+</footer>
+<script>
+'use strict';
+// L3 only (§5): a top-down data view. Contour-and-ink, no 3D, no spectacle.
+const $ = s => document.querySelector(s);
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const COL = {
+  kinds: [css('--summit'), css('--lowland'), css('--upland')],
+  signal: css('--signal'), iso: css('--isogloss'),
+  summit: css('--summit'), dim: css('--dim'), shelf: css('--shelf'),
+};
+
+let R = null;          // recording
+let TR = null;         // traceable
+let T = 0;             // current tick (float while playing)
+let playing = false, speed = 16;
+let selAgent = -1, selEvent = -1, traceRoot = -1;
+let tab = 'dossier';
+let terrain = null;    // offscreen elevation canvas
+let frameIdx = new Map(), giftCum = null, giftCumTick = -1;
+
+const map = $('#map'), tl = $('#timeline');
+
+async function load(base) {
+  const emb = window.EMBEDDED;
+  if (emb && emb[base]) {
+    R = emb[base].recording; TR = emb[base].traceable;
+  } else {
+    try {
+      R = await (await fetch(base + '/recording.json')).json();
+      TR = await (await fetch(base + '/traceable.json')).json();
+    } catch (e) {
+      $('#drop').style.display = 'flex';
+      return;
+    }
+  }
+  frameIdx = new Map(R.frames.map((f, i) => [f.tick, i]));
+  terrain = makeTerrain();
+  giftCum = null; giftCumTick = -1;
+  T = 0; selAgent = -1; selEvent = -1; traceRoot = -1;
+  draw(); drawTimeline(); renderPanel();
+}
+
+// ---- terrain: hypsometric ramp, kept near-silhouette -----------------------
+function makeTerrain() {
+  const n = R.world.size, c = document.createElement('canvas');
+  c.width = n; c.height = n;
+  const g = c.getContext('2d'), img = g.createImageData(n, n);
+  const stops = [[11,26,42],[22,57,79],[62,122,140],[122,139,92],[200,169,126],[237,228,210]];
+  for (let i = 0; i < n * n; i++) {
+    const v = R.world.elevation[i] / 255;
+    const p = v * (stops.length - 1), lo = Math.min(stops.length - 2, Math.floor(p)), f = p - lo;
+    for (let ch = 0; ch < 3; ch++) {
+      // heavy darkening: terrain is ground, data is figure
+      img.data[i * 4 + ch] = (stops[lo][ch] * (1 - f) + stops[lo + 1][ch] * f) * 0.34;
+    }
+    img.data[i * 4 + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+  return c;
+}
+
+function frameAt(t) {
+  t = Math.max(0, Math.min(R.meta.ticks - 1, Math.floor(t)));
+  return R.frames[frameIdx.get(t) ?? t];
+}
+function snapAt(arr, t) { return arr[Math.max(0, Math.min(arr.length - 1, Math.floor(t / 5)))]; }
+function atmosOpen(t) {
+  const p = R.world.atmosPeriod, m = ((t % p) + p) % p;
+  return Math.abs(m - p / 2) <= R.world.atmosOpen / 2;
+}
+function giftMatrixUpTo(t) {
+  if (giftCumTick === Math.floor(t) && giftCum) return giftCum;
+  const n = R.agents.length, m = Array.from({length: n}, () => new Float32Array(n));
+  for (const e of R.events) {
+    if (e.tick > t) break;
+    if (e.type === 'give') m[e.a][e.b] += e.amt * [11,5,8][e.k];
+  }
+  giftCum = m; giftCumTick = Math.floor(t);
+  return m;
+}
+
+// ---- map -------------------------------------------------------------------
+function draw() {
+  const hold = $('#maphold');
+  const w = hold.clientWidth, h = hold.clientHeight;
+  const dpr = window.devicePixelRatio || 1;
+  map.width = w * dpr; map.height = h * dpr;
+  const g = map.getContext('2d');
+  g.scale(dpr, dpr);
+  g.fillStyle = css('--abyss'); g.fillRect(0, 0, w, h);
+
+  const n = R.world.size;
+  const s = Math.min(w, h) - 24;                    // map pixel size
+  const ox = (w - s) / 2, oy = (h - s) / 2;
+  const u = s / n;                                  // px per cell
+  const px = (cx) => ox + (cx + 0.5) * u;
+  const py = (cy) => oy + (cy + 0.5) * u;
+
+  g.imageSmoothingEnabled = false;
+  g.drawImage(terrain, ox, oy, s, s);
+  // survey grid
+  g.strokeStyle = 'rgba(237,228,210,0.05)';
+  g.lineWidth = 1;
+  for (let i = 0; i <= n; i += 8) {
+    g.beginPath(); g.moveTo(ox + i * u, oy); g.lineTo(ox + i * u, oy + s); g.stroke();
+    g.beginPath(); g.moveTo(ox, oy + i * u); g.lineTo(ox + s, oy + i * u); g.stroke();
+  }
+  g.strokeStyle = 'rgba(237,228,210,0.18)';
+  g.strokeRect(ox, oy, s, s);
+
+  const t = Math.floor(T);
+  const fr = frameAt(t);
+  const open0 = atmosOpen(t);
+  const dimAll = traceRoot >= 0;
+  const traceAgents = new Set();
+  if (dimAll && selEvent >= 0) {
+    const e = R.events[selEvent];
+    traceAgents.add(e.a); if (e.b >= 0) traceAgents.add(e.b);
+  }
+
+  // resources (physical → earth ramp colors)
+  if ($('#tog-nodes').dataset.on === '1') {
+    const q = snapAt(R.nodeSnaps, t).q;
+    for (const nd of R.world.nodes) {
+      const qi = q[nd.id]; if (qi < 0.4) continue;
+      const rad = Math.max(1.1, Math.sqrt(qi / R.world.caps[nd.k]) * u * 1.15);
+      const sealed = nd.k === 0 && !open0;
+      g.globalAlpha = (dimAll ? 0.15 : 1) * (sealed ? 0.5 : 0.85);
+      g.beginPath(); g.arc(px(nd.x), py(nd.y), rad, 0, 7);
+      if (sealed) { g.strokeStyle = COL.kinds[0]; g.lineWidth = 1; g.stroke(); }
+      else { g.fillStyle = COL.kinds[nd.k]; g.fill(); }
+    }
+    // caches: stored wealth as small squares
+    for (const [owner, x, y, val] of snapAt(R.cacheSnaps, t).c) {
+      if (val < 2) continue;
+      g.globalAlpha = dimAll ? 0.15 : 0.9;
+      const r = Math.min(u * 0.42, 2 + Math.sqrt(val) * 0.35);
+      g.strokeStyle = COL.upland; g.lineWidth = 1;
+      g.strokeRect(px(x) - r, py(y) - r, 2 * r, 2 * r);
+    }
+  }
+  g.globalAlpha = 1;
+
+  const pos = new Map(fr.agents.map(a => [a[0], a]));
+
+  // gift flows: cumulative exchange as ribbons (abstract → signal)
+  if ($('#tog-flows').dataset.on === '1' && !dimAll) {
+    const m = giftMatrixUpTo(t);
+    for (let a = 0; a < m.length; a++) {
+      for (let b = 0; b < m.length; b++) {
+        const v = m[a][b]; if (v < 8) continue;
+        const pa = pos.get(a), pb = pos.get(b); if (!pa || !pb) continue;
+        g.strokeStyle = COL.signal;
+        g.globalAlpha = Math.min(0.5, 0.06 + v / 400);
+        g.lineWidth = Math.min(4, 0.5 + v / 120);
+        arc(g, px(pa[1]), py(pa[2]), px(pb[1]), py(pb[2]), 0.22);
+      }
+    }
+    g.globalAlpha = 1;
+  }
+
+  // final trust web (abstract → isogloss)
+  if ($('#tog-trust').dataset.on === '1' && !dimAll) {
+    for (const ag of R.agents) {
+      const pa = pos.get(ag.id); if (!pa) continue;
+      for (const [b, tr] of ag.social) {
+        if (Math.abs(tr) < 0.3) continue;
+        const pb = pos.get(b); if (!pb) continue;
+        g.strokeStyle = COL.iso;
+        g.globalAlpha = Math.min(0.6, Math.abs(tr) * 0.5);
+        g.lineWidth = 1;
+        g.setLineDash(tr < 0 ? [3, 4] : []);
+        g.beginPath(); g.moveTo(px(pa[1]), py(pa[2])); g.lineTo(px(pb[1]), py(pb[2])); g.stroke();
+      }
+    }
+    g.setLineDash([]); g.globalAlpha = 1;
+  }
+
+  // recent events as live marks
+  for (const e of R.events) {
+    if (e.tick > t || t - e.tick > 14) continue;
+    const fade = 1 - (t - e.tick) / 14;
+    if (e.type === 'give' || e.type === 'take' || e.type === 'loot' || e.type === 'attack') {
+      const pa = pos.get(e.a), pb = pos.get(e.b);
+      if (!pa || !pb) continue;
+      g.strokeStyle = e.type === 'give' ? COL.signal : COL.iso;
+      g.globalAlpha = fade * 0.9;
+      g.lineWidth = e.type === 'attack' ? 2.2 : 1.4;
+      arc(g, px(pa[1]), py(pa[2]), px(pb[1]), py(pb[2]), 0.35);
+    } else if (e.type === 'signal') {
+      const pa = pos.get(e.a); if (!pa) continue;
+      g.strokeStyle = e.k === 0 ? COL.iso : COL.shelf;
+      g.globalAlpha = fade * 0.7;
+      g.lineWidth = 1;
+      g.beginPath(); g.arc(px(pa[1]), py(pa[2]), (t - e.tick + 1) * u * 0.9, 0, 7); g.stroke();
+    }
+  }
+  g.globalAlpha = 1;
+
+  // deaths leave a mark
+  for (const ag of R.agents) {
+    if (ag.died < 0 || ag.died > t || t - ag.died > 60) continue;
+    // last known position: frame at death-1
+    const f0 = frameAt(ag.died);
+    const row = f0.agents.find(r => r[0] === ag.id) ??
+                frameAt(Math.max(0, ag.died - 1)).agents.find(r => r[0] === ag.id);
+    if (!row) continue;
+    g.strokeStyle = COL.dim; g.globalAlpha = 1 - (t - ag.died) / 60; g.lineWidth = 1.4;
+    const x = px(row[1]), y = py(row[2]), r = u * 0.5;
+    g.beginPath(); g.moveTo(x - r, y - r); g.lineTo(x + r, y + r);
+    g.moveTo(x + r, y - r); g.lineTo(x - r, y + r); g.stroke();
+  }
+  g.globalAlpha = 1;
+
+  // agents: moving marks (architect's-model restraint)
+  for (const [id, x, y, e] of fr.agents) {
+    const hi = id === selAgent || traceAgents.has(id);
+    g.globalAlpha = dimAll && !hi ? 0.18 : 1;
+    const r = hi ? u * 0.55 : u * 0.4;
+    g.beginPath(); g.arc(px(x), py(y), r, 0, 7);
+    g.fillStyle = e < 25 ? COL.iso : COL.summit;   // starving reads as data
+    g.fill();
+    if (hi) { g.strokeStyle = COL.signal; g.lineWidth = 1.6; g.stroke(); }
+    if (u > 8) {
+      g.fillStyle = 'rgba(11,26,42,0.85)';
+      g.font = `${Math.max(7, u * 0.42)}px ${css('--mono') || 'monospace'}`;
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText(id, px(x), py(y));
+    }
+  }
+  g.globalAlpha = 1;
+
+  // header atmosphere dial
+  const phase = ((t % R.world.atmosPeriod) + R.world.atmosPeriod) % R.world.atmosPeriod;
+  $('#atmos').innerHTML =
+    `atmosphere <b>${(0.5 - 0.5 * Math.cos(2 * Math.PI * phase / R.world.atmosPeriod)).toFixed(2)}</b>` +
+    ` · r0 ${open0 ? '<span class="open">OPEN</span>' : 'sealed'}`;
+  $('#tick').textContent = `t ${t} / ${R.meta.ticks}`;
+  map._geom = { ox, oy, u, n };
+}
+
+function arc(g, x1, y1, x2, y2, bow) {
+  const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+  const dx = x2 - x1, dy = y2 - y1;
+  g.beginPath();
+  g.moveTo(x1, y1);
+  g.quadraticCurveTo(mx - dy * bow, my + dx * bow, x2, y2);
+  g.stroke();
+}
+
+// ---- timeline (§6.5 in miniature) ------------------------------------------
+function drawTimeline() {
+  const w = tl.clientWidth, h = 54, dpr = window.devicePixelRatio || 1;
+  tl.width = w * dpr; tl.height = h * dpr;
+  const g = tl.getContext('2d'); g.scale(dpr, dpr);
+  g.fillStyle = css('--panel'); g.fillRect(0, 0, w, h);
+  const X = t => t / R.meta.ticks * w;
+  // seasonal open windows for r0
+  g.fillStyle = 'rgba(237,228,210,0.07)';
+  const p = R.world.atmosPeriod, o = R.world.atmosOpen;
+  for (let t0 = p / 2 - o / 2; t0 < R.meta.ticks; t0 += p) {
+    g.fillRect(X(t0), 0, X(o) - X(0), h);
+  }
+  // events
+  for (const e of R.events) {
+    if (e.type === 'give') { g.fillStyle = COL.signal; g.globalAlpha = 0.5; g.fillRect(X(e.tick), h * 0.15, 1, h * 0.3); }
+    else if (e.type === 'take' || e.type === 'loot' || e.type === 'attack') {
+      g.fillStyle = COL.iso; g.globalAlpha = 0.8; g.fillRect(X(e.tick), h * 0.5, 1, h * 0.3);
+    } else if (e.type === 'death') {
+      g.fillStyle = COL.summit; g.globalAlpha = 1; g.fillRect(X(e.tick) - 1, h * 0.1, 2, h * 0.8);
+    }
+  }
+  g.globalAlpha = 1;
+  // playhead
+  g.strokeStyle = COL.signal; g.lineWidth = 1.5;
+  g.beginPath(); g.moveTo(X(T), 0); g.lineTo(X(T), h); g.stroke();
+  g.fillStyle = COL.dim; g.font = '10px ' + (css('--mono') || 'monospace');
+  g.fillText('gifts', 4, h * 0.32);
+  g.fillText('defections', 4, h * 0.68);
+}
+
+// ---- side panel ------------------------------------------------------------
+function renderPanel() {
+  const el = $('#panel');
+  if (!R) { el.innerHTML = ''; return; }
+  if (tab === 'dossier') el.innerHTML = dossierHTML();
+  else if (tab === 'events') el.innerHTML = eventsHTML();
+  else if (tab === 'trace') el.innerHTML = traceHTML();
+  else el.innerHTML = metricsHTML();
+  el.querySelectorAll('.ev[data-i]').forEach(n => n.onclick = () => selectEvent(+n.dataset.i));
+}
+
+function dossierHTML() {
+  if (selAgent < 0) return `<h2>FIELD DOSSIER</h2><p style="color:var(--dim)">click an agent mark on the map</p>`;
+  const ag = R.agents[selAgent];
+  const fr = frameAt(Math.floor(T));
+  const row = fr.agents.find(r => r[0] === selAgent);
+  let html = `<h2>AGENT ${ag.id}${ag.died >= 0 ? ` · died t=${ag.died}` : ''}</h2>`;
+  if (row) html += `energy ${row[3]} · carrying ≈${row[4]} energy-value · at (${row[1]},${row[2]})<br>home (${ag.home[0]},${ag.home[1]})`;
+  html += `<h2>TRAITS</h2>`;
+  for (const [k, v] of Object.entries(ag.traits)) {
+    html += `${k} <span style="color:var(--dim)">${v.toFixed(2)}</span><div class="bar"><i style="width:${v * 100}%"></i></div>`;
+  }
+  const soc = [...ag.social].sort((a, b) => Math.abs(b[1]) - Math.abs(a[1])).slice(0, 8);
+  if (soc.length) {
+    html += `<h2>SOCIAL LEDGER (final)</h2><table id="stat">`;
+    for (const [b, tr, fa, de] of soc) {
+      const c = tr > 0.05 ? 'var(--signal)' : tr < -0.05 ? 'var(--isogloss)' : 'var(--dim)';
+      html += `<tr><td>agent ${b}</td><td style="color:${c}">trust ${tr.toFixed(2)}</td><td>fam ${fa.toFixed(2)}</td><td>debt ${de.toFixed(1)}</td></tr>`;
+    }
+    html += `</table>`;
+  }
+  const mine = R.events.filter(e => e.a === selAgent || e.b === selAgent)
+                       .filter(e => e.type !== 'signal').slice(-14).reverse();
+  if (mine.length) {
+    html += `<h2>RECORD</h2>` + mine.map(evLine).join('');
+  }
+  return html;
+}
+
+function evLine(e) {
+  const i = R.events.indexOf(e);
+  const txt = {
+    give: `#${e.a} gave ${e.amt.toFixed(1)} r${e.k} → #${e.b}`,
+    take: `#${e.a} took ${e.amt.toFixed(1)} r${e.k} from #${e.b}`,
+    loot: `#${e.a} looted #${e.b}'s cache${e.w ? ' (seen!)' : ' (unseen)'}`,
+    attack: `#${e.a} attacked #${e.b}`,
+    death: `#${e.a} died`,
+    signal: `#${e.a} signalled ${e.k === 0 ? 'distress' : 'abundance'}`,
+  }[e.type];
+  return `<div class="ev ${e.type}${i === selEvent ? ' sel' : ''}" data-i="${i}"><span class="t">t${e.tick}</span> ${txt}</div>`;
+}
+
+function eventsHTML() {
+  const t = Math.floor(T);
+  const social = R.events.filter(e => e.type !== 'signal');
+  let html = `<h2>EVENT FEED · ${social.length} social events</h2>`;
+  html += social.map(evLine).join('');
+  return html;
+}
+
+function traceHTML() {
+  if (traceRoot < 0) return `<h2>CAUSAL TRACE</h2><p style="color:var(--dim)">select an event (EVENTS tab, or a dossier record line) — its tree of causes appears here, per §4.1. Everything else on the map falls to near-silhouette.</p>`;
+  const byId = new Map(TR.entries.map(e => [e.id, e]));
+  const seen = new Set();
+  const build = (id, depth) => {
+    const e = byId.get(id);
+    if (!e) return '';
+    const cls = e.type === 'act.give' ? 'give' : e.type === 'mem.trust' ? 'trust' : '';
+    let row = `<li><span class="${cls}">${esc(e.desc)}</span> <span class="k">t=${e.tick} [${e.kind}]</span>`;
+    if (seen.has(id)) return row + ' <span class="k">(above)</span></li>';
+    seen.add(id);
+    if (depth < 8 && e.causes.length) {
+      row += '<ul>' + e.causes.map(c => build(c, depth + 1)).join('') + '</ul>';
+    }
+    return row + '</li>';
+  };
+  return `<h2>WHY DID THIS HAPPEN?</h2><div id="trace"><ul>${build(traceRoot, 0)}</ul></div>`;
+}
+
+function metricsHTML() {
+  const r = R.report, m = R.meta;
+  const f = v => Number.isFinite(v) ? v.toFixed(2) : '—';
+  const pct = v => (v * 100).toFixed(2) + '%';
+  return `<h2>RUN</h2><table id="stat">
+    <tr><td>seed / stream</td><td>${m.seed} / ${m.stream}${m.ablateSocial ? ' · <span style="color:var(--isogloss)">SOCIAL MEMORY ABLATED</span>' : ''}</td></tr>
+    <tr><td>ticks · wall</td><td>${m.ticks} · ${(m.wallMs / 1000).toFixed(2)}s</td></tr>
+    <tr><td>ledger entries</td><td>${m.ledgerEntries}</td></tr>
+    <tr><td>alive at end</td><td>${r.aliveFinal}/${R.agents.length}</td></tr></table>
+  <h2>RECIPROCITY (§5 target)</h2><table id="stat">
+    <tr><td>gives</td><td>${r.totalGives}</td></tr>
+    <tr><td>defections</td><td>${r.totalDefections}</td></tr>
+    <tr><td>rate → prior givers</td><td>${pct(r.rates.priorGiver)}</td></tr>
+    <tr><td>rate → strangers</td><td>${pct(r.rates.neutral)}</td></tr>
+    <tr><td>rate → transgressors</td><td>${pct(r.rates.hostile)}</td></tr>
+    <tr><td>contingency</td><td style="color:var(--signal)">${f(r.contingency)}×</td></tr>
+    <tr><td>withholding</td><td>${f(r.withholding)}×</td></tr>
+    <tr><td>rate correlation</td><td style="color:var(--signal)">${f(r.rateCorrelation)}</td></tr>
+    <tr><td>reciprocal dyads</td><td>${r.reciprocalDyads}</td></tr>
+    <tr><td>gini (final)</td><td>${r.giniFinal}</td></tr></table>
+  <p style="color:var(--dim);margin-top:10px">contingency = how much more readily an agent
+  gives to someone who has given to it than to a stranger, normalized by
+  opportunity. Compare this run against the ablated control in the run
+  selector: same world, same utility function, social memory frozen.</p>`;
+}
+
+function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+
+function selectEvent(i) {
+  selEvent = i;
+  const e = R.events[i];
+  traceRoot = e.ledger;
+  T = Math.min(R.meta.ticks - 1, e.tick + 4);
+  tab = 'trace';
+  document.querySelectorAll('nav button').forEach(b =>
+    b.dataset.on = b.dataset.tab === 'trace' ? '1' : '0');
+  draw(); drawTimeline(); renderPanel();
+}
+
+// ---- interaction -----------------------------------------------------------
+map.addEventListener('click', ev => {
+  if (!R || !map._geom) return;
+  const { ox, oy, u } = map._geom;
+  const rect = map.getBoundingClientRect();
+  const cx = (ev.clientX - rect.left - ox) / u - 0.5;
+  const cy = (ev.clientY - rect.top - oy) / u - 0.5;
+  const fr = frameAt(Math.floor(T));
+  let best = -1, bd = 2.5;
+  for (const [id, x, y] of fr.agents) {
+    const d = Math.hypot(x - cx, y - cy);
+    if (d < bd) { bd = d; best = id; }
+  }
+  selAgent = best;
+  traceRoot = -1; selEvent = -1;
+  if (best >= 0 && tab === 'trace') tab = 'dossier';
+  if (tab === 'dossier' || best >= 0) {
+    tab = 'dossier';
+    document.querySelectorAll('nav button').forEach(b =>
+      b.dataset.on = b.dataset.tab === 'dossier' ? '1' : '0');
+  }
+  draw(); renderPanel();
+});
+
+let scrubbing = false;
+const scrub = ev => {
+  const rect = tl.getBoundingClientRect();
+  T = Math.max(0, Math.min(R.meta.ticks - 1,
+    (ev.clientX - rect.left) / rect.width * R.meta.ticks));
+  traceRoot = -1; selEvent = -1;
+  draw(); drawTimeline(); if (tab === 'dossier') renderPanel();
+};
+tl.addEventListener('pointerdown', ev => { scrubbing = true; scrub(ev); });
+window.addEventListener('pointermove', ev => scrubbing && scrub(ev));
+window.addEventListener('pointerup', () => scrubbing = false);
+
+$('#play').onclick = () => {
+  playing = !playing;
+  $('#play').textContent = playing ? '⏸' : '▶';
+  if (playing) tickLoop();
+};
+$('#speed').onchange = e => speed = +e.target.value;
+let lastTs = 0;
+function tickLoop(ts) {
+  if (!playing) return;
+  if (lastTs) {
+    T += (ts - lastTs) / 1000 * speed * 8;   // 8 ticks/s at 1×
+    if (T >= R.meta.ticks - 1) { T = R.meta.ticks - 1; playing = false; $('#play').textContent = '▶'; }
+  }
+  lastTs = ts;
+  draw(); drawTimeline();
+  if (tab === 'dossier' && selAgent >= 0) renderPanel();
+  if (playing) requestAnimationFrame(tickLoop); else lastTs = 0;
+}
+
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
+  tab = b.dataset.tab;
+  document.querySelectorAll('nav button').forEach(x => x.dataset.on = x === b ? '1' : '0');
+  renderPanel();
+});
+document.querySelectorAll('.tog').forEach(b => b.onclick = () => {
+  b.dataset.on = b.dataset.on === '1' ? '0' : '1'; draw();
+});
+$('#runsel').onchange = e => load(e.target.value);
+window.addEventListener('resize', () => { if (R) { draw(); drawTimeline(); } });
+
+// drag & drop a recording
+window.addEventListener('dragover', e => e.preventDefault());
+window.addEventListener('drop', async e => {
+  e.preventDefault();
+  const f = e.dataTransfer.files[0];
+  if (!f) return;
+  R = JSON.parse(await f.text());
+  TR = { roots: [], entries: [] };
+  $('#drop').style.display = 'none';
+  frameIdx = new Map(R.frames.map((fr, i) => [fr.tick, i]));
+  terrain = makeTerrain(); giftCum = null; giftCumTick = -1;
+  T = 0; draw(); drawTimeline(); renderPanel();
+});
+
+load('runs/demo');
+</script>
+</body>
+</html>
