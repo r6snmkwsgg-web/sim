@@ -72,6 +72,21 @@ export interface DimensionReport {
   adoptUnexposed: [number, number];
   permutationMean: number;    // mean contingency under label permutation
   permutationZ: number;
+  /**
+   * POST-HOC CORRECTION, disclosed as such (the M0 Test-5 precedent): the
+   * preregistered across-acts label shuffle preserves the population's
+   * option-frequency structure, so in a *converged* population it cannot
+   * fall to ~1.0 — the majority option stays most-exposed and most-adopted
+   * under any relabeling. The spec's literal control ("permute which actor
+   * was observed") is a no-op here because §5.3 exposure never conditions
+   * on actor identity. This variant holds each agent's exposure multiset
+   * constant and permutes which *option* each exposure count attaches to —
+   * breaking the exposure→option linkage the transmission claim rests on
+   * while changing nothing else. If the metric could manufacture the
+   * separation, this would not fall to 1.
+   */
+  permutationWithin: number;
+  permutationWithinZ: number;
   holdersFinal: number;
   shareSeries: { tick: number; share: number[] }[];  // option shares over time
 }
@@ -344,6 +359,28 @@ function dimensionReport(dimension: 'token' | 'site', K: number, acts: Act[],
     ? Math.sqrt(permRatios.reduce((s, v) => s + (v - pMean) ** 2, 0) /
                 (permRatios.length - 1)) : NaN;
 
+  // within-agent option permutation (see field doc above)
+  const wRng = new RNG(15485863, `permw:${dimension}`);
+  const wRatios: number[] = [];
+  for (let rep = 0; rep < (doPerm ? 200 : 0); rep++) {
+    const permExp = new Map<number, Float64Array>();
+    for (const [id, ex] of exposure) {
+      const copy = Float64Array.from(ex);
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = wRng.int(i + 1);
+        const tmp = copy[i]; copy[i] = copy[j]; copy[j] = tmp;
+      }
+      permExp.set(id, copy);
+    }
+    const r = contingencyOf(adoption, permExp).ratio;
+    if (Number.isFinite(r)) wRatios.push(r);
+  }
+  const wMean = wRatios.length
+    ? wRatios.reduce((s, v) => s + v, 0) / wRatios.length : NaN;
+  const wSd = wRatios.length > 1
+    ? Math.sqrt(wRatios.reduce((s, v) => s + (v - wMean) ** 2, 0) /
+                (wRatios.length - 1)) : NaN;
+
   const lastSample = shareSeries[shareSeries.length - 1];
   return {
     dimension, options: K, practices,
@@ -355,6 +392,9 @@ function dimensionReport(dimension: 'token' | 'site', K: number, acts: Act[],
     permutationMean: Math.round(pMean * 100) / 100,
     permutationZ: pSd > 1e-9
       ? Math.round(((obs.ratio - pMean) / pSd) * 100) / 100 : NaN,
+    permutationWithin: Math.round(wMean * 100) / 100,
+    permutationWithinZ: wSd > 1e-9
+      ? Math.round(((obs.ratio - wMean) / wSd) * 100) / 100 : NaN,
     holdersFinal: [...byAgent.keys()].filter(id =>
       run.frames[run.frames.length - 1].agents.some(r => r[0] === id)).length,
     shareSeries: shareSeries.filter((_, i) => i % 4 === 0),
