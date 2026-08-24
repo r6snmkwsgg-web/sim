@@ -171,6 +171,45 @@ causal ledger and bit-exact replay verification; `npm run m1:sweep` runs
 the §7 protocol: 12 streams × {main, ablation A no-observation, B random
 traits, C spatial scramble}, drift null, and the §5.5 permutation control.
 
+### Result — M1 passes all five §7 criteria
+
+Token dimension (8 arbitrary marks, zero mechanical effect), 12 streams:
+
+| criterion | result |
+|---|---|
+| 1. practice forms + survives 3 post-origin generations | **12/12 streams** (strict: every living agent ≥ origin gen + 3, origin dead) |
+| 2. clearly above the drift null | drift (neutral copying, 500 reps/stream) hits **~21%**; observed 100% |
+| 3. ablation A (no observation) collapses it | **0/12**; contingency falls to 0.85–1.73 (≈1) |
+| 4. ablation B (random child traits) does not | **12/12**, contingency 6.3–40× — genetics ruled out |
+| 5. permutation control ≈ 1.0 | within-agent median **1.00**; observed sits 170–1,160 null-SDs above |
+
+Transmission contingency on main runs: 8.5–46× (median ≈ 11.5×), measured
+per perceivable act-tick per amendment A1. On the canonical stream the
+practice's origin is a founder who died at t≈156; the mark it seeded held
+≥60% of the population for the following ~7,000 ticks and ~45 generations.
+
+**The double dissociation.** Under ablation C (children relocated to a
+random gather site at independence), token practices survive in **12/12**
+streams while site practices die in **12/12** — and under ablation A, site
+practices still form in some streams while token practices never do. Site
+convergence is carried by geography and drift; token convergence is carried
+by observation. The two controls split the two dimensions exactly as a real
+transmission channel should.
+
+Honest caveats, in the order they'd bite: (1) ablation A also depresses the
+population (juveniles use watched gathers to find food, so the channel
+itself has fitness value even though the *options* are neutral) — the
+contingency ≈ 1 within the surviving population is what carries the
+collapse claim, not the demography; (2) the §5.5 permutation as
+preregistered (label shuffle across acts) cannot reach 1.0 in a converged
+population — the within-agent variant that criterion 5 gates on is a
+disclosed post-hoc correction, same shape as the M0 Test-5/A1 precedent,
+and both variants are printed; (3) the site dimension is reported but not
+gated (drift alone hits ~60–80% for K=3, and its exposure metric
+degenerates); (4) emission propensity was tuned (a loneliness-gated contact
+call, cheaper signals) so the token substrate exists at all — §8.1/§8.2
+work, mechanically token-neutral.
+
 ## What is deliberately not here
 
 Cognition tiers T0/T2/T3, the symbol layer (the M1 tokens are a substrate
