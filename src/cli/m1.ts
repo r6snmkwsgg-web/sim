@@ -1,3 +1,5 @@
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { M1, P } from '../core/params.js';
 import type { SimConfig } from '../core/types.js';
 import { Sim } from '../engine/engine.js';
@@ -116,6 +118,54 @@ function printDimension(r: M1Report, dim: 'token' | 'site'): void {
     `(exposed ${x.adoptExposed[0]}/${x.adoptExposed[1]}, ` +
     `unexposed ${x.adoptUnexposed[0]}/${x.adoptUnexposed[1]})  ` +
     `permutation mean ${x.permutationMean}× (z ${x.permutationZ})`);
+}
+
+// optional recording for the existing L3 viewer (drag & drop it in)
+const outIdx = argv.indexOf('--out');
+if (outIdx >= 0) {
+  const dir = argv[outIdx + 1];
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, 'recording.json'), JSON.stringify({
+    meta: {
+      project: 'OpenCivilization M1', seed: cfg.seed, stream: cfg.stream,
+      ticks: cfg.ticks, ablateSocial: false,
+      wallMs: Math.round(wall * 1000),
+      ledgerEntries: sim.ledger.keep ? sim.ledger.entries.length : 0,
+      finalHash: '',
+    },
+    world: {
+      size: P.WORLD, atmosPeriod: P.ATMOS_PERIOD, atmosOpen: P.ATMOS_OPEN,
+      elevation: Array.from(sim.world.elevation, v => Math.round(v * 255)),
+      nodes: sim.world.nodes.map(n => ({ id: n.id, x: n.x, y: n.y, k: n.k })),
+      caps: [m1NodeSpec(0).cap, m1NodeSpec(1).cap, m1NodeSpec(2).cap],
+    },
+    agents: sim.agents.map(a => ({
+      id: a.id, traits: a.traits, home: [a.homeX, a.homeY], died: a.diedTick,
+      social: [...a.social.entries()]
+        .filter(([, r]) => Math.abs(r.trust) > 0.05 || r.familiarity > 0.1)
+        .map(([b, r]) => [b, Math.round(r.trust * 100) / 100,
+                          Math.round(r.familiarity * 100) / 100]),
+    })),
+    frames: sim.frames,
+    nodeSnaps: sim.nodeSnaps,
+    cacheSnaps: sim.cacheSnaps,
+    events: sim.events.filter(e => e.type !== 'signal' || e.tick % 3 === 0),
+    report: {
+      totalGives: sim.events.filter(e => e.type === 'give').length,
+      totalDefections: sim.events.filter(e =>
+        e.type === 'take' || e.type === 'attack' || e.type === 'loot').length,
+      rates: { priorGiver: NaN, neutral: NaN, hostile: NaN },
+      contingency: NaN, withholding: NaN, rateCorrelation: NaN,
+      permutationZ: NaN, reciprocalDyads: NaN, giniFinal: NaN,
+      aliveFinal: report.demography.aliveFinal,
+      m1: {
+        tokenPractices: report.token.practices,
+        tokenContingency: report.token.contingency,
+        maxGen: report.demography.maxGen,
+      },
+    },
+  }));
+  console.log(`recording written to ${dir}/ (drag recording.json into the viewer)`);
 }
 
 // ledger completeness still holds at M1 scale (full runs only)
