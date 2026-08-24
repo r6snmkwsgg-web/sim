@@ -14,11 +14,12 @@ import { retrieve, socialOf, type Retrieved } from './memory.js';
  *
  * Deterministic given state + seed. No language model anywhere near this.
  *
- * There is deliberately no `trade` candidate and no reciprocity term wired
- * into the world. `give` is scored from empathy × perceived need plus the
- * agent's *learned* social record of the target (trust, debt). If stable
- * reciprocal exchange appears, it can only have come from those learned
- * records — which is exactly what the ablation control switches off.
+ * There is deliberately no candidate that transfers goods in both directions,
+ * and no term that tracks a running balance between two agents. `give` is scored
+ * from empathy × perceived need plus the agent's *learned* record of the
+ * target (trust, familiarity). If stable mutual giving appears, it can only
+ * have come from those learned records — which is exactly what the ablation
+ * control switches off.
  */
 
 export interface Candidate {
@@ -193,8 +194,7 @@ export function decide(a: AgentState, pc: Percept, ownCaches: Cache[],
       const warmth =
         P.GIVE_W_NEED * T.empathy * need * (rec.trust < -0.12 ? 0.35 : 1) +
         trustTerm +
-        P.GIVE_W_FAM * rec.familiarity +
-        0.09 * Math.max(0, rec.debt);          // obligation: repay what you owe
+        P.GIVE_W_FAM * rec.familiarity;
       const value = w.belonging * warmth * (NUTRITION[k] * amt / E_NORM);
       const scarcity = Math.max(0, 1 - carriedVal / 40);
       const cost = w.survival * P.GIVE_COST_W * (0.25 + 1.3 * hunger + scarcity)

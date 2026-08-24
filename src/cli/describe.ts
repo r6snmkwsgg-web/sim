@@ -37,7 +37,7 @@ export function describe(e: LedgerEntry): string {
     }
     case 'mem.trust':
       return `agent ${d.a}'s trust in agent ${d.b} → ${f(d.tr)} ` +
-             `(familiarity ${f(d.fa)}, debt ${f(d.de)})`;
+             `(familiarity ${f(d.fa)})`;
     case 'world.regen': return `resource regrowth`;
     case 'world.decay': return `goods decayed`;
     case 'world.metab': return `metabolism`;

@@ -31,35 +31,47 @@ of the target:
 
 | give rate toward… | main run | social memory ablated |
 |---|---|---|
-| prior givers | 5.88% | 3.15% |
-| strangers | 1.98% | 2.70% |
-| known transgressors | 0.59% | 2.31% |
-| **reciprocity contingency** | **2.97×** | **1.16×** |
-| **withholding ratio** | **0.30×** | 0.85× |
-| pairwise rate correlation | 0.82 | 0.16 |
+| prior givers | 4.71% | 3.15% |
+| strangers | 1.93% | 2.70% |
+| known transgressors | 1.46% | 2.31% |
+| **reciprocity contingency** | **2.44×** | **1.16×** |
+| **withholding ratio** | **0.76×** | 0.85× |
+| pairwise rate correlation | 0.68 | 0.16 |
 
 (seed 11, stream 1 — reproduce with `npm run demo`)
 
-Agents give to those who gave to them at ~3× the rate they give to strangers,
-and refuse those who robbed them at ~⅓ the stranger rate — stable partnerships
-with alternating gifts and running debt, visible as concentrated ribbons in the
-viewer's gift-flow overlay.
+Agents give to those who gave to them at ~2.4× the rate they give to
+strangers, and give known transgressors less than strangers — stable
+partnerships with alternating gifts, visible as concentrated ribbons in the
+viewer's gift-flow overlay. (An earlier build carried a balance-tracking term
+in the give-scoring; the Test 1 scan below caught it and it was deleted — the
+pattern survives on learned trust alone, which makes the claim stronger.)
 
 ### Held to the §4.2 emergence criteria
 
 1. **Unscripted** — no `trade` code path; the give-scoring uses empathy ×
-   perceived need plus the *learned* trust/debt record, nothing pair-specific.
+   perceived need plus the *learned* trust record, nothing pair-specific — and `npm run verify` scans the mechanic layer for trading vocabulary.
 2. **Traceable** — `npm run trace` expands any gift backward through the
    ledger: gift → decision → trust record → the counter-gift that built it →
    … (a test asserts this chain exists).
-3. **Reproducible-in-kind** — `npm run sweep`: **12/12** independent noise
-   streams on the same world show the pattern (median contingency 2.80×).
+3. **Reproducible-in-kind** — `npm run sweep`: **11/12** independent noise
+   streams on the same world show the pattern (median contingency 2.44×).
 4. **Non-retrievable** — no pretrained model to retrieve from at M0. The
    analogous control is the **ablation**: the same world, same utility
    function, same noise stream, with social memory writes frozen. **0/12**
    ablated runs reach the bar (median contingency 1.21×, correlation ≈ 0).
    The pattern demonstrably comes from social memory, not from the utility
    function's shape — which is precisely what §5 demands.
+
+`npm run verify` runs a six-step falsification protocol in order, stopping at
+the first failure: mechanic-layer vocabulary scan, ledger-hash determinism, a
+per-decision log of the social memory read while scoring (the memory→decision
+edge, inspectable), windowed pair correlation with a punishment check, the
+ablated null, and a ten-stream repetition. It prints both raw-count and
+opportunity-normalized correlations; the raw-count form is confounded by
+co-location (pairs that spend a window together give more in both directions
+regardless of memory — the ablated run proves it), so the normalized form is
+the discriminating one.
 
 Honest caveats: the withholding ratio is noisy across streams (0.2×–1.5×; the
 transgressor class is small because defections are rare), and trust-weighted

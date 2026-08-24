@@ -66,8 +66,7 @@ export function buildRecording(sim: Sim, report: ReturnType<typeof analyze>,
       social: [...a.social.entries()]
         .filter(([, r]) => Math.abs(r.trust) > 0.02 || r.familiarity > 0.05)
         .map(([b, r]) => [b, Math.round(r.trust * 100) / 100,
-                          Math.round(r.familiarity * 100) / 100,
-                          Math.round(r.debt * 10) / 10]),
+                          Math.round(r.familiarity * 100) / 100]),
     })),
     frames: sim.frames,
     nodeSnaps: sim.nodeSnaps,

@@ -444,9 +444,9 @@ function dossierHTML() {
   const soc = [...ag.social].sort((a, b) => Math.abs(b[1]) - Math.abs(a[1])).slice(0, 8);
   if (soc.length) {
     html += `<h2>SOCIAL LEDGER (final)</h2><table id="stat">`;
-    for (const [b, tr, fa, de] of soc) {
+    for (const [b, tr, fa] of soc) {
       const c = tr > 0.05 ? 'var(--signal)' : tr < -0.05 ? 'var(--isogloss)' : 'var(--dim)';
-      html += `<tr><td>agent ${b}</td><td style="color:${c}">trust ${tr.toFixed(2)}</td><td>fam ${fa.toFixed(2)}</td><td>debt ${de.toFixed(1)}</td></tr>`;
+      html += `<tr><td>agent ${b}</td><td style="color:${c}">trust ${tr.toFixed(2)}</td><td>fam ${fa.toFixed(2)}</td></tr>`;
     }
     html += `</table>`;
   }

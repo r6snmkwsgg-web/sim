@@ -191,6 +191,156 @@ function pearson(xs: number[], ys: number[]): number {
   return Math.round((sxy / Math.sqrt(sxx * syy)) * 1000) / 1000;
 }
 
+// ---------------------------------------------------------------------------
+// Windowed pair correlation — the protocol's Test 4/5/6 measurement.
+//
+// For each ordered pair, count gifts per fixed window. Per window, correlate
+// gifts A→B against gifts B→A across pairs (each unordered pair enters in
+// both orientations, making the statistic symmetric). Mutual giving means the
+// correlation rises above zero once histories accumulate, and holds.
+// Punishment: around each known harm (take, attack, witnessed loot), compare
+// the victim's gifts to the transgressor in the window before vs. after.
+// ---------------------------------------------------------------------------
+
+export interface WindowedReport {
+  windowSize: number;
+  corrSeries: number[];          // one r per window (NaN where undefined)
+  lateMean: number;              // mean r over the last half of the run
+  pairsUsed: number;
+  punishment: { events: number; giftsBefore: number; giftsAfter: number };
+  /**
+   * Diagnostic variant: the same correlation computed on opportunity-
+   * normalized rates (gifts per tick spent adjacent) instead of raw counts.
+   * Raw counts are confounded by co-location — a pair that spends a window
+   * side by side gives more in both directions whether or not anyone
+   * remembers anything. Rates cancel that. Only present when frames are
+   * supplied.
+   */
+  rateSeries?: number[];
+  rateLateMean?: number;
+  punishmentRate?: { beforeRate: number; afterRate: number;
+                     oppBefore: number; oppAfter: number };
+}
+
+export function windowedReciprocity(events: SimEvent[], ticks: number,
+                                    windowSize = 200,
+                                    frames?: Frame[]): WindowedReport {
+  const W = Math.floor(ticks / windowSize);
+  const key = (a: number, b: number) => a * 1000 + b;
+  const counts = new Map<number, Int32Array>();
+  const pairTotal = new Map<number, number>();   // unordered activity
+  const ukey = (a: number, b: number) => key(Math.min(a, b), Math.max(a, b));
+
+  for (const e of events) {
+    if (e.type !== 'give') continue;
+    const w = Math.min(W - 1, Math.floor(e.tick / windowSize));
+    let row = counts.get(key(e.a, e.b));
+    if (!row) counts.set(key(e.a, e.b), row = new Int32Array(W));
+    row[w]++;
+    pairTotal.set(ukey(e.a, e.b), (pairTotal.get(ukey(e.a, e.b)) ?? 0) + 1);
+  }
+
+  const pairs: [number, number][] = [];
+  for (const [uk, total] of pairTotal) {
+    if (total >= 3) pairs.push([Math.floor(uk / 1000), uk % 1000]);
+  }
+
+  const corrSeries: number[] = [];
+  for (let w = 0; w < W; w++) {
+    const xs: number[] = [], ys: number[] = [];
+    for (const [a, b] of pairs) {
+      const ab = counts.get(key(a, b))?.[w] ?? 0;
+      const ba = counts.get(key(b, a))?.[w] ?? 0;
+      xs.push(ab, ba);
+      ys.push(ba, ab);
+    }
+    corrSeries.push(xs.length >= 12 ? pearson(xs, ys) : NaN);
+  }
+  const late = corrSeries.slice(Math.floor(W / 2)).filter(Number.isFinite);
+  const lateMean = late.length
+    ? Math.round(late.reduce((s, v) => s + v, 0) / late.length * 1000) / 1000
+    : NaN;
+
+  let pEvents = 0, giftsBefore = 0, giftsAfter = 0;
+  for (const e of events) {
+    const harm = e.type === 'take' || e.type === 'attack' ||
+                 (e.type === 'loot' && e.w);
+    if (!harm) continue;
+    if (e.tick < windowSize || e.tick > ticks - windowSize) continue;
+    pEvents++;
+    for (const g of events) {
+      if (g.type !== 'give' || g.a !== e.b || g.b !== e.a) continue;
+      if (g.tick >= e.tick - windowSize && g.tick < e.tick) giftsBefore++;
+      else if (g.tick >= e.tick && g.tick < e.tick + windowSize) giftsAfter++;
+    }
+  }
+
+  const report: WindowedReport = {
+    windowSize, corrSeries, lateMean, pairsUsed: pairs.length,
+    punishment: { events: pEvents, giftsBefore, giftsAfter },
+  };
+
+  if (frames) {
+    // adjacency ticks per ordered pair per window (giver able to give)
+    const opp = new Map<number, Int32Array>();
+    for (const f of frames) {
+      const w = Math.min(W - 1, Math.floor(f.tick / windowSize));
+      for (const [idA, xA, yA, , loadA] of f.agents) {
+        if (loadA < GIVE_ABLE) continue;
+        for (const [idB, xB, yB] of f.agents) {
+          if (idB === idA) continue;
+          if (Math.max(Math.abs(xA - xB), Math.abs(yA - yB)) > 1) continue;
+          let row = opp.get(key(idA, idB));
+          if (!row) opp.set(key(idA, idB), row = new Int32Array(W));
+          row[w]++;
+        }
+      }
+    }
+    const rateSeries: number[] = [];
+    for (let w = 0; w < W; w++) {
+      const xs: number[] = [], ys: number[] = [];
+      for (const [a, b] of pairs) {
+        const oAB = opp.get(key(a, b))?.[w] ?? 0;
+        const oBA = opp.get(key(b, a))?.[w] ?? 0;
+        if (oAB < 15 || oBA < 15) continue;
+        const rAB = (counts.get(key(a, b))?.[w] ?? 0) / oAB;
+        const rBA = (counts.get(key(b, a))?.[w] ?? 0) / oBA;
+        xs.push(rAB, rBA);
+        ys.push(rBA, rAB);
+      }
+      rateSeries.push(xs.length >= 12 ? pearson(xs, ys) : NaN);
+    }
+    const rlate = rateSeries.slice(Math.floor(W / 2)).filter(Number.isFinite);
+    report.rateSeries = rateSeries;
+    report.rateLateMean = rlate.length
+      ? Math.round(rlate.reduce((s, v) => s + v, 0) / rlate.length * 1000) / 1000
+      : NaN;
+
+    // punishment, opportunity-normalized: victim→transgressor give rate
+    let oppBefore = 0, oppAfter = 0;
+    for (const e of events) {
+      const harm = e.type === 'take' || e.type === 'attack' ||
+                   (e.type === 'loot' && e.w);
+      if (!harm) continue;
+      if (e.tick < windowSize || e.tick > ticks - windowSize) continue;
+      for (const f of frames) {
+        if (f.tick < e.tick - windowSize || f.tick >= e.tick + windowSize) continue;
+        const va = f.agents.find(r => r[0] === e.b);
+        const ta = f.agents.find(r => r[0] === e.a);
+        if (!va || !ta || va[4] < GIVE_ABLE) continue;
+        if (Math.max(Math.abs(va[1] - ta[1]), Math.abs(va[2] - ta[2])) > 1) continue;
+        if (f.tick < e.tick) oppBefore++; else oppAfter++;
+      }
+    }
+    report.punishmentRate = {
+      beforeRate: oppBefore ? Math.round(giftsBefore / oppBefore * 1e4) / 1e4 : NaN,
+      afterRate: oppAfter ? Math.round(giftsAfter / oppAfter * 1e4) / 1e4 : NaN,
+      oppBefore, oppAfter,
+    };
+  }
+  return report;
+}
+
 export function gini(values: number[]): number {
   const v = values.filter(x => x >= 0).sort((a, b) => a - b);
   const n = v.length;

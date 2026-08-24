@@ -97,7 +97,6 @@ export interface Episode {
 export interface SocialRecord {
   trust: number;        // -1..1, learned
   familiarity: number;  // 0..1
-  debt: number;         // net value received from them (positive = I owe)
   lastTick: number;
   lastLedger: number;   // ledger id of the most recent update to this record
 }
@@ -162,6 +161,6 @@ export interface SimConfig {
   seed: number;
   stream: number;
   ticks: number;
-  /** freeze social memory (trust/familiarity/debt) — the §5 control */
+  /** freeze social memory (trust/familiarity) — the §5 control */
   ablateSocial: boolean;
 }

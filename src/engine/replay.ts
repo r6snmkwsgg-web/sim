@@ -141,7 +141,7 @@ export function replay(seed: number, entries: LedgerEntry[]): Replica {
         break;
       case 'mem.trust': {
         const rec = socialMut(agents[d.a], d.b);
-        rec.trust = d.tr; rec.familiarity = d.fa; rec.debt = d.de;
+        rec.trust = d.tr; rec.familiarity = d.fa;
         rec.lastTick = d.lt; rec.lastLedger = e.id;
         break;
       }

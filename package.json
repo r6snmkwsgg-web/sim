@@ -10,6 +10,7 @@
     "demo": "npm run -s build && node dist/cli/run.js --seed 11 --stream 1 --out runs/demo && node dist/cli/run.js --seed 11 --stream 1 --ablate-social --out runs/demo-ablated",
     "sweep": "npm run -s build && node dist/cli/sweep.js",
     "trace": "npm run -s build && node dist/cli/trace.js",
+    "verify": "npm run -s build && node dist/cli/verify.js",
     "view": "npm run -s build && node dist/cli/serve.js",
     "test": "npm run -s build && node --test dist/test/*.test.js"
   },

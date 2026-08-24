@@ -176,14 +176,21 @@ export class Sim {
     const causes: number[] = [];
     for (const ep of dec.cites) if (ep.ledger >= 0) causes.push(ep.ledger);
     const target = actionTarget(dec.action);
+    // snapshot of the social memory actually read while scoring this action —
+    // the live memory→decision edge, inspectable per decision (§9 thought log)
+    let soc: { b: number; tr: number; fa: number } | undefined;
     if (target >= 0) {
       const rec = a.social.get(target);
       if (rec && rec.lastLedger >= 0) causes.push(rec.lastLedger);
+      soc = { b: target,
+              tr: Math.round((rec?.trust ?? 0) * 1000) / 1000,
+              fa: Math.round((rec?.familiarity ?? 0) * 1000) / 1000 };
     }
     const decId = this.ledger.append(t, 'agent', 'decision', a.id, {
       act: dec.action, intent: dec.intent,
       score: Math.round(dec.rawScore * 1000) / 1000,
       top: dec.top, w: dec.driveWeights,
+      ...(soc ? { soc } : {}),
     }, causes);
 
     this.resolve(a, dec.action, dec.intent, decId, t);
@@ -294,9 +301,8 @@ export class Sim {
                      Math.min(1, 0.6 + value / 30), eid);
         // the receiver learns the giver can be counted on; the giver warms too
         this.social(b, a.id, P.TRUST_GIFT * Math.min(1.6, value / 9),
-                    P.FAMILIARITY_STEP * 3, value, t, eid);
-        this.social(a, b.id, P.TRUST_GIFT_GIVER, P.FAMILIARITY_STEP * 3,
-                    -value, t, eid);
+                    P.FAMILIARITY_STEP * 3, t, eid);
+        this.social(a, b.id, P.TRUST_GIFT_GIVER, P.FAMILIARITY_STEP * 3, t, eid);
         break;
       }
 
@@ -325,7 +331,7 @@ export class Sim {
         const value = amt * P.RESOURCES[k].nutrition;
         this.episode(b, t, 'theft-in', a.id, b.x, b.y, k, amt, 0.9, eid);
         this.social(b, a.id, P.TRUST_THEFT * Math.min(1.5, 0.5 + value / 14),
-                    P.FAMILIARITY_STEP * 2, -value, t, eid);
+                    P.FAMILIARITY_STEP * 2, t, eid);
         this.witness(a, b, t, 'theft-seen', eid, P.TRUST_THEFT * 0.45);
         break;
       }
@@ -348,14 +354,13 @@ export class Sim {
           const seen = owner.alive && chebA(owner, a) <= P.VISION;
           this.events.push({ tick: t, type: 'loot', a: a.id, b: act.owner,
                              k: act.kind, amt, ledger: eid, w: seen });
-          const value = amt * P.RESOURCES[act.kind].nutrition;
           // the owner only learns of it if they can see it happen (§3.3:
           // imperfect information is what makes defection viable)
           if (seen) {
             this.episode(owner, t, 'theft-in', a.id, a.x, a.y, act.kind, amt,
                          0.9, eid);
             this.social(owner, a.id, P.TRUST_THEFT, P.FAMILIARITY_STEP * 2,
-                        -value, t, eid);
+                        t, eid);
           }
           this.witness(a, owner, t, 'theft-seen', eid, P.TRUST_THEFT * 0.45);
         }
@@ -386,8 +391,7 @@ export class Sim {
                            amt: dmg, ledger: eid });
         this.episode(b, t, 'attack-in', a.id, b.x, b.y, -1, dmg, 1.0, eid);
         this.episode(a, t, 'attack-out', b.id, a.x, a.y, -1, dmg, 0.5, eid);
-        this.social(b, a.id, P.TRUST_ATTACK, P.FAMILIARITY_STEP * 2,
-                    -energyValue(spoil), t, eid);
+        this.social(b, a.id, P.TRUST_ATTACK, P.FAMILIARITY_STEP * 2, t, eid);
         this.witness(a, b, t, 'attack-seen', eid, P.TRUST_ATTACK * 0.4);
         break;
       }
@@ -514,17 +518,16 @@ export class Sim {
 
   /** update owner's social record of `other`; frozen under ablation (§5) */
   private social(owner: AgentState, other: number, dTrust: number, dFam: number,
-                 dDebt: number, t: number, cause: number): void {
+                 t: number, cause: number): void {
     if (this.cfg.ablateSocial || !owner.alive) return;
     const rec = socialMut(owner, other);
     const causes = rec.lastLedger >= 0 ? [cause, rec.lastLedger] : [cause];
     rec.trust = clampTrust(rec.trust + dTrust);
     rec.familiarity = Math.min(1, rec.familiarity + dFam);
-    rec.debt += dDebt;
     rec.lastTick = t;
     rec.lastLedger = this.ledger.append(t, 'agent', 'mem.trust', owner.id, {
       a: owner.id, b: other,
-      tr: rec.trust, fa: rec.familiarity, de: rec.debt, lt: t,
+      tr: rec.trust, fa: rec.familiarity, lt: t,
     }, causes);
   }
 
@@ -535,7 +538,7 @@ export class Sim {
       if (!o.alive || o.id === actor.id || o.id === victim.id) continue;
       if (cheb(o.x, o.y, actor.x, actor.y) > P.VISION) continue;
       this.episode(o, t, type, actor.id, actor.x, actor.y, -1, 0, 0.6, eventId);
-      this.social(o, actor.id, dTrust, P.FAMILIARITY_STEP, 0, t, eventId);
+      this.social(o, actor.id, dTrust, P.FAMILIARITY_STEP, t, eventId);
     }
   }
 

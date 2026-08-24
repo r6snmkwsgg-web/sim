@@ -7,7 +7,7 @@ import type { AgentState, Episode, EpisodeType, SocialRecord } from '../core/typ
  *  - episodic: a bounded ring buffer per agent. Bounded means lossy, and
  *    lossy is load-bearing: perfect recall would destroy the
  *    imperfect-information dynamics the milestone is testing.
- *  - social: per-relationship trust / familiarity / debt. Asymmetric —
+ *  - social: per-relationship trust / familiarity. Asymmetric —
  *    A's record of B is not B's record of A — and built only from events
  *    the owner directly experienced or witnessed.
  *
@@ -52,7 +52,7 @@ export function byType(...types: EpisodeType[]): (ep: Episode) => number {
   return ep => (set.has(ep.type) ? 1 : 0);
 }
 
-const NEUTRAL: SocialRecord = { trust: 0, familiarity: 0, debt: 0, lastTick: -1, lastLedger: -1 };
+const NEUTRAL: SocialRecord = { trust: 0, familiarity: 0, lastTick: -1, lastLedger: -1 };
 
 /** Read-only view of A's model of `other` (neutral default for strangers). */
 export function socialOf(a: AgentState, other: number): SocialRecord {
@@ -62,7 +62,7 @@ export function socialOf(a: AgentState, other: number): SocialRecord {
 export function socialMut(a: AgentState, other: number): SocialRecord {
   let r = a.social.get(other);
   if (!r) {
-    r = { trust: 0, familiarity: 0, debt: 0, lastTick: -1, lastLedger: -1 };
+    r = { trust: 0, familiarity: 0, lastTick: -1, lastLedger: -1 };
     a.social.set(other, r);
   }
   return r;

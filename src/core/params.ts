@@ -3,8 +3,8 @@
  *
  * The emergence claim (§5) is only meaningful if the utility function's shape
  * is fixed and inspectable. If you tune anything, tune it here, and re-run the
- * ablation control — the reciprocity contingency must come from social memory,
- * not from a parameter that hard-codes it.
+ * ablation control — the target pattern must come from social memory, not
+ * from a parameter that hard-codes it.
  */
 
 export const P = {
