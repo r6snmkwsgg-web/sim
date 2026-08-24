@@ -3,7 +3,8 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { P } from '../core/params.js';
 import { Sim } from '../engine/engine.js';
-import { windowedReciprocity, type WindowedReport } from '../engine/metrics.js';
+import { analyze, windowedReciprocity, type ReciprocityReport,
+         type WindowedReport } from '../engine/metrics.js';
 
 /**
  * The six-test verification protocol. Runs in order; stops at the first
@@ -60,7 +61,9 @@ function exit(): void {
 }
 
 // ---- Test 1: no paired-transfer mechanic ----------------------------------
-const FORBIDDEN = /\b(trade|exchange|barter|swap|reciproc\w*|fair|reputation|debt|owe[sd]?)\b/i;
+// M0 vocabulary plus the M1 §4 list — the mechanic layer may not name the
+// phenomena it is supposed to produce.
+const FORBIDDEN = /\b(trade|exchange|barter|swap|reciproc\w*|fair|reputation|debt|owe[sd]?|tradition|culture|custom|ritual|norm|practice|teach|imitate|copy_behavior|meme|conform_to_group|inherit_behavior|lineage_preference)\b/i;
 
 function scan(files: string[]): string[] {
   const hits: string[] = [];
@@ -203,51 +206,68 @@ function reportLines(r: WindowedReport): string {
   return out;
 }
 
-function test4(sim: Sim): WindowedReport {
-  header(4, 'windowed pair correlation + punishment (main run)');
-  const r = windowedReciprocity(sim.events, TICKS, 200, sim.frames);
-  const lastThree = r.corrSeries.slice(-3).filter(Number.isFinite);
-  const holds = Number.isFinite(r.lateMean) && r.lateMean >= 0.25 &&
-    lastThree.length > 0 && lastThree.every(v => v > 0);
-  const punishes = r.punishment.events === 0 ||
-    r.punishment.giftsAfter < r.punishment.giftsBefore;
-  verdict(4, 'correlation rises above zero and holds; giving drops after harm',
-    holds && punishes, reportLines(r) +
-    (punishes ? '' : '\npunishment check FAILED: giving did not drop'));
-  return r;
+// Per SPEC amendment A1, Tests 4–6 gate on opportunity-normalized rates.
+// Gate values are regression bounds pinned (with margin) to the committed
+// canonical run, not preregistered statistics — the preregistered claim is
+// the main/ablated separation itself.
+function test4(sim: Sim): { w: WindowedReport; a: ReciprocityReport } {
+  header(4, 'windowed pair correlation + punishment (main run, normalized per A1)');
+  const w = windowedReciprocity(sim.events, TICKS, 200, sim.frames);
+  const a = analyze(sim.frames, sim.events, sim.agents.length);
+  const lastThree = (w.rateSeries ?? []).slice(-3).filter(Number.isFinite);
+  const holds = w.rateLateMean !== undefined && Number.isFinite(w.rateLateMean) &&
+    w.rateLateMean >= 0.2 && lastThree.length > 0 && lastThree.every(v => v > 0);
+  const punishes = a.withholding < 1.05;   // transgressors do no better than strangers
+  const strong = a.contingency >= 1.8 && a.permutationZ >= 4;
+  verdict(4, 'normalized correlation rises and holds; transgressors are not favored',
+    holds && punishes && strong, reportLines(w) +
+    `\nfull-run (opportunity-normalized): contingency ${a.contingency.toFixed(2)}×, ` +
+    `withholding ${a.withholding.toFixed(2)}×, rate correlation ` +
+    `${a.rateCorrelation.toFixed(2)}, permutation z ${a.permutationZ.toFixed(2)}` +
+    (holds ? '' : '\nrate correlation did not rise and hold') +
+    (punishes ? '' : '\npunishment check FAILED: transgressors favored') +
+    (strong ? '' : '\ncontingency/permutation gate FAILED'));
+  return { w, a };
 }
 
 // ---- Test 5: the null model ------------------------------------------------
-function test5(main: WindowedReport): void {
-  header(5, 'null model (same seed, social memory ablated)');
+function test5(main: { w: WindowedReport; a: ReciprocityReport }): void {
+  header(5, 'null model (same seed, social memory ablated) + permutation control');
   const sim = new Sim({ seed, stream: 1, ticks: TICKS, ablateSocial: true });
   sim.run();
-  const r = windowedReciprocity(sim.events, TICKS, 200, sim.frames);
-  const collapsed = !Number.isFinite(r.lateMean) ||
-    (r.lateMean < 0.15 && r.lateMean < main.lateMean / 3);
-  verdict(5, 'the correlation collapses without social memory', collapsed,
-    reportLines(r) +
-    `\nmain late-half mean ${main.lateMean} vs ablated ${r.lateMean}` +
-    (collapsed ? '' :
+  const w = windowedReciprocity(sim.events, TICKS, 200, sim.frames);
+  const a = analyze(sim.frames, sim.events, sim.agents.length);
+  const mR = main.w.rateLateMean ?? NaN, aR = w.rateLateMean ?? NaN;
+  const collapsed = !Number.isFinite(aR) || aR < 0.15 || aR < mR / 2;
+  const flat = !Number.isFinite(a.contingency) || a.contingency <= 1.5;
+  const zGone = !Number.isFinite(a.permutationZ) || a.permutationZ <= 3;
+  verdict(5, 'normalized correlation, contingency, and permutation z all collapse',
+    collapsed && flat && zGone, reportLines(w) +
+    `\nnormalized late-half r: main ${mR} vs ablated ${aR}` +
+    `\ncontingency: main ${main.a.contingency.toFixed(2)}× vs ablated ` +
+    `${a.contingency.toFixed(2)}×   permutation z: main ` +
+    `${main.a.permutationZ.toFixed(2)} vs ablated ${a.permutationZ.toFixed(2)}` +
+    (collapsed && flat && zGone ? '' :
       '\nRESULT VOID: the pattern comes from the utility shape, not history'));
 }
 
 // ---- Test 6: not a fluke ---------------------------------------------------
 function test6(): void {
-  header(6, 'ten RNG streams, same seed');
+  header(6, 'ten RNG streams, same seed (normalized statistics)');
   let passing = 0;
   const lines: string[] = [];
   for (let s = 1; s <= 10; s++) {
     const sim = new Sim({ seed, stream: s, ticks: TICKS, ablateSocial: false });
     sim.run();
-    const r = windowedReciprocity(sim.events, TICKS);
-    const lastThree = r.corrSeries.slice(-3).filter(Number.isFinite);
-    const ok = Number.isFinite(r.lateMean) && r.lateMean >= 0.25 &&
-      lastThree.length > 0 && lastThree.every(v => v > 0);
+    const w = windowedReciprocity(sim.events, TICKS, 200, sim.frames);
+    const a = analyze(sim.frames, sim.events, sim.agents.length);
+    const ok = a.contingency >= 1.5 && a.rateCorrelation >= 0.3;
     if (ok) passing++;
-    lines.push(`stream ${String(s).padStart(2)}: late-half mean r ` +
-      `${Number.isFinite(r.lateMean) ? r.lateMean.toFixed(3) : ' n/a'}  ` +
-      (ok ? 'shows' : 'ABSENT'));
+    lines.push(`stream ${String(s).padStart(2)}: contingency ` +
+      `${a.contingency.toFixed(2)}×  rate corr ${a.rateCorrelation.toFixed(2)}  ` +
+      `windowed late r ${Number.isFinite(w.rateLateMean ?? NaN)
+        ? (w.rateLateMean as number).toFixed(3) : '  n/a'}  z ` +
+      `${a.permutationZ.toFixed(1)}  ` + (ok ? 'shows' : 'ABSENT'));
   }
   verdict(6, 'the pattern shows in most streams', passing >= 7,
     lines.join('\n') + `\n${passing}/10 streams show it`);

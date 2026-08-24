@@ -1,3 +1,4 @@
+import { RNG } from '../core/rng.js';
 import type { Frame, SimEvent } from './engine.js';
 
 /**
@@ -36,6 +37,14 @@ export interface ReciprocityReport {
    * what remains positive only if giving is *directed back* at givers.
    */
   rateCorrelation: number;
+  /**
+   * Permutation control (SPEC amendment A1 / M1 §5.5 shape): scatter each
+   * agent's counted gives uniformly across its own opportunities, class-blind,
+   * holding per-agent totals constant. z = how many standard deviations the
+   * observed prior-giver give count sits above that null. A metric that can
+   * be gamed by choice-of-statistic cannot manufacture this separation.
+   */
+  permutationZ: number;
   totalGives: number;
   totalDefections: number;    // takes + attacks + loots
   coopRatio: number;
@@ -68,6 +77,8 @@ export function analyze(frames: Frame[], events: SimEvent[],
   const gives: Record<Class, number> = { priorGiver: 0, hostile: 0, neutral: 0 };
   const pairOpp = new Map<number, number>();     // ordered-pair opportunities
   const pairGive = new Map<number, number>();    // ordered-pair gives
+  const oppLog = new Map<number, Class[]>();     // per-agent opportunity classes
+  const giveTotal = new Map<number, number>();   // per-agent counted gives
   const giftMatrix: number[][] =
     Array.from({ length: nAgents }, () => new Array(nAgents).fill(0));
   const giftCount: number[][] =
@@ -102,9 +113,13 @@ export function analyze(frames: Frame[], events: SimEvent[],
         opportunities[cls]++;
         const pk = key(idA, idB);
         pairOpp.set(pk, (pairOpp.get(pk) ?? 0) + 1);
+        let log = oppLog.get(idA);
+        if (!log) oppLog.set(idA, log = []);
+        log.push(cls);
         if (givesNow.has(pk)) {
           gives[cls]++;
           pairGive.set(pk, (pairGive.get(pk) ?? 0) + 1);
+          giveTotal.set(idA, (giveTotal.get(idA) ?? 0) + 1);
         }
       }
     }
@@ -145,6 +160,8 @@ export function analyze(frames: Frame[], events: SimEvent[],
     }
   }
 
+  const permutationZ = permutationTest(oppLog, giveTotal, gives.priorGiver);
+
   // pairwise rate correlation (see the field's doc comment)
   const xs: number[] = [], ys: number[] = [];
   const MIN_OPP = 25;
@@ -166,6 +183,7 @@ export function analyze(frames: Frame[], events: SimEvent[],
     withholding: safe(rates.hostile, rates.neutral),
     reciprocalDyads,
     rateCorrelation,
+    permutationZ,
     totalGives: cumGives,
     totalDefections: cumDef,
     coopRatio: safe(cumGives, cumDef),
@@ -174,6 +192,41 @@ export function analyze(frames: Frame[], events: SimEvent[],
     giftMatrix: giftMatrix.map(row => row.map(v => Math.round(v * 10) / 10)),
     series,
   };
+}
+
+function permutationTest(oppLog: Map<number, Class[]>,
+                         giveTotal: Map<number, number>,
+                         observedPriorGiver: number, reps = 300): number {
+  // deterministic: metrics must be a pure function of the recording
+  const rng = new RNG(1299709, 'permutation');
+  const agents = [...oppLog.entries()].filter(([id]) => giveTotal.get(id));
+  if (agents.length === 0) return NaN;
+  const nulls = new Float64Array(reps);
+  for (let r = 0; r < reps; r++) {
+    let count = 0;
+    for (const [id, log] of agents) {
+      const g = giveTotal.get(id)!;
+      // sample g distinct opportunity slots via partial Fisher–Yates
+      const n = log.length;
+      const idx = new Int32Array(n);
+      for (let i = 0; i < n; i++) idx[i] = i;
+      const take = Math.min(g, n);
+      for (let i = 0; i < take; i++) {
+        const j = i + rng.int(n - i);
+        const tmp = idx[i]; idx[i] = idx[j]; idx[j] = tmp;
+        if (log[idx[i]] === 'priorGiver') count++;
+      }
+    }
+    nulls[r] = count;
+  }
+  let mean = 0;
+  for (const v of nulls) mean += v;
+  mean /= reps;
+  let sd = 0;
+  for (const v of nulls) sd += (v - mean) ** 2;
+  sd = Math.sqrt(sd / (reps - 1));
+  if (sd < 1e-9) return NaN;
+  return Math.round(((observedPriorGiver - mean) / sd) * 100) / 100;
 }
 
 function pearson(xs: number[], ys: number[]): number {

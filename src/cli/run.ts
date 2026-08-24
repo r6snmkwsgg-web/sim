@@ -119,7 +119,8 @@ export function summarize(report: ReturnType<typeof analyze>,
       ` (${r.gives.hostile}/${r.opportunities.hostile})`,
     `reciprocity contingency ${fmt(r.contingency)}×   ` +
       `withholding ${fmt(r.withholding)}×   reciprocal dyads ${r.reciprocalDyads}` +
-      `   rate correlation ${fmt(r.rateCorrelation)}`,
+      `   rate correlation ${fmt(r.rateCorrelation)}` +
+      `   permutation z ${fmt(r.permutationZ)}`,
   ];
   return lines.join('\n');
 }

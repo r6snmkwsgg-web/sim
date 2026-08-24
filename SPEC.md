@@ -214,3 +214,17 @@ You choose a seed. You set the physics, the biology, the scarcity. You press sta
 Then you watch a world you do not control invent things you did not think of, for reasons you can trace and did not intend.
 > *"I wrote the rules. I have no idea what happens next — and I can prove I didn't write this part."*
 **END OF SPECIFICATION**
+
+---
+
+## Amendments
+
+**A1 (M0 verification, adopted before M1).** Test 4 of the M0 verification
+protocol is measured on **opportunity-normalized rates** (events per adjacent
+tick), not raw counts. Raw pairwise counts measure adjacency plus the
+phenomenon, and adjacency dominates — the M0 ablated control produced a raw
+windowed correlation of 0.56 with no social memory at all. Every milestone
+from here inherits this rule. The raw-count version produces a false negative
+at every scale.
+
+Milestone specifications after M0 live beside this file: [SPEC-M1.md](SPEC-M1.md).
