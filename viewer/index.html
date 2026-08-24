@@ -112,10 +112,10 @@
   </div>
   <aside>
     <nav>
-      <button data-tab="dossier" data-on="1">DOSSIER</button>
+      <button data-tab="dossier" data-on="0">DOSSIER</button>
       <button data-tab="events" data-on="0">EVENTS</button>
       <button data-tab="trace" data-on="0">TRACE</button>
-      <button data-tab="metrics" data-on="0">METRICS</button>
+      <button data-tab="metrics" data-on="1">METRICS</button>
     </nav>
     <div id="panel"></div>
   </aside>
@@ -154,7 +154,7 @@ let TR = null;         // traceable
 let T = 0;             // current tick (float while playing)
 let playing = false, speed = 16;
 let selAgent = -1, selEvent = -1, traceRoot = -1;
-let tab = 'dossier';
+let tab = 'metrics';
 let terrain = null;    // offscreen elevation canvas
 let frameIdx = new Map(), giftCum = null, giftCumTick = -1;
 
