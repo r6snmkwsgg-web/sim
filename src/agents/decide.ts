@@ -10,6 +10,8 @@ import { m1NodeSpec } from '../world/world.js';
 /** per-decision context for Milestone 1 runs; absent for M0 */
 export interface M1Opts {
   age: number;
+  /** ablation A′: emitted-mark choice ignores what has been heard */
+  tokenBiasOff?: boolean;
 }
 
 /**
@@ -313,7 +315,7 @@ export function decide(a: AgentState, pc: Percept, ownCaches: Cache[],
       for (let i = 0; i < M1.TOKENS; i++) heardTotal += a.tokenObs[i] * decay;
     }
     for (let i = 0; i < M1.TOKENS; i++) {
-      const share = a.tokenObs
+      const share = a.tokenObs && !m1.tokenBiasOff
         ? (a.tokenObs[i] * decay) / (heardTotal + M1.OBS_TOKEN_DAMP) : 0;
       const s = M1.OBS_TOKEN_W * conf * share + P.NOISE_TEMP * rng.gumbel();
       if (s > bestTokS) { bestTokS = s; bestTok = i; }

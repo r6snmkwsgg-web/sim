@@ -53,6 +53,14 @@ test('M1 runs are deterministic per (seed, stream)', () => {
   assert.equal(a.ledger.entries.length, b.ledger.entries.length);
 });
 
+test('M1 canonical state is pinned across M2 development', () => {
+  // The M1 protocol result is committed; M2 work must not disturb M1 runs.
+  const s = new Sim({ seed: 7, stream: 2, ticks: 2500, ablateSocial: false,
+                      m1: true });
+  s.run();
+  assert.equal(stateHash(s.world, s.agents), 'f7c6eab310da05a4');
+});
+
 test('M1 ledger replay reproduces the full state (births, deaths, watches)', () => {
   const sim = new Sim({ seed: 7, stream: 2, ticks: 2500, ablateSocial: false,
                         m1: true });

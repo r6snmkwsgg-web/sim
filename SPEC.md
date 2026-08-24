@@ -227,4 +227,17 @@ windowed correlation of 0.56 with no social memory at all. Every milestone
 from here inherits this rule. The raw-count version produces a false negative
 at every scale.
 
-Milestone specifications after M0 live beside this file: [SPEC-M1.md](SPEC-M1.md).
+**A2 (M1 verification, adopted before M2).** The M1 §5.5 permutation
+control gates on a **within-agent option permutation**: each agent's
+exposure multiset is held constant and the option each exposure count
+attaches to is permuted. The preregistered across-acts label shuffle is
+still computed and reported, but it preserves the population's
+option-frequency structure and therefore cannot fall to ~1.0 in a converged
+population (M1 canonical stream: observed contingency 11.45×, label-shuffle
+null 3.04×, within-agent null 1.00×). The spec's literal actor permutation
+is a no-op under the §5.3 exposure metric, which never conditions on actor
+identity. Same lesson as A1: a null model must break exactly the linkage
+the claim rests on, and nothing else.
+
+Milestone specifications after M0 live beside this file:
+[SPEC-M1.md](SPEC-M1.md), [SPEC-M2.md](SPEC-M2.md).

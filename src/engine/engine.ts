@@ -292,7 +292,9 @@ export class Sim {
     this.noteNodes(a, pc, t);
     const ownCaches = this.world.caches.filter(c => c.owner === a.id);
     const m1opts: M1Opts | undefined = this.cfg.m1
-      ? { age: t - a.bornTick } : undefined;
+      ? { age: t - a.bornTick,
+          ...(this.cfg.ablateTokenBias ? { tokenBiasOff: true } : {}) }
+      : undefined;
     const dec = decide(a, pc, ownCaches, this.noiseRng, m1opts);
 
     const causes: number[] = [];

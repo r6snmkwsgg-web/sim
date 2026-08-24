@@ -190,6 +190,10 @@ export interface SimConfig {
   agents?: number;
   /** ablation A — disable the observation channel entirely */
   ablateObservation?: boolean;
+  /** ablation A′ — keep watched-gather learning, disable only the token
+   *  frequency bias (separates the channel's survival value from its
+   *  transmission role) */
+  ablateTokenBias?: boolean;
   /** ablation B — children get random traits instead of midparent */
   ablateInheritance?: boolean;
   /** ablation C — children relocate to a random cell at independence */
