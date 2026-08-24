@@ -1,4 +1,4 @@
-import { P, type TraitName } from '../core/params.js';
+import { M1, P, type TraitName } from '../core/params.js';
 import { RNG } from '../core/rng.js';
 import type { AgentState } from '../core/types.js';
 
@@ -8,34 +8,49 @@ import type { AgentState } from '../core/types.js';
  * hand-written utility function in decide.ts. Zero LLM calls.
  */
 
-export function createAgents(seed: number): AgentState[] {
+export function createAgents(seed: number, n: number = P.N_AGENTS,
+                             m1 = false): AgentState[] {
   const rng = new RNG(seed, 'agents');
   const agents: AgentState[] = [];
-  for (let id = 0; id < P.N_AGENTS; id++) {
+  for (let id = 0; id < n; id++) {
     const traits = {} as Record<TraitName, number>;
     for (const t of P.TRAITS) {
       traits[t] = clamp01(rng.normal(P.TRAIT_MEAN, P.TRAIT_SD));
     }
     const x = 6 + rng.int(P.WORLD - 12);
     const y = 6 + rng.int(P.WORLD - 12);
-    agents.push({
-      id,
-      alive: true,
-      x, y,
-      energy: P.START_ENERGY,
-      health: P.HEALTH_MAX,
-      carried: [0, 0, 0],
-      traits,
-      followTarget: -1,
-      homeX: x, homeY: y,
-      episodic: [],
-      epHead: 0,
-      social: new Map(),
-      bornTick: 0,
-      diedTick: -1,
-    });
+    // founders start age-staggered so mortality doesn't arrive as one wave
+    const bornTick = m1 ? -rng.int(M1.FOUNDER_AGE_MAX) : 0;
+    agents.push(blankAgent(id, x, y, traits, bornTick, 0, [-1, -1],
+                           P.START_ENERGY));
   }
   return agents;
+}
+
+/** shared by founder creation, birth resolution, and ledger replay */
+export function blankAgent(id: number, x: number, y: number,
+                           traits: Record<TraitName, number>, bornTick: number,
+                           gen: number, parents: [number, number],
+                           energy: number): AgentState {
+  return {
+    id,
+    alive: true,
+    x, y,
+    energy,
+    health: P.HEALTH_MAX,
+    carried: [0, 0, 0],
+    traits,
+    followTarget: -1,
+    homeX: x, homeY: y,
+    episodic: [],
+    epHead: 0,
+    social: new Map(),
+    bornTick,
+    diedTick: -1,
+    gen,
+    parents,
+    lastRepro: -1,
+  };
 }
 
 export function clamp01(v: number): number {

@@ -39,7 +39,9 @@ export type Action =
   | { t: 'takeCache'; owner: number; kind: Kind }
   | { t: 'follow'; target: number }
   | { t: 'attack'; target: number }
-  | { t: 'signal'; mode: 0 | 1 }                     // 0 = distress, 1 = abundance ping
+  | { t: 'signal'; mode: 0 | 1 | 2; token?: number } // 0 distress, 1 abundance, 2 contact
+                                                     // token: one of M1.TOKENS
+                                                     // arbitrary marks, no effect
   | { t: 'rest' };
 
 // ---------------------------------------------------------------------------
@@ -57,7 +59,9 @@ export interface AgentPercept {
   load: number;
 }
 export interface SignalPercept {
-  from: number; x: number; y: number; mode: 0 | 1; age: number;
+  from: number; x: number; y: number; mode: 0 | 1 | 2; age: number;
+  /** arbitrary emitted mark (M1), -1 when absent */
+  tok: number;
 }
 export interface CachePercept {
   owner: number; x: number; y: number; q: [number, number, number];
@@ -81,17 +85,19 @@ export interface Percept {
 export type EpisodeType =
   | 'node-seen' | 'gift-in' | 'gift-out' | 'theft-in' | 'theft-seen'
   | 'attack-in' | 'attack-out' | 'attack-seen' | 'signal-heard' | 'ate'
-  | 'starving' | 'gather-sealed';
+  | 'starving' | 'gather-sealed' | 'saw-gather' | 'signaled';
 
 export interface Episode {
   tick: number;
   type: EpisodeType;
   who: number;          // other agent involved, -1 if none
   x: number; y: number;
-  k: number;            // resource kind, -1 if none
+  k: number;            // resource kind, -1 if none (or the token/mark seen)
   amount: number;
   salience: number;     // 0..1
   ledger: number;       // id of the ledger entry that wrote this memory
+  /** M1 watch entries: regard for the actor at the moment of watching */
+  w?: number;
 }
 
 export interface SocialRecord {
@@ -118,8 +124,18 @@ export interface AgentState {
   episodic: Episode[];
   epHead: number;                   // ring buffer write head
   social: Map<number, SocialRecord>;
-  bornTick: number;
+  bornTick: number;                 // negative for age-staggered founders
   diedTick: number;                 // -1 if alive
+  // ---- M1 (SPEC-M1 §3.1–3.2) ---------------------------------------------
+  gen: number;                      // lineage depth from the founder cohort
+  parents: [number, number];        // agent ids, [-1,-1] for founders
+  lastRepro: number;                // tick of most recent offspring, -1 never
+  // Derived accumulators for the observation channel (§3.3), maintained by
+  // writeEpisode from ledgered watch entries; excluded from the state hash
+  // because they are a pure function of the episodic record.
+  tokenObs?: Float64Array;
+  obsGrid?: Float64Array;
+  obsTick?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -145,7 +161,8 @@ export interface Spill {
 }
 
 export interface ActiveSignal {
-  from: number; x: number; y: number; mode: 0 | 1; tick: number;
+  from: number; x: number; y: number; mode: 0 | 1 | 2; tick: number;
+  token?: number;
 }
 
 export interface WorldState {
@@ -155,12 +172,28 @@ export interface WorldState {
   spills: Spill[];
   signals: ActiveSignal[];
   elevation: Float32Array;          // viewer flavor only; does not gate movement
+  /** M1: centres of the three yield-identical pith sites (world structure,
+   *  used by worldgen and the measurement layer; never sent to agents) */
+  siteCenters?: [number, number][];
 }
 
 export interface SimConfig {
   seed: number;
   stream: number;
   ticks: number;
-  /** freeze social memory (trust/familiarity) — the §5 control */
+  /** freeze social memory (trust/familiarity) — the M0 §5 control */
   ablateSocial: boolean;
+  // ---- M1 (SPEC-M1.md) -----------------------------------------------------
+  /** enable generations: mortality, birth, the observation channel */
+  m1?: boolean;
+  /** founder count (M1 default 60; M0 canon stays 20) */
+  agents?: number;
+  /** ablation A — disable the observation channel entirely */
+  ablateObservation?: boolean;
+  /** ablation B — children get random traits instead of midparent */
+  ablateInheritance?: boolean;
+  /** ablation C — children relocate to a random cell at independence */
+  scrambleChildren?: boolean;
+  /** statistical sweep mode: do not retain ledger entries (no replay) */
+  lean?: boolean;
 }

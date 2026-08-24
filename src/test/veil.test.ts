@@ -13,7 +13,7 @@ import { Sim } from '../engine/engine.js';
 const ALLOWED_KEYS = new Set([
   'tick', 'self', 'x', 'y', 'energy', 'health', 'carried', 'cached', 'atmos',
   'nodes', 'k', 'q', 'open', 'agents', 'id', 'band', 'load', 'signals',
-  'from', 'mode', 'age', 'caches', 'owner', 'spills',
+  'from', 'mode', 'age', 'caches', 'owner', 'spills', 'tok',
 ]);
 const FORBIDDEN = /thren|pith|osk|salt|wood|iron|grain|food|berry|stone|gold|winter|summer|season|north|south|east|west/i;
 

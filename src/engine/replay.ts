@@ -1,8 +1,8 @@
-import { P } from '../core/params.js';
+import { M1, P } from '../core/params.js';
 import type {
   AgentState, Cache, Episode, Kind, LedgerEntry, WorldState,
 } from '../core/types.js';
-import { createAgents } from '../agents/agent.js';
+import { blankAgent, createAgents } from '../agents/agent.js';
 import { socialMut, writeEpisode } from '../agents/memory.js';
 import { generateWorld } from '../world/world.js';
 import { applyMemDrift } from './engine.js';
@@ -21,9 +21,11 @@ export interface Replica {
   agents: AgentState[];
 }
 
-export function replay(seed: number, entries: LedgerEntry[]): Replica {
-  const world = generateWorld(seed);
-  const agents = createAgents(seed);
+export function replay(seed: number, entries: LedgerEntry[],
+                       nAgents?: number, m1 = false): Replica {
+  const world = generateWorld(seed, m1);
+  const agents = createAgents(seed,
+    nAgents ?? (m1 ? M1.AGENTS_START : P.N_AGENTS), m1);
   let curTick = -1;
 
   const cacheAt = (owner: number, x: number, y: number): Cache => {
@@ -123,7 +125,22 @@ export function replay(seed: number, entries: LedgerEntry[]): Replica {
       case 'act.signal': {
         const a = agents[d.a];
         a.energy += d.dE;
-        world.signals.push({ from: d.a, x: d.x, y: d.y, mode: d.mode, tick: e.tick });
+        world.signals.push({ from: d.a, x: d.x, y: d.y, mode: d.mode,
+                             tick: e.tick,
+                             ...(d.token !== undefined ? { token: d.token } : {}) });
+        break;
+      }
+      case 'agent.birth': {
+        const child = blankAgent(d.c, d.x, d.y, d.traits, e.tick, d.gen,
+                                 [d.a, d.b], d.e);
+        agents.push(child);
+        agents[d.a].energy += d.dE; agents[d.b].energy += d.dE;
+        agents[d.a].lastRepro = e.tick; agents[d.b].lastRepro = e.tick;
+        break;
+      }
+      case 'agent.scatter': {
+        const a = agents[d.a];
+        a.x = d.x; a.y = d.y; a.homeX = d.x; a.homeY = d.y;
         break;
       }
       case 'agent.death': {
@@ -166,6 +183,7 @@ export function stateHash(world: WorldState, agents: AgentState[]): string {
       e: a.energy, h: a.health, c: a.carried,
       f: a.followTarget, hx: a.homeX, hy: a.homeY,
       died: a.diedTick, eph: a.epHead,
+      born: a.bornTick, g: a.gen, par: a.parents, lr: a.lastRepro,
       epi: a.episodic,
       soc: social,
     }));

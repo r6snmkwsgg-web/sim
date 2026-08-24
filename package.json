@@ -11,6 +11,8 @@
     "sweep": "npm run -s build && node dist/cli/sweep.js",
     "trace": "npm run -s build && node dist/cli/trace.js",
     "verify": "npm run -s build && node dist/cli/verify.js",
+    "m1": "npm run -s build && node --max-old-space-size=6144 dist/cli/m1.js",
+    "m1:sweep": "npm run -s build && node dist/cli/m1-sweep.js",
     "view": "npm run -s build && node dist/cli/serve.js",
     "test": "npm run -s build && node --test dist/test/*.test.js"
   },

@@ -1,13 +1,14 @@
-import { P } from '../core/params.js';
+import { M1, P, type TraitName } from '../core/params.js';
 import { RNG } from '../core/rng.js';
 import type {
   Action, AgentState, Cache, Episode, EpisodeType, Kind, Percept, SimConfig,
   WorldState,
 } from '../core/types.js';
-import { carriedTotal, createAgents, energyValue } from '../agents/agent.js';
-import { decide } from '../agents/decide.js';
+import { blankAgent, carriedTotal, clamp01, createAgents,
+         energyValue } from '../agents/agent.js';
+import { decide, type M1Opts } from '../agents/decide.js';
 import { clampTrust, socialMut, writeEpisode } from '../agents/memory.js';
-import { generateWorld, atmosphere, nodeOpen } from '../world/world.js';
+import { generateWorld, atmosphere, nodeOpen, m1NodeSpec } from '../world/world.js';
 import { Ledger } from './ledger.js';
 
 /**
@@ -28,6 +29,8 @@ export interface SimEvent {
   /** for loot: whether the owner saw it happen (unwitnessed theft is a
    *  defection the victim cannot retaliate against — by design) */
   w?: boolean;
+  /** for M1 signals: the arbitrary token emitted */
+  o?: number;
 }
 
 export interface Frame {
@@ -40,23 +43,37 @@ export class Sim {
   cfg: SimConfig;
   world: WorldState;
   agents: AgentState[];
-  ledger = new Ledger();
+  ledger: Ledger;
   events: SimEvent[] = [];
   frames: Frame[] = [];
   nodeSnaps: { tick: number; q: number[] }[] = [];
   cacheSnaps: { tick: number; c: number[][] }[] = [];
+  /** M1: [tick, agent, x, y, kind] for every successful gather */
+  gathers: number[][] = [];
+  /** M1: [tick, child, gen, parentA, parentB] */
+  births: number[][] = [];
 
   private orderRng: RNG;
   private noiseRng: RNG;
+  private mortalityRng: RNG;
+  private reproRng: RNG;
+  private scatterRng: RNG;
   private lastHarm = new Map<number, number>();          // agent → ledger id
   private nodeSeen = new Map<number, Map<number, number>>(); // agent → node → tick
+  private lastWatch = new Map<number, number>();  // watcher*1e4+actor → tick
+  private agedToDie = new Set<number>();
 
   constructor(cfg: SimConfig) {
     this.cfg = cfg;
-    this.world = generateWorld(cfg.seed);
-    this.agents = createAgents(cfg.seed);
+    this.ledger = new Ledger(!cfg.lean);
+    this.world = generateWorld(cfg.seed, !!cfg.m1);
+    this.agents = createAgents(cfg.seed,
+      cfg.agents ?? (cfg.m1 ? M1.AGENTS_START : P.N_AGENTS), !!cfg.m1);
     this.orderRng = new RNG(cfg.seed, `order:${cfg.stream}`);
     this.noiseRng = new RNG(cfg.seed, `noise:${cfg.stream}`);
+    this.mortalityRng = new RNG(cfg.seed, `mortality:${cfg.stream}`);
+    this.reproRng = new RNG(cfg.seed, `repro:${cfg.stream}`);
+    this.scatterRng = new RNG(cfg.seed, `scatter:${cfg.stream}`);
     for (const a of this.agents) this.nodeSeen.set(a.id, new Map());
   }
 
@@ -73,6 +90,10 @@ export class Sim {
     this.worldMetabolism(t);
     if (!this.cfg.ablateSocial) this.memDrift(t);
     this.world.signals = this.world.signals.filter(s => t - s.tick <= P.SIGNAL_TTL);
+    if (this.cfg.m1) {
+      if (this.cfg.scrambleChildren) this.scramble(t);
+      this.mortality(t);
+    }
 
     const order = this.orderRng.shuffle(
       this.agents.filter(a => a.alive).map(a => a.id));
@@ -82,8 +103,105 @@ export class Sim {
       this.agentTurn(a, t);
     }
     this.deaths(t);
+    if (this.cfg.m1) this.reproduction(t);
     this.record(t);
     this.world.tick = t + 1;
+  }
+
+  // ---- M1 world rules (SPEC-M1 §3.1–3.2) -----------------------------------
+
+  /** age-based hazard (§3.1); the draw is a stochastic event in the ledger */
+  private mortality(t: number): void {
+    for (const a of this.agents) {
+      if (!a.alive) continue;
+      const age = t - a.bornTick;
+      const h = M1.HAZARD_BASE +
+        (age > M1.HAZARD_AGE ? (age - M1.HAZARD_AGE) * M1.HAZARD_SLOPE : 0);
+      if (this.mortalityRng.next() < h) this.agedToDie.add(a.id);
+    }
+  }
+
+  /**
+   * Ablation C (SPEC-M1 §5.4): children relocate to a random site at
+   * independence — a uniformly chosen gather site, not their parents' —
+   * severing the birth-locale correlation while leaving a livable start.
+   */
+  private scramble(t: number): void {
+    const sites = this.world.siteCenters!;
+    for (const a of this.agents) {
+      if (!a.alive || t - a.bornTick !== M1.DEP_AGE || a.gen === 0) continue;
+      const [sx, sy] = sites[this.scatterRng.int(sites.length)];
+      const x = clampW(Math.round(sx + this.scatterRng.normal(0, 5)));
+      const y = clampW(Math.round(sy + this.scatterRng.normal(0, 5)));
+      a.x = x; a.y = y; a.homeX = x; a.homeY = y;
+      this.ledger.append(t, 'stochastic', 'agent.scatter', a.id,
+        { a: a.id, x, y });
+    }
+  }
+
+  /** §3.2 — dumb pairing: adjacent, both surplus and mature, coin flip */
+  private reproduction(t: number): void {
+    const aliveCount = this.agents.reduce((s, a) => s + (a.alive ? 1 : 0), 0);
+    if (aliveCount >= M1.POP_CAP) return;
+    const eligible = (a: AgentState) =>
+      a.alive && t - a.bornTick >= M1.MATURITY &&
+      a.energy >= M1.REPRO_ENERGY &&
+      (t - a.lastRepro >= M1.REPRO_COOLDOWN || a.lastRepro < 0) &&
+      energyValue(a.carried) + this.cachedValue(a.id) >= M1.REPRO_WEALTH;
+    const taken = new Set<number>();
+    const n = this.agents.length;         // children born this tick don't pair
+    for (let i = 0; i < n; i++) {
+      const a = this.agents[i];
+      if (taken.has(a.id) || !eligible(a)) continue;
+      for (let j = i + 1; j < n; j++) {
+        const b = this.agents[j];
+        if (taken.has(b.id) || !eligible(b)) continue;
+        if (Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y)) > 1) continue;
+        if (this.reproRng.next() >= M1.REPRO_CHANCE) continue;
+        this.birth(a, b, t);
+        taken.add(a.id); taken.add(b.id);
+        break;
+      }
+    }
+  }
+
+  private birth(a: AgentState, b: AgentState, t: number): void {
+    const traits = {} as Record<TraitName, number>;
+    for (const tr of P.TRAITS) {
+      // §3.2: traits only — midparent + mutation. Ablation B: random draw.
+      traits[tr] = this.cfg.ablateInheritance
+        ? clamp01(this.reproRng.normal(P.TRAIT_MEAN, P.TRAIT_SD))
+        : clamp01(M1.HERITABILITY * (a.traits[tr] + b.traits[tr]) / 2 +
+                  (1 - M1.HERITABILITY) * this.reproRng.normal(P.TRAIT_MEAN, P.TRAIT_SD) +
+                  this.reproRng.normal(0, M1.MUTATION_SD));
+    }
+    const child = blankAgent(this.agents.length, a.x, a.y, traits, t,
+      Math.max(a.gen, b.gen) + 1, [a.id, b.id], M1.CHILD_ENERGY);
+    this.agents.push(child);
+    this.nodeSeen.set(child.id, new Map());
+    const dE = -M1.REPRO_COST;
+    a.energy += dE; b.energy += dE;
+    a.lastRepro = t; b.lastRepro = t;
+    const eid = this.ledger.append(t, 'stochastic', 'agent.birth', child.id, {
+      c: child.id, a: a.id, b: b.id, x: child.x, y: child.y,
+      gen: child.gen, traits, e: M1.CHILD_ENERGY, dE,
+    });
+    this.births.push([t, child.id, child.gen, a.id, b.id]);
+    // newborns know their parents and parents know their newborn — kinship
+    // is biology, not inherited behavior (§3.2: traits only means the child
+    // copies no memories; these are fresh records everyone writes at birth)
+    this.social(a, child.id, M1.KIN_TRUST, M1.KIN_FAM, t, eid);
+    this.social(b, child.id, M1.KIN_TRUST, M1.KIN_FAM, t, eid);
+    this.social(child, a.id, M1.KIN_TRUST, M1.KIN_FAM, t, eid);
+    this.social(child, b.id, M1.KIN_TRUST, M1.KIN_FAM, t, eid);
+  }
+
+  private cachedValue(id: number): number {
+    let v = 0;
+    for (const c of this.world.caches) {
+      if (c.owner === id) v += energyValue(c.q);
+    }
+    return v;
   }
 
   // ---- world rules ---------------------------------------------------------
@@ -91,7 +209,7 @@ export class Sim {
   private worldRegen(t: number): void {
     const d: [number, number][] = [];
     for (const n of this.world.nodes) {
-      const spec = P.RESOURCES[n.k];
+      const spec = this.cfg.m1 ? m1NodeSpec(n.k) : P.RESOURCES[n.k];
       if (n.q < spec.cap) {
         const dq = Math.min(spec.regen, spec.cap - n.q);
         n.q += dq;
@@ -143,7 +261,9 @@ export class Sim {
     const id = this.ledger.entries.length;      // this entry's id, for lastHarm
     for (const a of this.agents) {
       if (!a.alive) continue;
-      let dE = -Math.min(P.BASE_DRAIN, a.energy);
+      const drain = this.cfg.m1 && t - a.bornTick < M1.DEP_AGE
+        ? P.BASE_DRAIN * M1.DEP_DRAIN : P.BASE_DRAIN;
+      let dE = -Math.min(drain, a.energy);
       let dH = 0;
       if (a.energy + dE <= 0.01) {
         dH -= P.STARVE_DAMAGE;
@@ -171,7 +291,9 @@ export class Sim {
     const pc = this.percept(a, t);
     this.noteNodes(a, pc, t);
     const ownCaches = this.world.caches.filter(c => c.owner === a.id);
-    const dec = decide(a, pc, ownCaches, this.noiseRng);
+    const m1opts: M1Opts | undefined = this.cfg.m1
+      ? { age: t - a.bornTick } : undefined;
+    const dec = decide(a, pc, ownCaches, this.noiseRng, m1opts);
 
     const causes: number[] = [];
     for (const ep of dec.cites) if (ep.ledger >= 0) causes.push(ep.ledger);
@@ -244,8 +366,12 @@ export class Sim {
         } else {
           const g = Math.min(P.RESOURCES[n.k].gatherRate, n.q, room);
           n.q -= g; a.carried[n.k] += g;
-          this.ledger.append(t, 'agent', 'act.gather', a.id,
+          const eid = this.ledger.append(t, 'agent', 'act.gather', a.id,
             { a: a.id, src: 'n', n: n.id, k: n.k, g }, [decId]);
+          if (this.cfg.m1) {
+            this.gathers.push([t, a.id, n.x, n.y, n.k]);
+            this.watched(a, t, n.x, n.y, n.k, g, eid);
+          }
         }
         break;
       }
@@ -397,19 +523,38 @@ export class Sim {
       }
 
       case 'signal': {
-        const dE = -Math.min(P.SIGNAL_COST, a.energy);
+        const dE = -Math.min(this.cfg.m1 ? M1.SIGNAL_COST : P.SIGNAL_COST,
+                             a.energy);
         a.energy += dE;
+        const token = this.cfg.m1 ? (act.token ?? -1) : -1;
         const eid = this.ledger.append(t, 'agent', 'act.signal', a.id,
-          { a: a.id, mode: act.mode, x: a.x, y: a.y, dE }, [decId]);
+          { a: a.id, mode: act.mode, x: a.x, y: a.y, dE,
+            ...(token >= 0 ? { token } : {}) }, [decId]);
         this.world.signals.push({ from: a.id, x: a.x, y: a.y,
-                                  mode: act.mode, tick: t });
+                                  mode: act.mode, tick: t,
+                                  ...(token >= 0 ? { token } : {}) });
         this.events.push({ tick: t, type: 'signal', a: a.id, b: -1,
-                           k: act.mode, amt: 0, ledger: eid });
+                           k: act.mode, amt: 0, ledger: eid,
+                           ...(token >= 0 ? { o: token } : {}) });
+        if (this.cfg.m1) {
+          // the emitter remembers its own call: suppresses repeat distress,
+          // satisfies its own company-seeking, carries no imitation weight
+          this.episode(a, t, 'signaled', -1, a.x, a.y, token, act.mode,
+                       0.2, eid);
+        }
         for (const o of this.agents) {
           if (o.id === a.id || !o.alive) continue;
           if (chebA(o, a) <= P.SIGNAL_RADIUS) {
-            this.episode(o, t, 'signal-heard', a.id, a.x, a.y, -1, act.mode,
-                         act.mode === 0 ? 0.75 : 0.5, eid);
+            // the heard mark (k = token) is the veil-level percept; its
+            // weight exists only when the observation channel is on
+            let w: number | undefined;
+            if (this.cfg.m1 && !this.cfg.ablateObservation && token >= 0) {
+              const rec = o.social.get(a.id);
+              w = Math.min(1.25, 0.4 + 0.6 * Math.max(0, rec?.trust ?? 0) +
+                                 0.25 * (rec?.familiarity ?? 0));
+            }
+            this.episode(o, t, 'signal-heard', a.id, a.x, a.y, token, act.mode,
+                         act.mode === 0 ? 0.75 : 0.5, eid, w);
           }
         }
         break;
@@ -421,7 +566,7 @@ export class Sim {
 
   private deaths(t: number): void {
     for (const a of this.agents) {
-      if (!a.alive || a.health > 0) continue;
+      if (!a.alive || (a.health > 0 && !this.agedToDie.has(a.id))) continue;
       a.alive = false;
       a.diedTick = t;
       a.followTarget = -1;
@@ -431,14 +576,16 @@ export class Sim {
         const sp = this.spillAt(a.x, a.y, true)!;
         for (let k = 0; k < 3; k++) sp.q[k] += drop[k];
       }
-      const causeId = this.lastHarm.get(a.id);
-      const cause = a.energy <= 0.01 ? 'starvation' : 'violence';
-      const eid = this.ledger.append(t, 'world', 'agent.death', a.id,
-        { a: a.id, cause, x: a.x, y: a.y, drop },
+      const aged = a.health > 0 && this.agedToDie.has(a.id);
+      const causeId = aged ? undefined : this.lastHarm.get(a.id);
+      const cause = aged ? 'age' : a.energy <= 0.01 ? 'starvation' : 'violence';
+      const eid = this.ledger.append(t, aged ? 'stochastic' : 'world',
+        'agent.death', a.id, { a: a.id, cause, x: a.x, y: a.y, drop },
         causeId !== undefined ? [causeId] : []);
       this.events.push({ tick: t, type: 'death', a: a.id, b: -1, k: -1,
                          amt: 0, ledger: eid });
     }
+    this.agedToDie.clear();
   }
 
   // ---- perception (§2.2: the veil — structured, schema-only) ---------------
@@ -459,7 +606,7 @@ export class Sim {
     const signals = this.world.signals
       .filter(s => cheb(a.x, a.y, s.x, s.y) <= P.SIGNAL_RADIUS)
       .map(s => ({ from: s.from, x: s.x, y: s.y, mode: s.mode,
-                   age: t - s.tick }));
+                   age: t - s.tick, tok: s.token ?? -1 }));
     const caches = this.world.caches
       .filter(c => cheb(a.x, a.y, c.x, c.y) <= R &&
                    c.q[0] + c.q[1] + c.q[2] > 0.3)
@@ -486,7 +633,8 @@ export class Sim {
   private noteNodes(a: AgentState, pc: Percept, t: number): void {
     const seen = this.nodeSeen.get(a.id)!;
     for (const n of pc.nodes) {
-      if (n.q < 0.3 * P.RESOURCES[n.k].cap) continue;
+      const cap = this.cfg.m1 ? m1NodeSpec(n.k).cap : P.RESOURCES[n.k].cap;
+      if (n.q < 0.3 * cap) continue;
       const node = this.world.nodes.find(nn => nn.x === n.x && nn.y === n.y &&
                                                nn.k === n.k)!;
       const last = seen.get(node.id);
@@ -497,7 +645,8 @@ export class Sim {
       });
       const ep: Episode = { tick: t, type: 'node-seen', who: -1, x: n.x, y: n.y,
                             k: n.k, amount: n.q, salience: 0.4, ledger: eid };
-      this.ledger.entries[eid].data.ep = ep;
+      const entry = this.ledger.get(eid);
+      if (entry) entry.data.ep = ep;
       writeEpisode(a, ep);
     }
   }
@@ -506,13 +655,14 @@ export class Sim {
 
   private episode(a: AgentState, t: number, type: EpisodeType, who: number,
                   x: number, y: number, k: number, amount: number,
-                  salience: number, cause: number): void {
+                  salience: number, cause: number, w?: number): void {
     if (!a.alive) return;
     const eid = this.ledger.append(t, 'agent', 'mem.ep', a.id, { a: a.id, ep: null },
                                    [cause]);
     const ep: Episode = { tick: t, type, who, x, y, k, amount, salience,
-                          ledger: eid };
-    this.ledger.entries[eid].data.ep = ep;
+                          ledger: eid, ...(w !== undefined ? { w } : {}) };
+    const entry = this.ledger.get(eid);
+    if (entry) entry.data.ep = ep;
     writeEpisode(a, ep);
   }
 
@@ -529,6 +679,32 @@ export class Sim {
       a: owner.id, b: other,
       tr: rec.trust, fa: rec.familiarity, lt: t,
     }, causes);
+  }
+
+  /**
+   * The observation channel (SPEC-M1 §3.3): anyone who can see the actor
+   * gather records a low-salience watch entry — action, place, actor, tick —
+   * whose weight is the watcher's regard for the actor at that moment. It is
+   * a percept written to memory, nothing more; the bounded bias it feeds is
+   * applied in the watcher's own scoring. Throttled per (watcher, actor) so
+   * standing beside someone doesn't flood the ledger.
+   */
+  private watched(actor: AgentState, t: number, x: number, y: number,
+                  k: number, amount: number, eventId: number): void {
+    if (this.cfg.ablateObservation) return;
+    for (const o of this.agents) {
+      if (!o.alive || o.id === actor.id) continue;
+      if (cheb(o.x, o.y, actor.x, actor.y) > P.VISION) continue;
+      const key = o.id * 10000 + actor.id;
+      const last = this.lastWatch.get(key);
+      if (last !== undefined && t - last < M1.OBS_THROTTLE) continue;
+      this.lastWatch.set(key, t);
+      const rec = o.social.get(actor.id);
+      const w = Math.min(1.25, 0.4 + 0.6 * Math.max(0, rec?.trust ?? 0) +
+                               0.25 * (rec?.familiarity ?? 0));
+      this.episode(o, t, 'saw-gather', actor.id, x, y, k, amount,
+                   M1.OBS_SALIENCE, eventId, w);
+    }
   }
 
   /** bystanders who can see a transgression remember it too */

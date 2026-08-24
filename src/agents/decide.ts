@@ -1,10 +1,16 @@
-import { P } from '../core/params.js';
+import { M1, P } from '../core/params.js';
 import type { RNG } from '../core/rng.js';
 import type {
   Action, AgentState, Cache, Episode, Kind, Percept,
 } from '../core/types.js';
 import { carriedTotal, energyValue } from './agent.js';
-import { retrieve, socialOf, type Retrieved } from './memory.js';
+import { gatherObsAt, retrieve, socialOf, type Retrieved } from './memory.js';
+import { m1NodeSpec } from '../world/world.js';
+
+/** per-decision context for Milestone 1 runs; absent for M0 */
+export interface M1Opts {
+  age: number;
+}
 
 /**
  * The T1 utility decision loop (§3.4):
@@ -51,9 +57,19 @@ function cheb(ax: number, ay: number, bx: number, by: number): number {
 }
 
 export function decide(a: AgentState, pc: Percept, ownCaches: Cache[],
-                       rng: RNG): Decision {
+                       rng: RNG, m1?: M1Opts): Decision {
   const T = a.traits;
   const tick = pc.tick;
+  const dependent = m1 !== undefined && m1.age < M1.DEP_AGE;
+  const capOf = (k: Kind) => m1 ? m1NodeSpec(k).cap : P.RESOURCES[k].cap;
+  // SPEC-M1 §3.3 — the observation channel reads as a bounded additive bias:
+  // watched-gather density around a place, scaled by the watcher's own
+  // conformity, capped, and always below what the decision noise can overturn.
+  const conf = 0.3 + 0.7 * T.conformity;
+  const obsBias = (x: number, y: number) => m1
+    ? M1.OBS_GATHER_W * conf *
+      Math.min(1, gatherObsAt(a, x, y, tick) / M1.OBS_GATHER_SAT)
+    : 0;
   const hunger = 1 - a.energy / P.ENERGY_MAX;
   const carriedVal = energyValue(a.carried);
   const cachedVal = ownCaches.reduce((s, c) => s + energyValue(c.q), 0);
@@ -69,9 +85,13 @@ export function decide(a: AgentState, pc: Percept, ownCaches: Cache[],
     (s, r) => s + 0.55 * Math.exp(-(tick - r.ep.tick) / 140), 0));
   // belonging: urgency grows with time since any positive social contact.
   let lastSocial = a.bornTick;
+  let lastOwnDistress = -1e9;
   for (const ep of a.episodic) {
     if ((ep.type === 'gift-in' || ep.type === 'gift-out' ||
-         ep.type === 'signal-heard') && ep.tick > lastSocial) lastSocial = ep.tick;
+         ep.type === 'signal-heard' || ep.type === 'signaled') &&
+        ep.tick > lastSocial) lastSocial = ep.tick;
+    if (ep.type === 'signaled' && ep.amount === 0 &&
+        ep.tick > lastOwnDistress) lastOwnDistress = ep.tick;
   }
   const uBel = Math.min(1, (tick - lastSocial) * P.BELONGING_DECAY);
   // status: urgency from low relative stored wealth.
@@ -103,14 +123,15 @@ export function decide(a: AgentState, pc: Percept, ownCaches: Cache[],
   const room = P.CARRY_MAX - carriedTotal(a);
   const hereNode = pc.nodes.find(n => n.x === a.x && n.y === a.y && n.q > 0.25);
   const hereSpill = pc.spills.find(s => s.x === a.x && s.y === a.y && s.q > 0.25);
-  if (room > 0.5) {
+  if (room > 0.5 && !dependent) {
     const g = hereSpill ?? (hereNode && hereNode.open ? hereNode : undefined);
     if (g) {
       const k = 'k' in g ? g.k : 0;
       const rate = Math.min(P.RESOURCES[k].gatherRate, g.q, room);
       push({ t: 'gather' }, `gather:${k}`,
         (0.6 * w.survival + 0.45 * w.status) * (NUTRITION[k] * rate / E_NORM)
-        * (0.35 + 0.65 * Math.min(1, hunger * 2 + uStat)));
+        * (0.35 + 0.65 * Math.min(1, hunger * 2 + uStat))
+        + obsBias(a.x, a.y));
     } else if (hereNode && !hereNode.open) {
       // standing on a sealed seasonal node — remembered as such, not acted on
     }
@@ -121,17 +142,17 @@ export function decide(a: AgentState, pc: Percept, ownCaches: Cache[],
   let bestMove: { score: number; x: number; y: number; k: Kind; cites: Episode[] } | null = null;
   const considerSite = (x: number, y: number, k: Kind, q: number,
                         open: boolean, cites: Episode[]) => {
-    if (!open || q < 1) return;
+    if (!open || q < 1 || dependent) return;
     const d = cheb(a.x, a.y, x, y);
     if (d === 0) return;
     const rate = Math.min(P.RESOURCES[k].gatherRate, q, Math.max(room, 0));
-    const s = (0.6 * w.survival + 0.4 * w.status)
-      * (NUTRITION[k] * rate / E_NORM) * Math.pow(discount, d);
+    const s = ((0.6 * w.survival + 0.4 * w.status)
+      * (NUTRITION[k] * rate / E_NORM) + obsBias(x, y)) * Math.pow(discount, d);
     if (!bestMove || s > bestMove.score) bestMove = { score: s, x, y, k, cites };
   };
   for (const n of pc.nodes) considerSite(n.x, n.y, n.k, n.q, n.open, []);
   for (const s of pc.spills) considerSite(s.x, s.y, s.k, s.q, true, []);
-  if (room > 0.5) {
+  if (room > 0.5 && !dependent) {
     // remembered nodes beyond vision (episodic memory doing real work)
     const remembered = retrieve(a, tick, ep =>
       ep.type === 'node-seen' && cheb(a.x, a.y, ep.x, ep.y) > P.VISION ? 1 : 0, 4);
@@ -269,14 +290,50 @@ export function decide(a: AgentState, pc: Percept, ownCaches: Cache[],
   }
 
   // ---- emit signals -------------------------------------------------------
-  if (a.energy < P.DISTRESS_ENERGY && carriedVal < 8) {
-    push({ t: 'signal', mode: 0 }, 'signal-distress',
-      w.survival * 1.15 * (0.3 + 0.7 * T.sociability));
+  const wantDistress = a.energy < P.DISTRESS_ENERGY && carriedVal < 8 &&
+    (m1 === undefined || tick - lastOwnDistress > 8);
+  const wantAbundance = !!hereNode && hereNode.open &&
+    hereNode.q > 0.55 * capOf(hereNode.k) && (room < 3 || hunger < 0.25);
+  // M1: a contact call — company within sight, a while since social contact.
+  // Mechanically inert toward hearers (no approach response); it exists so
+  // that emitting is a routine act rather than a crisis one. Hearing any
+  // call counts as social contact, so groups fall into a natural cadence
+  // instead of spamming.
+  const wantContact = m1 !== undefined && pc.agents.length > 0 && uBel > 0.05;
+  let token: number | undefined;
+  if (m1 && (wantDistress || wantAbundance || wantContact)) {
+    // which arbitrary mark to emit: mechanically inert, biased only by what
+    // this agent has heard others use, bounded below determinism by the same
+    // noise as every other choice (§3.3)
+    let bestTok = 0, bestTokS = -Infinity;
+    let heardTotal = 0;
+    const decay = a.tokenObs
+      ? Math.exp(-Math.max(0, tick - (a.obsTick ?? tick)) / M1.OBS_TAU) : 0;
+    if (a.tokenObs) {
+      for (let i = 0; i < M1.TOKENS; i++) heardTotal += a.tokenObs[i] * decay;
+    }
+    for (let i = 0; i < M1.TOKENS; i++) {
+      const share = a.tokenObs
+        ? (a.tokenObs[i] * decay) / (heardTotal + M1.OBS_TOKEN_DAMP) : 0;
+      const s = M1.OBS_TOKEN_W * conf * share + P.NOISE_TEMP * rng.gumbel();
+      if (s > bestTokS) { bestTokS = s; bestTok = i; }
+    }
+    token = bestTok;
   }
-  if (hereNode && hereNode.open && hereNode.q > 0.55 * P.RESOURCES[hereNode.k].cap
-      && (room < 3 || hunger < 0.25)) {
-    push({ t: 'signal', mode: 1 }, 'signal-abundance',
-      w.belonging * (0.55 * T.sociability + 0.3 * T.empathy));
+  const sigBoost = m1 ? M1.SIGNAL_BOOST : 1;
+  if (wantDistress) {
+    push({ t: 'signal', mode: 0, ...(token !== undefined ? { token } : {}) },
+      'signal-distress', w.survival * 1.15 * (0.3 + 0.7 * T.sociability));
+  }
+  if (wantAbundance) {
+    push({ t: 'signal', mode: 1, ...(token !== undefined ? { token } : {}) },
+      'signal-abundance',
+      sigBoost * w.belonging * (0.55 * T.sociability + 0.3 * T.empathy));
+  }
+  if (wantContact) {
+    push({ t: 'signal', mode: 2, ...(token !== undefined ? { token } : {}) },
+      'signal-contact',
+      sigBoost * w.belonging * (0.75 + 0.35 * T.sociability));
   }
 
   // ---- follow / keep company ---------------------------------------------

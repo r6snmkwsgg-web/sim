@@ -26,7 +26,7 @@ export function describe(e: LedgerEntry): string {
     case 'act.withdraw': return `agent ${d.a} withdrew ${f(d.amt)} of r${d.k} from own cache`;
     case 'act.loot': return `agent ${d.a} LOOTED ${f(d.amt)} of r${d.k} from agent ${d.o}'s cache`;
     case 'act.attack': return `agent ${d.a} ATTACKED agent ${d.b} (dmg ${f(d.dmg)})`;
-    case 'act.signal': return `agent ${d.a} signalled ${d.mode === 0 ? 'distress' : 'abundance'} at (${d.x},${d.y})`;
+    case 'act.signal': return `agent ${d.a} signalled ${d.mode === 0 ? 'distress' : d.mode === 1 ? 'abundance' : 'contact'} at (${d.x},${d.y})`;
     case 'act.rest': return `agent ${d.a} rested`;
     case 'agent.death': return `agent ${d.a} died of ${d.cause} at (${d.x},${d.y})`;
     case 'mem.ep': {

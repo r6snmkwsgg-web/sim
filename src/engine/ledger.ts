@@ -11,11 +11,20 @@ import type { CauseKind, LedgerEntry } from '../core/types.js';
  */
 export class Ledger {
   entries: LedgerEntry[] = [];
+  private nextId = 0;
+
+  /**
+   * keep=false is the statistical-sweep mode: ids advance but entries are
+   * not retained (no replay, no trace). Canonical runs always keep.
+   */
+  constructor(public keep = true) {}
 
   append(tick: number, kind: CauseKind, type: string, subject: number,
          data: Record<string, unknown>, causes: number[] = []): number {
-    const id = this.entries.length;
-    this.entries.push({ id, tick, kind, type, subject, data, causes });
+    const id = this.nextId++;
+    if (this.keep) {
+      this.entries.push({ id, tick, kind, type, subject, data, causes });
+    }
     return id;
   }
 

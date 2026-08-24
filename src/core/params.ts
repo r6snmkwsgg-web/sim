@@ -112,3 +112,77 @@ export const P = {
 
 export type TraitName = (typeof P.TRAITS)[number];
 export type DriveName = (typeof P.DRIVES)[number];
+
+/**
+ * Milestone 1 — Generations (SPEC-M1.md). Everything here is gated behind
+ * SimConfig.m1 so the committed M0 canonical ledger stays byte-identical.
+ */
+export const M1 = {
+  AGENTS_START: 60,
+  POP_CAP: 200,
+  TICKS: 8000,
+
+  // ---- mortality (§3.1): target lifespan ~400 ticks ----------------------
+  HAZARD_BASE: 0.0002,       // per-tick death chance before senescence
+  HAZARD_AGE: 260,           // senescence onset
+  HAZARD_SLOPE: 0.00007,     // hazard growth per tick past onset
+  FOUNDER_AGE_MAX: 250,      // founders start age-staggered
+
+  // ---- reproduction and inheritance (§3.2) --------------------------------
+  MATURITY: 110,
+  REPRO_ENERGY: 45,          // both partners
+  REPRO_WEALTH: 4,          // carried + cached energy value, both partners
+  REPRO_COOLDOWN: 60,
+  REPRO_CHANCE: 0.25,        // per eligible adjacent pair per tick
+  REPRO_COST: 12,            // energy per parent
+  CHILD_ENERGY: 55,
+  HERITABILITY: 0.6,         // child = h·midparent + (1−h)·population draw
+  MUTATION_SD: 0.05,
+  DEP_AGE: 80,               // dependency: cannot gather until this age
+  DEP_DRAIN: 0.55,           // dependents metabolize at this fraction
+  KIN_TRUST: 0.5,            // birth bootstraps parent↔child social records
+  KIN_FAM: 0.9,
+
+  // ---- the observation channel (§3.3) -------------------------------------
+  // Watching is weighting, not copying: a bounded additive bias on the
+  // watcher's own scoring, scaled by its regard for the actor and its own
+  // conformity, and capped well below the decision noise floor's reach.
+  TOKENS: 8,                 // arbitrary signal tokens; zero mechanical effect
+  OBS_THROTTLE: 20,          // min ticks between watch entries per (watcher, actor)
+  OBS_SALIENCE: 0.25,
+  OBS_TAU: 900,              // decay of accumulated observation influence
+  OBS_GRID: 16,              // coarse spatial buckets for watched-gather locations
+  OBS_GATHER_W: 0.55,
+  OBS_GATHER_SAT: 3.0,       // weighted observations at which the bias caps
+  // token bias is proportional to the observed frequency of each mark
+  // (a hard per-option cap lets several options saturate simultaneously and
+  // the differential vanishes — the §8.1 too-weak failure). Bounded by
+  // OBS_TOKEN_W × conformity; the most conformist full-consensus observer
+  // still deviates a few percent of the time via the decision noise.
+  OBS_TOKEN_W: 3.0,
+  OBS_TOKEN_DAMP: 0.75,      // pseudo-count damping small samples
+  // M1 runs signal more readily than M0 (cheaper, more worth doing): the
+  // token dimension only exists as a measurable substrate if agents emit
+  // often enough to be heard. §8.1 calibration, mechanically token-neutral.
+  SIGNAL_BOOST: 1.8,
+  SIGNAL_COST: 0.2,
+
+  // ---- world scaling for a population of ~60–200 --------------------------
+  // Pith is arranged as three sites with IDENTICAL node count, cap, and
+  // regen, placed rotationally symmetric about the map centre: the §2
+  // fitness-neutral gather-site choice. Verified numerically in the report.
+  PITH_SITES: 3,
+  PITH_PER_SITE: 32,
+  PITH_SITE_RADIUS: 20,
+  PITH_SPREAD: 4.2,
+  PITH_CAP: 8,
+  PITH_REGEN: 0.085,
+  THREN_NODES: 60,
+  THREN_CLUSTERS: 1,
+  THREN_REGEN: 0.14,
+  THREN_CAP: 38,
+  OSK_NODES: 40,
+  OSK_CLUSTERS: 5,
+  OSK_REGEN: 0.07,
+  OSK_CAP: 22,
+} as const;

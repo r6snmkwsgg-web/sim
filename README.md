@@ -4,9 +4,10 @@ An artificial civilization laboratory. The governing rule, from [SPEC.md](SPEC.m
 
 > **Create the conditions for civilization. Do not write the civilization yourself.**
 
-This repository currently contains exactly one thing, built to completion before
-anything else: **Milestone 0, the vertical slice** (SPEC §5). Per §0, nothing
-from the §7 roadmap exists yet — a project like this fails by breadth, not by
+The repository contains **Milestone 0, the vertical slice** (SPEC §5),
+verified under the six-test protocol and amendment A1, and **Milestone 1,
+Generations** ([SPEC-M1.md](SPEC-M1.md)) built on top of it. Nothing further
+from the §7 roadmap exists — a project like this fails by breadth, not by
 depth.
 
 ## Milestone 0 — status: target phenomenon demonstrated
@@ -135,11 +136,47 @@ Design invariants the tests enforce:
   viewer and this file. A test greps percepts for leaked human words.
 - **Budget** — 2,000 ticks under 30s (currently ~1s).
 
+## Milestone 1 — Generations (SPEC-M1.md)
+
+M1 adds exactly three systems, all gated behind `m1` config so the committed
+M0 canonical ledger stays byte-identical (a test pins its sha256):
+
+- **Death** — an age hazard (~390-tick mean lifespan; ~19 generations per
+  8,000-tick run) plus starvation. The dead are archived, never deleted;
+  the living keep their memories of them.
+- **Reproduction** — dumb pairing (adjacent + surplus + mature + a coin
+  flip). Children inherit **traits only**: midparent + Gaussian mutation.
+  No memory, no preferences, no position bias beyond being born somewhere.
+  A dependency period (80 ticks) in which they cannot gather.
+- **The observation channel** — watching someone act writes a low-salience
+  episodic entry (action, place/mark, actor, tick) weighted by regard for
+  the actor. Those entries feed a *bounded additive bias* on the watcher's
+  own scoring — no imitate(), no teach(), no copying; the most conformist
+  agent facing total consensus still deviates a few percent of the time.
+
+Two fitness-neutral dimensions carry the measurement: **8 arbitrary signal
+tokens** (zero mechanical effect, the discriminating dimension) and **3
+pith gather-sites** of numerically identical node count, cap, and regen
+(verified per run; geography-confounded per SPEC-M1 §5.4C, reported but
+not gated). Three of the spec's five candidate dimensions were cut with
+cause: gift timing is not actually neutral here (receiver need varies with
+the season), approach paths need route infrastructure that doesn't exist,
+and storage placement is not extractable from percepts without either a
+home-location broadcast or forbidden compass labels.
+
+The measurement (`src/engine/metrics-m1.ts`) is **preregistered** — written
+in full before the first M1 output was examined; the file says so and the
+git history shows it. `npm run m1` runs the canonical stream with full
+causal ledger and bit-exact replay verification; `npm run m1:sweep` runs
+the §7 protocol: 12 streams × {main, ablation A no-observation, B random
+traits, C spatial scramble}, drift null, and the §5.5 permutation control.
+
 ## What is deliberately not here
 
-Cognition tiers T0/T2/T3, reproduction and death by age, the symbol layer,
-beliefs, semantic/procedural/autobiographical memory, institutions,
-technology, 3D rendering, God mode. Each belongs to a §7 milestone and ships
-only when the previous milestone's target phenomenon is demonstrated and
-logged. The next gate is **M1 — Generations**: a practice that outlives its
-inventor by three generations.
+Cognition tiers T0/T2/T3, the symbol layer (the M1 tokens are a substrate
+for it, not a communication system — SPEC-M1 §6), beliefs,
+semantic/procedural/autobiographical memory, institutions, technology, 3D
+rendering, God mode. Each belongs to a §7 milestone and ships only when the
+previous milestone's target phenomenon is demonstrated and logged. The next
+gate is **M2 — Symbols**: measurable lexical divergence between isolated
+populations, then borrowing on contact.

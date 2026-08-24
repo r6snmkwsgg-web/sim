@@ -1,4 +1,4 @@
-import { P } from '../core/params.js';
+import { M1, P } from '../core/params.js';
 import { RNG } from '../core/rng.js';
 import type { Kind, ResourceNode, WorldState } from '../core/types.js';
 
@@ -57,10 +57,11 @@ function valueNoise(rng: RNG, size: number): Float32Array {
   return out;
 }
 
-export function generateWorld(seed: number): WorldState {
+export function generateWorld(seed: number, m1 = false): WorldState {
   const rng = new RNG(seed, 'worldgen');
   const size = P.WORLD;
   const elevation = valueNoise(rng, size);
+  if (m1) return generateWorldM1(seed, rng, size, elevation);
 
   const nodes: ResourceNode[] = [];
   let nid = 0;
@@ -85,4 +86,76 @@ export function generateWorld(seed: number): WorldState {
   }
 
   return { tick: 0, nodes, caches: [], spills: [], signals: [], elevation };
+}
+
+/**
+ * M1 world (SPEC-M1 §2, §3.4): scaled for 60–200 agents, with pith arranged
+ * as three sites of IDENTICAL node count, cap, and regen, rotationally
+ * symmetric about the map centre. Which site an agent favours is a choice
+ * with no expected-value difference — the fitness-neutral degree of freedom
+ * the milestone measures. A seed-derived rotation varies the geometry across
+ * seeds without breaking the symmetry.
+ */
+function generateWorldM1(seed: number, rng: RNG, size: number,
+                         elevation: Float32Array): WorldState {
+  const nodes: ResourceNode[] = [];
+  let nid = 0;
+  const cx0 = size / 2, cy0 = size / 2;
+  const clamp = (v: number) => Math.max(1, Math.min(size - 2, Math.round(v)));
+
+  // kind 1 — pith: the three-way symmetric sites
+  const theta0 = rng.next() * 2 * Math.PI;
+  const siteCenters: [number, number][] = [];
+  for (let s = 0; s < M1.PITH_SITES; s++) {
+    const th = theta0 + (s * 2 * Math.PI) / M1.PITH_SITES;
+    siteCenters.push([clamp(cx0 + M1.PITH_SITE_RADIUS * Math.cos(th)),
+                      clamp(cy0 + M1.PITH_SITE_RADIUS * Math.sin(th))]);
+  }
+  for (const [sx, sy] of siteCenters) {
+    for (let i = 0; i < M1.PITH_PER_SITE; i++) {
+      nodes.push({
+        id: nid++, k: 1,
+        x: clamp(sx + rng.normal(0, M1.PITH_SPREAD)),
+        y: clamp(sy + rng.normal(0, M1.PITH_SPREAD)),
+        q: M1.PITH_CAP * rng.range(0.5, 1),
+      });
+    }
+  }
+
+  // kinds 0 and 2 — scaled up for the larger population, organic clusters
+  const scaled: { k: Kind; n: number; clusters: number; cap: number;
+                  spread: number }[] = [
+    { k: 0, n: M1.THREN_NODES, clusters: M1.THREN_CLUSTERS, cap: M1.THREN_CAP,
+      spread: P.RESOURCES[0].clusterSpread },
+    { k: 2, n: M1.OSK_NODES, clusters: M1.OSK_CLUSTERS, cap: M1.OSK_CAP,
+      spread: P.RESOURCES[2].clusterSpread },
+  ];
+  for (const spec of scaled) {
+    const centers: [number, number][] = [];
+    for (let c = 0; c < spec.clusters; c++) {
+      centers.push([4 + rng.int(size - 8), 4 + rng.int(size - 8)]);
+    }
+    const per = Math.ceil(spec.n / spec.clusters);
+    let placed = 0;
+    for (const [ccx, ccy] of centers) {
+      for (let i = 0; i < per && placed < spec.n; i++, placed++) {
+        nodes.push({
+          id: nid++, k: spec.k,
+          x: clamp(ccx + rng.normal(0, spec.spread)),
+          y: clamp(ccy + rng.normal(0, spec.spread)),
+          q: spec.cap * rng.range(0.5, 1),
+        });
+      }
+    }
+  }
+
+  return { tick: 0, nodes, caches: [], spills: [], signals: [], elevation,
+           siteCenters };
+}
+
+/** M1 node parameters (cap/regen) by kind — used by world rules and reports */
+export function m1NodeSpec(k: Kind): { cap: number; regen: number } {
+  if (k === 1) return { cap: M1.PITH_CAP, regen: M1.PITH_REGEN };
+  if (k === 0) return { cap: M1.THREN_CAP, regen: M1.THREN_REGEN };
+  return { cap: M1.OSK_CAP, regen: M1.OSK_REGEN };
 }
