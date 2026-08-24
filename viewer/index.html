@@ -95,10 +95,11 @@
 </head>
 <body>
 <header>
-  <h1>OPENCIVILIZATION <span>· M0 vertical slice · layer L3</span></h1>
+  <h1>OPENCIVILIZATION <span>· artificial civilization laboratory · layer L3</span></h1>
   <select id="runsel">
-    <option value="runs/demo">demo (seed 11)</option>
-    <option value="runs/demo-ablated">demo — social memory ablated</option>
+    <option value="runs/demo">M0 (seed 11)</option>
+    <option value="runs/demo-ablated">M0 — social memory ablated</option>
+    <option value="runs/m1">M1 — generations (seed 11)</option>
   </select>
   <button class="tog" id="tog-flows" data-on="1">gift flows</button>
   <button class="tog" id="tog-trust" data-on="0">trust web (final)</button>
@@ -163,14 +164,19 @@ const map = $('#map'), tl = $('#timeline');
 async function load(base) {
   const emb = window.EMBEDDED;
   if (emb && emb[base]) {
-    R = emb[base].recording; TR = emb[base].traceable;
+    R = emb[base].recording;
+    TR = emb[base].traceable ?? { roots: [], entries: [] };
   } else {
     try {
       R = await (await fetch(base + '/recording.json')).json();
-      TR = await (await fetch(base + '/traceable.json')).json();
     } catch (e) {
       $('#drop').style.display = 'flex';
       return;
+    }
+    try {
+      TR = await (await fetch(base + '/traceable.json')).json();
+    } catch (e) {
+      TR = { roots: [], entries: [] };   // trace data optional (M1 lean runs)
     }
   }
   frameIdx = new Map(R.frames.map((f, i) => [f.tick, i]));
@@ -201,9 +207,14 @@ function makeTerrain() {
 
 function frameAt(t) {
   t = Math.max(0, Math.min(R.meta.ticks - 1, Math.floor(t)));
-  return R.frames[frameIdx.get(t) ?? t];
+  const step = R.meta.frameStep ?? 1;
+  return R.frames[frameIdx.get(t) ??
+    Math.min(R.frames.length - 1, Math.floor(t / step))];
 }
-function snapAt(arr, t) { return arr[Math.max(0, Math.min(arr.length - 1, Math.floor(t / 5)))]; }
+function snapAt(arr, t) {
+  const step = R.meta.snapStep ?? 5;
+  return arr[Math.max(0, Math.min(arr.length - 1, Math.floor(t / step)))];
+}
 function atmosOpen(t) {
   const p = R.world.atmosPeriod, m = ((t % p) + p) % p;
   return Math.abs(m - p / 2) <= R.world.atmosOpen / 2;
@@ -361,7 +372,8 @@ function draw() {
     g.fillStyle = e < 25 ? COL.iso : COL.summit;   // starving reads as data
     g.fill();
     if (hi) { g.strokeStyle = COL.signal; g.lineWidth = 1.6; g.stroke(); }
-    if (u > 8) {
+    // id labels only while the population is sparse enough to read them
+    if (u > 8 && (hi || fr.agents.length <= 60)) {
       g.fillStyle = 'rgba(11,26,42,0.85)';
       g.font = `${Math.max(7, u * 0.42)}px ${css('--mono') || 'monospace'}`;
       g.textAlign = 'center'; g.textBaseline = 'middle';
@@ -401,13 +413,15 @@ function drawTimeline() {
   for (let t0 = p / 2 - o / 2; t0 < R.meta.ticks; t0 += p) {
     g.fillRect(X(t0), 0, X(o) - X(0), h);
   }
-  // events
+  // events — alpha adapts to density so long runs stay legible
+  const dens = Math.min(1, 2500 / Math.max(1, R.events.length));
   for (const e of R.events) {
-    if (e.type === 'give') { g.fillStyle = COL.signal; g.globalAlpha = 0.5; g.fillRect(X(e.tick), h * 0.15, 1, h * 0.3); }
+    if (e.type === 'give') { g.fillStyle = COL.signal; g.globalAlpha = 0.5 * dens; g.fillRect(X(e.tick), h * 0.15, 1, h * 0.3); }
     else if (e.type === 'take' || e.type === 'loot' || e.type === 'attack') {
-      g.fillStyle = COL.iso; g.globalAlpha = 0.8; g.fillRect(X(e.tick), h * 0.5, 1, h * 0.3);
+      g.fillStyle = COL.iso; g.globalAlpha = Math.max(0.25, 0.8 * dens); g.fillRect(X(e.tick), h * 0.5, 1, h * 0.3);
     } else if (e.type === 'death') {
-      g.fillStyle = COL.summit; g.globalAlpha = 1; g.fillRect(X(e.tick) - 1, h * 0.1, 2, h * 0.8);
+      g.fillStyle = COL.summit; g.globalAlpha = Math.max(0.2, dens);
+      g.fillRect(X(e.tick) - (dens < 1 ? 0 : 1), h * 0.1, dens < 1 ? 1 : 2, h * 0.8);
     }
   }
   g.globalAlpha = 1;
@@ -480,6 +494,7 @@ function eventsHTML() {
 }
 
 function traceHTML() {
+  if (TR.entries.length === 0) return `<h2>CAUSAL TRACE</h2><p style="color:var(--dim)">trace data isn't embedded for this run (the M1 ledger runs to millions of entries) — run <code>npm run m1</code> locally for the full ledger and <code>npm run trace</code> for §4.1 trees.</p>`;
   if (traceRoot < 0) return `<h2>CAUSAL TRACE</h2><p style="color:var(--dim)">select an event (EVENTS tab, or a dossier record line) — its tree of causes appears here, per §4.1. Everything else on the map falls to near-silhouette.</p>`;
   const byId = new Map(TR.entries.map(e => [e.id, e]));
   const seen = new Set();
@@ -501,7 +516,29 @@ function traceHTML() {
 function metricsHTML() {
   const r = R.report, m = R.meta;
   const f = v => Number.isFinite(v) ? v.toFixed(2) : '—';
-  const pct = v => (v * 100).toFixed(2) + '%';
+  const pct = v => Number.isFinite(v) ? (v * 100).toFixed(2) + '%' : '—';
+  if (r.m1) {
+    const pr = r.m1.tokenPractices ?? [];
+    return `<h2>RUN</h2><table id="stat">
+      <tr><td>milestone</td><td>M1 — generations</td></tr>
+      <tr><td>seed / stream</td><td>${m.seed} / ${m.stream}</td></tr>
+      <tr><td>ticks · wall</td><td>${m.ticks} · ${(m.wallMs / 1000).toFixed(1)}s</td></tr>
+      <tr><td>alive at end</td><td>${r.aliveFinal}</td></tr>
+      <tr><td>deepest generation</td><td>${r.m1.maxGen}</td></tr>
+      <tr><td>gives · defections</td><td>${r.totalGives} · ${r.totalDefections}</td></tr></table>
+    <h2>TOKEN PRACTICE (SPEC-M1 §5)</h2>` +
+    (pr.length === 0 ? `<p style="color:var(--dim)">none reached threshold</p>`
+      : pr.map(p => `<table id="stat">
+      <tr><td>mark</td><td style="color:var(--signal)">token ${p.option}</td></tr>
+      <tr><td>≥60% held</td><td>t${p.start}–t${p.end}</td></tr>
+      <tr><td>origin</td><td>#${p.originAgent} (gen ${p.originGen}, t=${p.originTick}${p.originDeadBy >= 0 ? `, died t=${p.originDeadBy}` : ''})</td></tr>
+      <tr><td>3-gen survival</td><td style="color:var(--signal)">${p.survivedStrict ? 'YES (strict)' : p.survivedMedian ? 'median only' : 'no'}</td></tr></table>`).join('')) +
+    `<table id="stat"><tr><td>transmission contingency</td><td style="color:var(--signal)">${f(r.m1.tokenContingency)}×</td></tr></table>
+    <p style="color:var(--dim);margin-top:10px">an arbitrary signal mark with
+    zero mechanical effect, seeded by one agent, spread by observation, and
+    still the population's norm dozens of generations after its originator
+    died. Full protocol: docs/m1-protocol-run.txt in the repo.</p>`;
+  }
   return `<h2>RUN</h2><table id="stat">
     <tr><td>seed / stream</td><td>${m.seed} / ${m.stream}${m.ablateSocial ? ' · <span style="color:var(--isogloss)">SOCIAL MEMORY ABLATED</span>' : ''}</td></tr>
     <tr><td>ticks · wall</td><td>${m.ticks} · ${(m.wallMs / 1000).toFixed(2)}s</td></tr>

@@ -125,6 +125,8 @@ const outIdx = argv.indexOf('--out');
 if (outIdx >= 0) {
   const dir = argv[outIdx + 1];
   mkdirSync(dir, { recursive: true });
+  // sampled for size: the viewer reads meta.frameStep / meta.snapStep
+  const FRAME_STEP = 4, SNAP_EVERY = 4;   // snaps are already 1-in-5 ticks
   writeFileSync(join(dir, 'recording.json'), JSON.stringify({
     meta: {
       project: 'OpenCivilization M1', seed: cfg.seed, stream: cfg.stream,
@@ -132,6 +134,7 @@ if (outIdx >= 0) {
       wallMs: Math.round(wall * 1000),
       ledgerEntries: sim.ledger.keep ? sim.ledger.entries.length : 0,
       finalHash: '',
+      frameStep: FRAME_STEP, snapStep: 5 * SNAP_EVERY,
     },
     world: {
       size: P.WORLD, atmosPeriod: P.ATMOS_PERIOD, atmosOpen: P.ATMOS_OPEN,
@@ -146,9 +149,9 @@ if (outIdx >= 0) {
         .map(([b, r]) => [b, Math.round(r.trust * 100) / 100,
                           Math.round(r.familiarity * 100) / 100]),
     })),
-    frames: sim.frames,
-    nodeSnaps: sim.nodeSnaps,
-    cacheSnaps: sim.cacheSnaps,
+    frames: sim.frames.filter((_, i) => i % FRAME_STEP === 0),
+    nodeSnaps: sim.nodeSnaps.filter((_, i) => i % SNAP_EVERY === 0),
+    cacheSnaps: sim.cacheSnaps.filter((_, i) => i % SNAP_EVERY === 0),
     events: sim.events.filter(e => e.type !== 'signal' || e.tick % 3 === 0),
     report: {
       totalGives: sim.events.filter(e => e.type === 'give').length,
