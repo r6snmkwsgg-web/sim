@@ -87,7 +87,9 @@ export class Sim {
                    : cfg.m1 ? M1.AGENTS_START : P.N_AGENTS),
       !!cfg.m1, !!cfg.m2);
     if (cfg.m2) {
-      this.vision = cfg.fullObservability ? P.VISION : M2.VISION;
+      // ablation B removes the §2.1 asymmetry entirely: sight reaches as
+      // far as any signal, so nothing a call carries is ever private
+      this.vision = cfg.fullObservability ? M2.SIGNAL_RADIUS : M2.VISION;
       this.sigR = M2.SIGNAL_RADIUS;
     }
     this.orderRng = new RNG(cfg.seed, `order:${cfg.stream}`);

@@ -196,11 +196,20 @@ convergence is carried by geography and drift; token convergence is carried
 by observation. The two controls split the two dimensions exactly as a real
 transmission channel should.
 
+**Ablation A′ (post-protocol control).** Because ablation A also depresses
+the population (see caveat 1), a sharper control was run: the observation
+channel stays fully on — juveniles still find food by watching — but the
+watched-token episodes contribute zero weight to token *choice*
+(`ablateTokenBias`). Demography stays healthy (mean 138 alive vs ~145 on
+main) and token practices still never form: **0/12 streams**, transmission
+contingency 0.96–1.25 (≈1) in every stream. The collapse tracks the
+learning bias itself, not the channel's food value.
+
 Honest caveats, in the order they'd bite: (1) ablation A also depresses the
 population (juveniles use watched gathers to find food, so the channel
 itself has fitness value even though the *options* are neutral) — the
-contingency ≈ 1 within the surviving population is what carries the
-collapse claim, not the demography; (2) the §5.5 permutation as
+contingency ≈ 1 within the surviving population carries the collapse claim,
+and ablation A′ above now closes the confound outright; (2) the §5.5 permutation as
 preregistered (label shuffle across acts) cannot reach 1.0 in a converged
 population — the within-agent variant that criterion 5 gates on is a
 disclosed post-hoc correction, same shape as the M0 Test-5/A1 precedent,

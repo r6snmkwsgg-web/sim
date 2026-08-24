@@ -57,3 +57,29 @@ ablation C (context, §5.4): 100% — expected to weaken vs main yet exceed A
 site dimension (context): main 100% — geography-confounded, drift null is high for K=3; reported, not gated
 
 M1 PASSES (61 min total)
+
+── Ablation A′ (post-protocol control, run after the 48-run protocol) ─────
+Motivation: ablation A (no observation channel) also depresses demography,
+because juveniles locate food through watched gathers. A′ separates the
+channel's food value from its role in token learning: observation stays
+fully on, but watched-token episodes carry zero weight in token choice
+(cfg.ablateTokenBias). Expectation if the M1 result is real: healthy
+demography, no token practice.
+
+stream 1  practice+3gen: no  contingency 1.25  alive 105
+stream 2  practice+3gen: no  contingency 1.06  alive 130
+stream 3  practice+3gen: no  contingency 1.00  alive 163
+stream 4  practice+3gen: no  contingency 0.97  alive 139
+stream 5  practice+3gen: no  contingency 1.06  alive 134
+stream 6  practice+3gen: no  contingency 1.05  alive 123
+stream 7  practice+3gen: no  contingency 0.96  alive 135
+stream 8  practice+3gen: no  contingency 1.11  alive 145
+stream 9  practice+3gen: no  contingency 0.99  alive 131
+stream 10 practice+3gen: no  contingency 1.01  alive 147
+stream 11 practice+3gen: no  contingency 1.01  alive 145
+stream 12 practice+3gen: no  contingency 1.10  alive 155
+
+A′: token practice survival 0/12, contingency ≈1 throughout, mean alive
+138 (main ≈145). The collapse tracks the learning bias, not the channel's
+fitness value. Double dissociation from the protocol runs stands with the
+demographic confound closed.
