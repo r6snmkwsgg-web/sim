@@ -1,4 +1,4 @@
-import { M1, P } from '../core/params.js';
+import { M1, M2, P } from '../core/params.js';
 import type { AgentState, Episode, EpisodeType, SocialRecord } from '../core/types.js';
 
 /**
@@ -110,4 +110,69 @@ export function socialMut(a: AgentState, other: number): SocialRecord {
 
 export function clampTrust(v: number): number {
   return v < -1 ? -1 : v > 1 ? 1 : v;
+}
+
+// ---------------------------------------------------------------------------
+// M2 — private token↔kind associations (SPEC-M2 §2.2). Each agent's own;
+// no population-level store exists anywhere.
+// ---------------------------------------------------------------------------
+
+export function lexOf(a: AgentState): Float64Array {
+  if (!a.lex) a.lex = new Float64Array(M1.TOKENS * M2.REFS);
+  return a.lex;
+}
+
+/**
+ * Apply one confidence delta, clamped to [0, LEX_CAP]; replay uses this too.
+ * A positive `lat` is lateral inhibition: the same evidence that ties the
+ * token to kind k weakens its ties to the other kinds, so one mark cannot
+ * stay an all-purpose call once outcomes start discriminating.
+ */
+export function lexBump(a: AgentState, tok: number, k: number,
+                        d: number, lat = 0): number {
+  const lex = lexOf(a);
+  const i = tok * M2.REFS + k;
+  lex[i] = Math.max(0, Math.min(M2.LEX_CAP, lex[i] + d));
+  if (lat > 0) {
+    for (let kk = 0; kk < M2.REFS; kk++) {
+      if (kk === k) continue;
+      const j = tok * M2.REFS + kk;
+      lex[j] = Math.max(0, lex[j] - lat);
+    }
+  }
+  return lex[i];
+}
+
+/** strongest kind association for a token: [kind, confidence] */
+export function lexTopKind(a: AgentState, tok: number): [number, number] {
+  if (!a.lex) return [-1, 0];
+  let best = 0, bestV = a.lex[tok * M2.REFS];
+  for (let k = 1; k < M2.REFS; k++) {
+    const v = a.lex[tok * M2.REFS + k];
+    if (v > bestV) { bestV = v; best = k; }
+  }
+  return bestV > 0 ? [best, bestV] : [-1, 0];
+}
+
+/** strongest token for a kind: [token, confidence] */
+export function lexTopToken(a: AgentState, k: number): [number, number] {
+  if (!a.lex) return [-1, 0];
+  let best = -1, bestV = 0;
+  for (let t = 0; t < M1.TOKENS; t++) {
+    const v = a.lex[t * M2.REFS + k];
+    if (v > bestV) { bestV = v; best = t; }
+  }
+  return [best, bestV];
+}
+
+/** the least-associated token — what coining reaches for (§2.2) */
+export function lexLeastUsed(a: AgentState): number {
+  if (!a.lex) return -1;                 // caller picks by noise
+  let best = 0, bestV = Infinity;
+  for (let t = 0; t < M1.TOKENS; t++) {
+    let s = 0;
+    for (let k = 0; k < M2.REFS; k++) s += a.lex[t * M2.REFS + k];
+    if (s < bestV) { bestV = s; best = t; }
+  }
+  return best;
 }

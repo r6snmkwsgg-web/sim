@@ -1,4 +1,4 @@
-import { M1, P, type TraitName } from '../core/params.js';
+import { M1, M2, P, type TraitName } from '../core/params.js';
 import { RNG } from '../core/rng.js';
 import type { AgentState } from '../core/types.js';
 
@@ -9,7 +9,7 @@ import type { AgentState } from '../core/types.js';
  */
 
 export function createAgents(seed: number, n: number = P.N_AGENTS,
-                             m1 = false): AgentState[] {
+                             m1 = false, m2 = false): AgentState[] {
   const rng = new RNG(seed, 'agents');
   const agents: AgentState[] = [];
   for (let id = 0; id < n; id++) {
@@ -17,10 +17,16 @@ export function createAgents(seed: number, n: number = P.N_AGENTS,
     for (const t of P.TRAITS) {
       traits[t] = clamp01(rng.normal(P.TRAIT_MEAN, P.TRAIT_SD));
     }
-    const x = 6 + rng.int(P.WORLD - 12);
+    let x = 6 + rng.int(P.WORLD - 12);
     const y = 6 + rng.int(P.WORLD - 12);
+    if (m2) {
+      // two founder populations, one per side of the barrier (SPEC-M2 §2.4)
+      const west = id < n / 2;
+      x = west ? 4 + rng.int(M2.BARRIER_X0 - 8)
+               : M2.BARRIER_X1 + 4 + rng.int(P.WORLD - M2.BARRIER_X1 - 9);
+    }
     // founders start age-staggered so mortality doesn't arrive as one wave
-    const bornTick = m1 ? -rng.int(M1.FOUNDER_AGE_MAX) : 0;
+    const bornTick = m1 || m2 ? -rng.int(M1.FOUNDER_AGE_MAX) : 0;
     agents.push(blankAgent(id, x, y, traits, bornTick, 0, [-1, -1],
                            P.START_ENERGY));
   }

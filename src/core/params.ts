@@ -186,3 +186,60 @@ export const M1 = {
   OSK_REGEN: 0.07,
   OSK_CAP: 22,
 } as const;
+
+/**
+ * Milestone 2 — Symbols (SPEC-M2.md). Gated behind SimConfig.m2; M0 and M1
+ * canonical hashes are pinned by tests and must not move.
+ */
+export const M2 = {
+  TICKS: 10000,
+  CONTACT_TICK: 6000,        // corridor opens; 4,000 ticks of contact follow
+  AGENTS_PER_SIDE: 50,       // founders per population (grows toward ~80)
+  POP_CAP: 220,
+
+  // ---- the divide (§2.4): impassable band splitting the region -----------
+  BARRIER_X0: 31,
+  BARRIER_X1: 32,
+  CORRIDOR_Y0: 28,
+  CORRIDOR_Y1: 36,
+
+  // ---- partial observability (§2.1, load-bearing) -------------------------
+  // sight is local; a call carries beyond sight. The gap between the two
+  // radii is where information asymmetry — and any reason to signal — lives.
+  VISION: 3,
+  SIGNAL_RADIUS: 10,
+
+  // ---- per-side resources (identical mirrored halves) ---------------------
+  PITH_SITES_PER_SIDE: 2, PITH_PER_SITE: 26, PITH_SPREAD: 3.6,
+  PITH_CAP: 8, PITH_REGEN: 0.13,
+  THREN_PANS_PER_SIDE: 1, THREN_PER_PAN: 30, THREN_SPREAD: 6,
+  THREN_CAP: 38, THREN_REGEN: 0.17,
+  OSK_CLUSTERS_PER_SIDE: 2, OSK_PER_CLUSTER: 12, OSK_SPREAD: 3,
+  OSK_CAP: 22, OSK_REGEN: 0.09,
+
+  // ---- private token↔kind associations (§2.2) -----------------------------
+  // Each agent holds its own (token, kind, confidence) weights. Nothing is
+  // stored at population level; nothing in the loop names a "right" answer.
+  REFS: 3,                   // referent classes = the percept schema's kinds
+  LEX_CAP: 3,                // confidence ceiling
+  LEX_EMIT_MIN: 0.5,         // below this, coining pressure (§2.2)
+  LEX_DELTA_FOUND: 0.25,     // hearer, on finding kind k after acting on T
+  LEX_DELTA_EMIT: 0.18,      // emitter, on seeing the hearer succeed
+  LEX_DELTA_FAIL: 0.18,      // hearer, on arriving and finding nothing
+  LEX_DELTA_CO: 0.06,        // hear T while seeing a rich node (acquisition)
+  LEX_LAT: 0.06,             // lateral: a grounding also weakens the mark's
+                             // other-kind ties (associative competition),
+                             // scaled by grounding strength (full at FOUND)
+  HEED_W: 1.6,               // scoring weight for acting on an inferred tip
+  HEED_CONF_MIN: 0.25,       // will not act on associations weaker than this
+  HEED_WINDOW: 50,           // ticks allowed to reach the called site
+  HEED_RADIUS: 4,            // "arrived" = within this of the emission origin
+  ABUND_Q: 1.3,              // above cap: ONLY bloomed nodes are worth calling about
+  // Blooms (§2.1's asymmetry, kept alive): a node occasionally surges far
+  // past cap — a transient, privately-discovered windfall. Static sites
+  // saturate into common knowledge; blooms are what there is to talk about.
+  BLOOM_CHANCE: 0.05,        // per tick, one random node world-wide
+  BLOOM_MULT: 2.5,           // surge target, × cap
+  TRUST_TIP_GOOD: 0.04,      // a tip that worked out warms the hearer
+  TRUST_TIP_BAD: -0.03,      // a wasted trip cools it
+} as const;

@@ -1,17 +1,22 @@
-import { M1, P } from '../core/params.js';
+import { M1, M2, P } from '../core/params.js';
 import type { RNG } from '../core/rng.js';
 import type {
   Action, AgentState, Cache, Episode, Kind, Percept,
 } from '../core/types.js';
 import { carriedTotal, energyValue } from './agent.js';
-import { gatherObsAt, retrieve, socialOf, type Retrieved } from './memory.js';
-import { m1NodeSpec } from '../world/world.js';
+import { gatherObsAt, lexLeastUsed, lexTopKind, lexTopToken, retrieve,
+         socialOf, type Retrieved } from './memory.js';
+import { m1NodeSpec, m2NodeSpec } from '../world/world.js';
 
-/** per-decision context for Milestone 1 runs; absent for M0 */
+/** per-decision context for Milestone 1+ runs; absent for M0 */
 export interface M1Opts {
   age: number;
   /** ablation A′: emitted-mark choice ignores what has been heard */
   tokenBiasOff?: boolean;
+  /** Milestone 2: partial observability + the signaling loop */
+  m2?: boolean;
+  /** effective sight radius for this run */
+  vision?: number;
 }
 
 /**
@@ -20,7 +25,7 @@ export interface M1Opts {
  *   percept → memory retrieval → drive weighting → candidate generation
  *   → scoring → exploration noise → action
  *
- * Deterministic given state + seed. No language model anywhere near this.
+ * Deterministic given state + seed. No LLM anywhere near this.
  *
  * There is deliberately no candidate that transfers goods in both directions,
  * and no term that tracks a running balance between two agents. `give` is scored
@@ -63,7 +68,9 @@ export function decide(a: AgentState, pc: Percept, ownCaches: Cache[],
   const T = a.traits;
   const tick = pc.tick;
   const dependent = m1 !== undefined && m1.age < M1.DEP_AGE;
-  const capOf = (k: Kind) => m1 ? m1NodeSpec(k).cap : P.RESOURCES[k].cap;
+  const capOf = (k: Kind) => m1?.m2 ? m2NodeSpec(k).cap
+    : m1 ? m1NodeSpec(k).cap : P.RESOURCES[k].cap;
+  const vision = m1?.vision ?? P.VISION;
   // SPEC-M1 §3.3 — the observation channel reads as a bounded additive bias:
   // watched-gather density around a place, scaled by the watcher's own
   // conformity, capped, and always below what the decision noise can overturn.
@@ -157,7 +164,7 @@ export function decide(a: AgentState, pc: Percept, ownCaches: Cache[],
   if (room > 0.5 && !dependent) {
     // remembered nodes beyond vision (episodic memory doing real work)
     const remembered = retrieve(a, tick, ep =>
-      ep.type === 'node-seen' && cheb(a.x, a.y, ep.x, ep.y) > P.VISION ? 1 : 0, 4);
+      ep.type === 'node-seen' && cheb(a.x, a.y, ep.x, ep.y) > vision ? 1 : 0, 4);
     for (const r of remembered) {
       const k = r.ep.k as Kind;
       const open = !P.RESOURCES[k].seasonal || pc.atmos > 0.6; // inference from sky
@@ -285,25 +292,70 @@ export function decide(a: AgentState, pc: Percept, ownCaches: Cache[],
         - 0.02 * d;
       push({ t: 'move', ...stepToward(a.x, a.y, s.x, s.y) }, `respond:${s.from}`, sc);
     } else if (s.mode === 1 && room > 2) {
-      // abundance ping: food over there
-      const sc = w.survival * 0.5 * hunger + 0.3 * T.curiosity - 0.02 * d;
-      push({ t: 'move', ...stepToward(a.x, a.y, s.x, s.y) }, `heed:${s.from}`, sc);
+      if (m1?.m2) {
+        // M2 (§2.2): the hearer cannot see what the caller saw. It acts, or
+        // not, on its OWN private association for the mark — inference, not
+        // instruction — weighted by how far it trusts the caller.
+        if (s.tok >= 0) {
+          const [kHat, conf] = lexTopKind(a, s.tok);
+          if (kHat >= 0 && conf >= M2.HEED_CONF_MIN) {
+            const trustF = 0.45 + 0.55 * Math.max(0, rec.trust);
+            const kindVal =
+              w.survival * 0.45 * (NUTRITION[kHat] / 8) * (0.4 + hunger) +
+              w.status * 0.3 * (kHat === 0 ? 1 : 0.25);
+            const sc = M2.HEED_W * Math.min(1, conf) * trustF *
+              (0.2 + kindVal) - 0.03 * d;
+            push({ t: 'move', ...stepToward(a.x, a.y, s.x, s.y) },
+              `heed2:${s.from}:${s.tok}:${s.x}:${s.y}:${kHat}`, sc);
+          }
+        }
+      } else {
+        // M1: abundance ping — food over there
+        const sc = w.survival * 0.5 * hunger + 0.3 * T.curiosity - 0.02 * d;
+        push({ t: 'move', ...stepToward(a.x, a.y, s.x, s.y) },
+          `heed:${s.from}`, sc);
+      }
     }
   }
 
   // ---- emit signals -------------------------------------------------------
   const wantDistress = a.energy < P.DISTRESS_ENERGY && carriedVal < 8 &&
     (m1 === undefined || tick - lastOwnDistress > 8);
-  const wantAbundance = !!hereNode && hereNode.open &&
-    hereNode.q > 0.55 * capOf(hereNode.k) && (room < 3 || hunger < 0.25);
+  // M2 (§2.2): the thing worth calling about is a rich open node in sight —
+  // private knowledge, since sight is short and calls carry farther
+  const richVisible = m1?.m2
+    ? pc.nodes
+        .filter(n => n.open && n.q > M2.ABUND_Q * capOf(n.k))
+        .sort((p, q) => NUTRITION[q.k] * q.q - NUTRITION[p.k] * p.q)[0]
+    : undefined;
+  const wantAbundance = m1?.m2
+    ? richVisible !== undefined && pc.agents.length > 0 &&
+      (room < 3 || hunger < 0.3)
+    : !!hereNode && hereNode.open &&
+      hereNode.q > 0.55 * capOf(hereNode.k) && (room < 3 || hunger < 0.25);
   // M1: a contact call — company within sight, a while since social contact.
   // Mechanically inert toward hearers (no approach response); it exists so
   // that emitting is a routine act rather than a crisis one. Hearing any
   // call counts as social contact, so groups fall into a natural cadence
   // instead of spamming.
   const wantContact = m1 !== undefined && pc.agents.length > 0 && uBel > 0.05;
+  // M2: the mark on an abundance call is chosen from the agent's own private
+  // associations for the kind it sees — or coined when it has none (§2.2)
+  let tokenLex: number | undefined;
+  if (m1?.m2 && wantAbundance && richVisible) {
+    let best = -1, bestS = -Infinity;
+    for (let t = 0; t < M1.TOKENS; t++) {
+      const c = a.lex ? a.lex[t * M2.REFS + richVisible.k] : 0;
+      const s = c + 0.15 * rng.gumbel();
+      if (s > bestS) { bestS = s; best = t; }
+    }
+    const [, topConf] = lexTopToken(a, richVisible.k);
+    tokenLex = topConf >= M2.LEX_EMIT_MIN
+      ? best
+      : (a.lex ? lexLeastUsed(a) : rng.int(M1.TOKENS));   // coin under pressure
+  }
   let token: number | undefined;
-  if (m1 && (wantDistress || wantAbundance || wantContact)) {
+  if (m1 && (wantDistress || wantContact || (!m1.m2 && wantAbundance))) {
     // which arbitrary mark to emit: mechanically inert, biased only by what
     // this agent has heard others use, bounded below determinism by the same
     // noise as every other choice (§3.3)
@@ -328,7 +380,8 @@ export function decide(a: AgentState, pc: Percept, ownCaches: Cache[],
       'signal-distress', w.survival * 1.15 * (0.3 + 0.7 * T.sociability));
   }
   if (wantAbundance) {
-    push({ t: 'signal', mode: 1, ...(token !== undefined ? { token } : {}) },
+    const tk = m1?.m2 ? tokenLex : token;
+    push({ t: 'signal', mode: 1, ...(tk !== undefined ? { token: tk } : {}) },
       'signal-abundance',
       sigBoost * w.belonging * (0.55 * T.sociability + 0.3 * T.empathy));
   }

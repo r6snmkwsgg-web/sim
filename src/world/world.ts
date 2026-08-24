@@ -1,4 +1,4 @@
-import { M1, P } from '../core/params.js';
+import { M1, M2, P } from '../core/params.js';
 import { RNG } from '../core/rng.js';
 import type { Kind, ResourceNode, WorldState } from '../core/types.js';
 
@@ -57,10 +57,12 @@ function valueNoise(rng: RNG, size: number): Float32Array {
   return out;
 }
 
-export function generateWorld(seed: number, m1 = false): WorldState {
+export function generateWorld(seed: number, m1 = false,
+                              m2 = false): WorldState {
   const rng = new RNG(seed, 'worldgen');
   const size = P.WORLD;
   const elevation = valueNoise(rng, size);
+  if (m2) return generateWorldM2(rng, size, elevation);
   if (m1) return generateWorldM1(seed, rng, size, elevation);
 
   const nodes: ResourceNode[] = [];
@@ -158,4 +160,79 @@ export function m1NodeSpec(k: Kind): { cap: number; regen: number } {
   if (k === 1) return { cap: M1.PITH_CAP, regen: M1.PITH_REGEN };
   if (k === 0) return { cap: M1.THREN_CAP, regen: M1.THREN_REGEN };
   return { cap: M1.OSK_CAP, regen: M1.OSK_REGEN };
+}
+
+export function m2NodeSpec(k: Kind): { cap: number; regen: number } {
+  if (k === 1) return { cap: M2.PITH_CAP, regen: M2.PITH_REGEN };
+  if (k === 0) return { cap: M2.THREN_CAP, regen: M2.THREN_REGEN };
+  return { cap: M2.OSK_CAP, regen: M2.OSK_REGEN };
+}
+
+/** M2 barrier (SPEC-M2 §2.4): impassable band; corridor opens at contact */
+export function m2Blocked(x: number, y: number, tick: number): boolean {
+  if (x < M2.BARRIER_X0 || x > M2.BARRIER_X1) return false;
+  if (tick >= M2.CONTACT_TICK &&
+      y >= M2.CORRIDOR_Y0 && y <= M2.CORRIDOR_Y1) return false;
+  return true;
+}
+
+/** true when interaction between x1 and x2 would cross a closed barrier */
+export function m2CrossBlocked(x1: number, x2: number, tick: number): boolean {
+  if (tick >= M2.CONTACT_TICK) return false;
+  const mid = (M2.BARRIER_X0 + M2.BARRIER_X1) / 2;
+  return (x1 < mid) !== (x2 < mid);
+}
+
+/**
+ * M2 world: two mirrored halves of identical resource makeup, separated by
+ * the barrier band. Each half gets its own pith sites, thren pan, and osk
+ * clusters, placed with per-side randomness inside its own territory.
+ */
+function generateWorldM2(rng: RNG, size: number,
+                         elevation: Float32Array): WorldState {
+  const nodes: ResourceNode[] = [];
+  const siteCenters: [number, number][] = [];
+  let nid = 0;
+  const clampY = (v: number) => Math.max(2, Math.min(size - 3, Math.round(v)));
+  const sideRange: [number, number][] = [
+    [4, M2.BARRIER_X0 - 3],
+    [M2.BARRIER_X1 + 3, size - 5],
+  ];
+  const clampX = (v: number, s: number) =>
+    Math.max(sideRange[s][0], Math.min(sideRange[s][1], Math.round(v)));
+
+  // one layout, mirrored: the east half is the west half reflected in x, so
+  // neither population inherits an ecological advantage — differences that
+  // develop between them are theirs, not the map's
+  const [x0, x1] = sideRange[0];
+  const cx = () => x0 + rng.int(x1 - x0 + 1);
+  const cy = () => 6 + rng.int(size - 12);
+  const place = (k: Kind, clusters: number, per: number, spread: number,
+                 cap: number, recordCenters: boolean) => {
+    for (let c = 0; c < clusters; c++) {
+      const ccx = cx(), ccy = cy();
+      if (recordCenters) {
+        siteCenters.push([ccx, ccy], [size - 1 - ccx, ccy]);
+      }
+      for (let i = 0; i < per; i++) {
+        const nx = clampX(ccx + rng.normal(0, spread), 0);
+        const ny = clampY(ccy + rng.normal(0, spread));
+        const q = cap * rng.range(0.5, 1);
+        nodes.push({ id: nid++, k, x: nx, y: ny, q });
+        nodes.push({ id: nid++, k,
+                     x: Math.max(sideRange[1][0],
+                                 Math.min(sideRange[1][1], size - 1 - nx)),
+                     y: ny, q });
+      }
+    }
+  };
+  place(1, M2.PITH_SITES_PER_SIDE, M2.PITH_PER_SITE, M2.PITH_SPREAD,
+        M2.PITH_CAP, true);
+  place(0, M2.THREN_PANS_PER_SIDE, M2.THREN_PER_PAN, M2.THREN_SPREAD,
+        M2.THREN_CAP, false);
+  place(2, M2.OSK_CLUSTERS_PER_SIDE, M2.OSK_PER_CLUSTER, M2.OSK_SPREAD,
+        M2.OSK_CAP, false);
+
+  return { tick: 0, nodes, caches: [], spills: [], signals: [], elevation,
+           siteCenters };
 }

@@ -136,6 +136,10 @@ export interface AgentState {
   tokenObs?: Float64Array;
   obsGrid?: Float64Array;
   obsTick?: number;
+  // ---- M2 (SPEC-M2 §2.2) ---------------------------------------------------
+  /** private (token × kind) association confidences; nothing global exists.
+   *  Lazily created; newborns start with none. TOKENS × REFS, row-major. */
+  lex?: Float64Array;
 }
 
 // ---------------------------------------------------------------------------
@@ -200,4 +204,13 @@ export interface SimConfig {
   scrambleChildren?: boolean;
   /** statistical sweep mode: do not retain ledger entries (no replay) */
   lean?: boolean;
+  // ---- M2 (SPEC-M2.md) -----------------------------------------------------
+  /** enable symbols: partition, partial observability, the signaling loop */
+  m2?: boolean;
+  /** M2 ablation A — disable all association-confidence updates */
+  ablateReinforce?: boolean;
+  /** M2 ablation B — restore full observability (no perceptual asymmetry) */
+  fullObservability?: boolean;
+  // M2 ablation C reuses ablateObservation: it disables the M1 social
+  // learning channel AND the hear-while-seeing acquisition path.
 }

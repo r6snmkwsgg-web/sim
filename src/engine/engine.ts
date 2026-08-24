@@ -1,4 +1,4 @@
-import { M1, P, type TraitName } from '../core/params.js';
+import { M1, M2, P, type TraitName } from '../core/params.js';
 import { RNG } from '../core/rng.js';
 import type {
   Action, AgentState, Cache, Episode, EpisodeType, Kind, Percept, SimConfig,
@@ -7,8 +7,10 @@ import type {
 import { blankAgent, carriedTotal, clamp01, createAgents,
          energyValue } from '../agents/agent.js';
 import { decide, type M1Opts } from '../agents/decide.js';
-import { clampTrust, socialMut, writeEpisode } from '../agents/memory.js';
-import { generateWorld, atmosphere, nodeOpen, m1NodeSpec } from '../world/world.js';
+import { clampTrust, lexBump, lexTopToken, socialMut,
+         writeEpisode } from '../agents/memory.js';
+import { generateWorld, atmosphere, nodeOpen, m1NodeSpec, m2NodeSpec,
+         m2Blocked, m2CrossBlocked } from '../world/world.js';
 import { Ledger } from './ledger.js';
 
 /**
@@ -50,8 +52,13 @@ export class Sim {
   cacheSnaps: { tick: number; c: number[][] }[] = [];
   /** M1: [tick, agent, x, y, kind] for every successful gather */
   gathers: number[][] = [];
-  /** M1: [tick, child, gen, parentA, parentB] */
+  /** M1: [tick, child, gen, parentA, parentB, x] */
   births: number[][] = [];
+  /** M2: emission log for the measurement layer (never agent-visible) */
+  emissions: { t: number; a: number; mode: number; tok: number; x: number;
+               y: number; ref: number; hearers: [number, number][] }[] = [];
+  /** M2: per-agent strongest association snapshots, every 250 ticks */
+  lexSnaps: { tick: number; rows: number[][] }[] = [];
 
   private orderRng: RNG;
   private noiseRng: RNG;
@@ -62,13 +69,27 @@ export class Sim {
   private nodeSeen = new Map<number, Map<number, number>>(); // agent → node → tick
   private lastWatch = new Map<number, number>();  // watcher*1e4+actor → tick
   private agedToDie = new Set<number>();
+  /** effective radii for this run (M2 shrinks sight; calls carry farther) */
+  private vision: number = P.VISION;
+  private sigR: number = P.SIGNAL_RADIUS;
+  /** M2: outstanding acted-on tips awaiting an outcome */
+  private tips: { b: number; emitter: number; tok: number; x: number;
+                  y: number; kHat: number; deadline: number;
+                  arrived: boolean }[] = [];
 
   constructor(cfg: SimConfig) {
     this.cfg = cfg;
+    if (cfg.m2) cfg.m1 = true;             // M2 builds on the M1 systems
     this.ledger = new Ledger(!cfg.lean);
-    this.world = generateWorld(cfg.seed, !!cfg.m1);
+    this.world = generateWorld(cfg.seed, !!cfg.m1, !!cfg.m2);
     this.agents = createAgents(cfg.seed,
-      cfg.agents ?? (cfg.m1 ? M1.AGENTS_START : P.N_AGENTS), !!cfg.m1);
+      cfg.agents ?? (cfg.m2 ? 2 * M2.AGENTS_PER_SIDE
+                   : cfg.m1 ? M1.AGENTS_START : P.N_AGENTS),
+      !!cfg.m1, !!cfg.m2);
+    if (cfg.m2) {
+      this.vision = cfg.fullObservability ? P.VISION : M2.VISION;
+      this.sigR = M2.SIGNAL_RADIUS;
+    }
     this.orderRng = new RNG(cfg.seed, `order:${cfg.stream}`);
     this.noiseRng = new RNG(cfg.seed, `noise:${cfg.stream}`);
     this.mortalityRng = new RNG(cfg.seed, `mortality:${cfg.stream}`);
@@ -94,6 +115,16 @@ export class Sim {
       if (this.cfg.scrambleChildren) this.scramble(t);
       this.mortality(t);
     }
+    if (this.cfg.m2 && this.reproRng.next() < M2.BLOOM_CHANCE) {
+      // a transient windfall — the §2.1 information asymmetry stays alive
+      const n = this.world.nodes[this.reproRng.int(this.world.nodes.length)];
+      const target = m2NodeSpec(n.k).cap * M2.BLOOM_MULT;
+      if (n.q < target) {
+        const dq = target - n.q;
+        n.q += dq;
+        this.ledger.append(t, 'stochastic', 'world.bloom', -1, { n: n.id, dq });
+      }
+    }
 
     const order = this.orderRng.shuffle(
       this.agents.filter(a => a.alive).map(a => a.id));
@@ -104,8 +135,27 @@ export class Sim {
     }
     this.deaths(t);
     if (this.cfg.m1) this.reproduction(t);
+    if (this.cfg.m2) {
+      this.tipExpiry(t);
+      if (t % 250 === 0) this.snapLex(t);
+    }
     this.record(t);
     this.world.tick = t + 1;
+  }
+
+  /** M2 measurement snapshot: each agent's strongest association per kind */
+  private snapLex(t: number): void {
+    const rows: number[][] = [];
+    for (const a of this.agents) {
+      if (!a.alive) continue;
+      const row = [a.id];
+      for (let k = 0; k < M2.REFS; k++) {
+        const [tok, conf] = lexTopToken(a, k);
+        row.push(tok, Math.round(conf * 100) / 100);
+      }
+      rows.push(row);
+    }
+    this.lexSnaps.push({ tick: t, rows });
   }
 
   // ---- M1 world rules (SPEC-M1 §3.1–3.2) -----------------------------------
@@ -142,7 +192,7 @@ export class Sim {
   /** §3.2 — dumb pairing: adjacent, both surplus and mature, coin flip */
   private reproduction(t: number): void {
     const aliveCount = this.agents.reduce((s, a) => s + (a.alive ? 1 : 0), 0);
-    if (aliveCount >= M1.POP_CAP) return;
+    if (aliveCount >= (this.cfg.m2 ? M2.POP_CAP : M1.POP_CAP)) return;
     const eligible = (a: AgentState) =>
       a.alive && t - a.bornTick >= M1.MATURITY &&
       a.energy >= M1.REPRO_ENERGY &&
@@ -186,7 +236,7 @@ export class Sim {
       c: child.id, a: a.id, b: b.id, x: child.x, y: child.y,
       gen: child.gen, traits, e: M1.CHILD_ENERGY, dE,
     });
-    this.births.push([t, child.id, child.gen, a.id, b.id]);
+    this.births.push([t, child.id, child.gen, a.id, b.id, child.x]);
     // newborns know their parents and parents know their newborn — kinship
     // is biology, not inherited behavior (§3.2: traits only means the child
     // copies no memories; these are fresh records everyone writes at birth)
@@ -209,7 +259,8 @@ export class Sim {
   private worldRegen(t: number): void {
     const d: [number, number][] = [];
     for (const n of this.world.nodes) {
-      const spec = this.cfg.m1 ? m1NodeSpec(n.k) : P.RESOURCES[n.k];
+      const spec = this.cfg.m2 ? m2NodeSpec(n.k)
+        : this.cfg.m1 ? m1NodeSpec(n.k) : P.RESOURCES[n.k];
       if (n.q < spec.cap) {
         const dq = Math.min(spec.regen, spec.cap - n.q);
         n.q += dq;
@@ -293,9 +344,21 @@ export class Sim {
     const ownCaches = this.world.caches.filter(c => c.owner === a.id);
     const m1opts: M1Opts | undefined = this.cfg.m1
       ? { age: t - a.bornTick,
-          ...(this.cfg.ablateTokenBias ? { tokenBiasOff: true } : {}) }
+          ...(this.cfg.ablateTokenBias ? { tokenBiasOff: true } : {}),
+          ...(this.cfg.m2 ? { m2: true, vision: this.vision } : {}) }
       : undefined;
     const dec = decide(a, pc, ownCaches, this.noiseRng, m1opts);
+
+    // M2: acting on a tip opens an outcome window (§2.2 — both parties will
+    // update on how it turns out, and on nothing else)
+    if (this.cfg.m2 && dec.intent.startsWith('heed2:')) {
+      const [, em, tok, sx, sy, kHat] = dec.intent.split(':').map(Number);
+      const existing = this.tips.findIndex(p => p.b === a.id);
+      const tip = { b: a.id, emitter: em, tok, x: sx, y: sy, kHat,
+                    deadline: t + M2.HEED_WINDOW, arrived: false };
+      if (existing >= 0) this.tips[existing] = tip;
+      else this.tips.push(tip);
+    }
 
     const causes: number[] = [];
     for (const ep of dec.cites) if (ep.ledger >= 0) causes.push(ep.ledger);
@@ -332,7 +395,17 @@ export class Sim {
           ? Math.sign(this.agents[act.target].x - a.x) : act.dx;
         const dy = act.t === 'follow'
           ? Math.sign(this.agents[act.target].y - a.y) : act.dy;
-        const nx = clampW(a.x + dx), ny = clampW(a.y + dy);
+        let nx = clampW(a.x + dx), ny = clampW(a.y + dy);
+        if (this.cfg.m2 && m2Blocked(nx, ny, t)) {
+          // the divide is a world rule: blocked steps slide along it
+          if (!m2Blocked(clampW(a.x + dx), a.y, t)) {
+            nx = clampW(a.x + dx); ny = a.y;
+          } else if (!m2Blocked(a.x, clampW(a.y + dy), t)) {
+            nx = a.x; ny = clampW(a.y + dy);
+          } else {
+            nx = a.x; ny = a.y;
+          }
+        }
         const dE = -Math.min(P.MOVE_DRAIN, a.energy);
         a.x = nx; a.y = ny; a.energy += dE;
         if (act.t === 'follow') a.followTarget = act.target;
@@ -374,6 +447,7 @@ export class Sim {
             this.gathers.push([t, a.id, n.x, n.y, n.k]);
             this.watched(a, t, n.x, n.y, n.k, g, eid);
           }
+          if (this.cfg.m2) this.tipOutcome(a, n.k, t, eid);
         }
         break;
       }
@@ -479,7 +553,7 @@ export class Sim {
           { a: a.id, o: act.owner, k: act.kind, amt, x: a.x, y: a.y }, [decId]);
         if (!own) {
           const owner = this.agents[act.owner];
-          const seen = owner.alive && chebA(owner, a) <= P.VISION;
+          const seen = owner.alive && chebA(owner, a) <= this.vision && !(this.cfg.m2 && m2CrossBlocked(owner.x, a.x, t));
           this.events.push({ tick: t, type: 'loot', a: a.id, b: act.owner,
                              k: act.kind, amt, ledger: eid, w: seen });
           // the owner only learns of it if they can see it happen (§3.3:
@@ -544,20 +618,66 @@ export class Sim {
           this.episode(a, t, 'signaled', -1, a.x, a.y, token, act.mode,
                        0.2, eid);
         }
+        // M2: what was the caller looking at? (measurement-side only —
+        // derived from the same rule the caller's decision used; never
+        // transmitted to any hearer)
+        let ref = -1;
+        if (this.cfg.m2 && act.mode === 1) {
+          let bestV = 0;
+          for (const n of this.world.nodes) {
+            if (cheb(a.x, a.y, n.x, n.y) > this.vision) continue;
+            if (!nodeOpen(n.k, t) || n.q <= M2.ABUND_Q * m2NodeSpec(n.k).cap) continue;
+            const v = P.RESOURCES[n.k].nutrition * n.q;
+            if (v > bestV) { bestV = v; ref = n.k; }
+          }
+        }
+        const hearerLog: [number, number][] = [];
         for (const o of this.agents) {
           if (o.id === a.id || !o.alive) continue;
-          if (chebA(o, a) <= P.SIGNAL_RADIUS) {
-            // the heard mark (k = token) is the veil-level percept; its
-            // weight exists only when the observation channel is on
-            let w: number | undefined;
-            if (this.cfg.m1 && !this.cfg.ablateObservation && token >= 0) {
-              const rec = o.social.get(a.id);
-              w = Math.min(1.25, 0.4 + 0.6 * Math.max(0, rec?.trust ?? 0) +
-                                 0.25 * (rec?.familiarity ?? 0));
-            }
-            this.episode(o, t, 'signal-heard', a.id, a.x, a.y, token, act.mode,
-                         act.mode === 0 ? 0.75 : 0.5, eid, w);
+          if (chebA(o, a) > this.sigR) continue;
+          if (this.cfg.m2 && m2CrossBlocked(o.x, a.x, t)) continue;
+          // the heard mark (k = token) is the veil-level percept; its
+          // weight exists only when the observation channel is on
+          let w: number | undefined;
+          if (this.cfg.m1 && !this.cfg.ablateObservation && token >= 0) {
+            const rec = o.social.get(a.id);
+            w = Math.min(1.25, 0.4 + 0.6 * Math.max(0, rec?.trust ?? 0) +
+                               0.25 * (rec?.familiarity ?? 0));
           }
+          this.episode(o, t, 'signal-heard', a.id, a.x, a.y, token, act.mode,
+                       act.mode === 0 ? 0.75 : 0.5, eid, w);
+          if (this.cfg.m2 && act.mode === 1) {
+            // could the hearer see a rich open node itself? (asymmetry flag
+            // for the measurement, and the grounding condition below)
+            let seesK = -1, seesV = 0;
+            for (const n of this.world.nodes) {
+              if (cheb(o.x, o.y, n.x, n.y) > this.vision) continue;
+              if (this.cfg.m2 && m2CrossBlocked(o.x, n.x, t)) continue;
+              if (!nodeOpen(n.k, t) || n.q <= M2.ABUND_Q * m2NodeSpec(n.k).cap) continue;
+              const v = P.RESOURCES[n.k].nutrition * n.q;
+              if (v > seesV) { seesV = v; seesK = n.k; }
+            }
+            hearerLog.push([o.id, seesK >= 0 ? 1 : 0]);
+            // hear-while-seeing acquisition (§2.3): the child-at-the-elbow
+            // path. Off under ablation A (no confidence updates) and under
+            // ablation C (no social learning).
+            if (token >= 0 && seesK >= 0 && !this.cfg.ablateReinforce &&
+                !this.cfg.ablateObservation) {
+              const rec = o.social.get(a.id);
+              const cw = Math.min(1.25, 0.4 + 0.6 * Math.max(0, rec?.trust ?? 0) +
+                                        0.25 * (rec?.familiarity ?? 0));
+              const dCo = M2.LEX_DELTA_CO * cw;
+              const lCo = M2.LEX_LAT * dCo / M2.LEX_DELTA_FOUND;
+              const post = lexBump(o, token, seesK, dCo, lCo);
+              this.ledger.append(t, 'agent', 'mem.lex', o.id,
+                { a: o.id, tk: token, k: seesK,
+                  d: dCo, l: lCo, c: r3(post) }, [eid]);
+            }
+          }
+        }
+        if (this.cfg.m2 && act.mode === 1) {
+          this.emissions.push({ t, a: a.id, mode: act.mode, tok: token,
+                                x: a.x, y: a.y, ref, hearers: hearerLog });
         }
         break;
       }
@@ -593,30 +713,35 @@ export class Sim {
   // ---- perception (§2.2: the veil — structured, schema-only) ---------------
 
   percept(a: AgentState, t: number): Percept {
-    const R = P.VISION;
+    const R = this.vision;
+    // the M2 divide blocks perception while closed — no sight, no sound,
+    // no knowledge crosses it (§2.4 isolation is structural, not advisory)
+    const sees = (x: number) =>
+      !this.cfg.m2 || !m2CrossBlocked(a.x, x, t);
     const nodes = this.world.nodes
-      .filter(n => cheb(a.x, a.y, n.x, n.y) <= R && n.q > 0.1)
+      .filter(n => cheb(a.x, a.y, n.x, n.y) <= R && n.q > 0.1 && sees(n.x))
       .map(n => ({ x: n.x, y: n.y, k: n.k, q: round2(n.q),
                    open: nodeOpen(n.k, t) }));
     const agents = this.agents
-      .filter(b => b.alive && b.id !== a.id && cheb(a.x, a.y, b.x, b.y) <= R)
+      .filter(b => b.alive && b.id !== a.id &&
+                   cheb(a.x, a.y, b.x, b.y) <= R && sees(b.x))
       .map(b => ({
         id: b.id, x: b.x, y: b.y,
         band: b.energy < 25 ? 0 : b.energy < 60 ? 1 : 2,
         load: carriedTotal(b) < 2 ? 0 : carriedTotal(b) < 10 ? 1 : 2,
       }));
     const signals = this.world.signals
-      .filter(s => cheb(a.x, a.y, s.x, s.y) <= P.SIGNAL_RADIUS)
+      .filter(s => cheb(a.x, a.y, s.x, s.y) <= this.sigR && sees(s.x))
       .map(s => ({ from: s.from, x: s.x, y: s.y, mode: s.mode,
                    age: t - s.tick, tok: s.token ?? -1 }));
     const caches = this.world.caches
       .filter(c => cheb(a.x, a.y, c.x, c.y) <= R &&
-                   c.q[0] + c.q[1] + c.q[2] > 0.3)
+                   c.q[0] + c.q[1] + c.q[2] > 0.3 && sees(c.x))
       .map(c => ({ owner: c.owner, x: c.x, y: c.y,
                    q: c.q.map(round2) as [number, number, number] }));
     const spills = [] as { x: number; y: number; k: Kind; q: number }[];
     for (const sp of this.world.spills) {
-      if (cheb(a.x, a.y, sp.x, sp.y) > R) continue;
+      if (cheb(a.x, a.y, sp.x, sp.y) > R || !sees(sp.x)) continue;
       for (const k of [0, 1, 2] as Kind[]) {
         if (sp.q[k] > 0.25) spills.push({ x: sp.x, y: sp.y, k, q: round2(sp.q[k]) });
       }
@@ -684,6 +809,57 @@ export class Sim {
   }
 
   /**
+   * M2 (§2.2): the world resolves a tip. The hearer, having gathered near
+   * the called site, associates the mark with WHAT IT FOUND — its own
+   * percept, not a label. The emitter, if it can see the hearer succeed,
+   * reinforces its own association. A good tip warms trust; nothing tells
+   * either party what the mark "really" refers to.
+   */
+  private tipOutcome(b: AgentState, kFound: number, t: number,
+                     gatherEid: number): void {
+    const i = this.tips.findIndex(p => p.b === b.id && t <= p.deadline &&
+      cheb(b.x, b.y, p.x, p.y) <= M2.HEED_RADIUS);
+    if (i < 0) return;
+    const tip = this.tips[i];
+    this.tips.splice(i, 1);
+    if (this.cfg.ablateReinforce) return;
+    const post = lexBump(b, tip.tok, kFound, M2.LEX_DELTA_FOUND, M2.LEX_LAT);
+    this.ledger.append(t, 'agent', 'mem.lex', b.id,
+      { a: b.id, tk: tip.tok, k: kFound, d: M2.LEX_DELTA_FOUND,
+        l: M2.LEX_LAT, c: r3(post) },
+      [gatherEid]);
+    this.social(b, tip.emitter, M2.TRUST_TIP_GOOD, P.FAMILIARITY_STEP, t,
+                gatherEid);
+    const em = this.agents[tip.emitter];
+    if (em?.alive && chebA(em, b) <= this.vision &&
+        !(this.cfg.m2 && m2CrossBlocked(em.x, b.x, t))) {
+      const lEmit = M2.LEX_LAT * M2.LEX_DELTA_EMIT / M2.LEX_DELTA_FOUND;
+      const postE = lexBump(em, tip.tok, kFound, M2.LEX_DELTA_EMIT, lEmit);
+      this.ledger.append(t, 'agent', 'mem.lex', em.id,
+        { a: em.id, tk: tip.tok, k: kFound, d: M2.LEX_DELTA_EMIT,
+          l: lEmit, c: r3(postE) }, [gatherEid]);
+    }
+  }
+
+  /** expire acted-on tips: an arrival that found nothing weakens the mark */
+  private tipExpiry(t: number): void {
+    for (let i = this.tips.length - 1; i >= 0; i--) {
+      const tip = this.tips[i];
+      const b = this.agents[tip.b];
+      if (!b.alive) { this.tips.splice(i, 1); continue; }
+      if (cheb(b.x, b.y, tip.x, tip.y) <= M2.HEED_RADIUS) tip.arrived = true;
+      if (t <= tip.deadline) continue;
+      this.tips.splice(i, 1);
+      if (!tip.arrived || this.cfg.ablateReinforce) continue;
+      const post = lexBump(b, tip.tok, tip.kHat, -M2.LEX_DELTA_FAIL);
+      const eid = this.ledger.append(t, 'agent', 'mem.lex', b.id,
+        { a: b.id, tk: tip.tok, k: tip.kHat, d: -M2.LEX_DELTA_FAIL,
+          c: r3(post) });
+      this.social(b, tip.emitter, M2.TRUST_TIP_BAD, 0, t, eid);
+    }
+  }
+
+  /**
    * The observation channel (SPEC-M1 §3.3): anyone who can see the actor
    * gather records a low-salience watch entry — action, place, actor, tick —
    * whose weight is the watcher's regard for the actor at that moment. It is
@@ -696,7 +872,7 @@ export class Sim {
     if (this.cfg.ablateObservation) return;
     for (const o of this.agents) {
       if (!o.alive || o.id === actor.id) continue;
-      if (cheb(o.x, o.y, actor.x, actor.y) > P.VISION) continue;
+      if (cheb(o.x, o.y, actor.x, actor.y) > this.vision || (this.cfg.m2 && m2CrossBlocked(o.x, actor.x, t))) continue;
       const key = o.id * 10000 + actor.id;
       const last = this.lastWatch.get(key);
       if (last !== undefined && t - last < M1.OBS_THROTTLE) continue;
@@ -714,7 +890,7 @@ export class Sim {
                   type: EpisodeType, eventId: number, dTrust: number): void {
     for (const o of this.agents) {
       if (!o.alive || o.id === actor.id || o.id === victim.id) continue;
-      if (cheb(o.x, o.y, actor.x, actor.y) > P.VISION) continue;
+      if (cheb(o.x, o.y, actor.x, actor.y) > this.vision || (this.cfg.m2 && m2CrossBlocked(o.x, actor.x, t))) continue;
       this.episode(o, t, type, actor.id, actor.x, actor.y, -1, 0, 0.6, eventId);
       this.social(o, actor.id, dTrust, P.FAMILIARITY_STEP, t, eventId);
     }
@@ -785,6 +961,7 @@ function clampW(v: number): number {
   return v < 0 ? 0 : v >= P.WORLD ? P.WORLD - 1 : v;
 }
 function round2(v: number): number { return Math.round(v * 100) / 100; }
+function r3(v: number): number { return Math.round(v * 1000) / 1000; }
 function actionTarget(a: Action): number {
   switch (a.t) {
     case 'give': case 'take': case 'follow': case 'attack': return a.target;

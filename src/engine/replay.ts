@@ -1,9 +1,9 @@
-import { M1, P } from '../core/params.js';
+import { M1, M2, P } from '../core/params.js';
 import type {
   AgentState, Cache, Episode, Kind, LedgerEntry, WorldState,
 } from '../core/types.js';
 import { blankAgent, createAgents } from '../agents/agent.js';
-import { socialMut, writeEpisode } from '../agents/memory.js';
+import { lexBump, socialMut, writeEpisode } from '../agents/memory.js';
 import { generateWorld } from '../world/world.js';
 import { applyMemDrift } from './engine.js';
 
@@ -22,10 +22,11 @@ export interface Replica {
 }
 
 export function replay(seed: number, entries: LedgerEntry[],
-                       nAgents?: number, m1 = false): Replica {
-  const world = generateWorld(seed, m1);
+                       nAgents?: number, m1 = false, m2 = false): Replica {
+  const world = generateWorld(seed, m1 || m2, m2);
   const agents = createAgents(seed,
-    nAgents ?? (m1 ? M1.AGENTS_START : P.N_AGENTS), m1);
+    nAgents ?? (m2 ? 2 * M2.AGENTS_PER_SIDE : m1 ? M1.AGENTS_START : P.N_AGENTS),
+    m1 || m2, m2);
   let curTick = -1;
 
   const cacheAt = (owner: number, x: number, y: number): Cache => {
@@ -162,6 +163,12 @@ export function replay(seed: number, entries: LedgerEntry[],
         rec.lastTick = d.lt; rec.lastLedger = e.id;
         break;
       }
+      case 'mem.lex':
+        lexBump(agents[d.a], d.tk, d.k, d.d, d.l ?? 0);
+        break;
+      case 'world.bloom':
+        world.nodes[d.n].q += d.dq;
+        break;
       // no state mutation:
       case 'decision': case 'act.rest': case 'act.gather-fail':
         break;
@@ -184,6 +191,9 @@ export function stateHash(world: WorldState, agents: AgentState[]): string {
       f: a.followTarget, hx: a.homeX, hy: a.homeY,
       died: a.diedTick, eph: a.epHead,
       born: a.bornTick, g: a.gen, par: a.parents, lr: a.lastRepro,
+      ...(a.lex
+        ? { lx: Array.from(a.lex, v => Math.round(v * 1e6) / 1e6) }
+        : {}),
       epi: a.episodic,
       soc: social,
     }));
