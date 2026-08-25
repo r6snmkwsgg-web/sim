@@ -343,14 +343,20 @@ export function decide(a: AgentState, pc: Percept, ownCaches: Cache[],
   // associations for the kind it sees — or coined when it has none (§2.2)
   let tokenLex: number | undefined;
   if (m1?.m2 && wantAbundance && richVisible) {
+    const [, topConf] = lexTopToken(a, richVisible.k);
+    // exploration anneals with confidence: a mark that has kept working
+    // stops being experimented with
+    const explore = 0.15 * (1 - topConf / M2.LEX_CAP);
     let best = -1, bestS = -Infinity;
     for (let t = 0; t < M1.TOKENS; t++) {
       const c = a.lex ? a.lex[t * M2.REFS + richVisible.k] : 0;
-      const s = c + 0.15 * rng.gumbel();
+      const s = c + explore * rng.gumbel();
       if (s > bestS) { bestS = s; best = t; }
     }
-    const [, topConf] = lexTopToken(a, richVisible.k);
-    tokenLex = topConf >= M2.LEX_EMIT_MIN
+    // coin only from genuine ignorance (nothing for this kind has ever
+    // reached COIN_MAX); between COIN_MAX and EMIT_MIN, lean on the best
+    // of what is known — a newborn listens before it invents
+    tokenLex = topConf >= M2.LEX_COIN_MAX
       ? best
       : (a.lex ? lexLeastUsed(a) : rng.int(M1.TOKENS));   // coin under pressure
   }

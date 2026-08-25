@@ -77,6 +77,13 @@ import type { Frame, SimEvent } from './engine.js';
  *    requires exactly that pattern (≥2 classes, same population, coherent
  *    streaks overlapping at one snapshot, distinct modal tokens). The
  *    single-pool concentration probability is still reported as context.
+ *  - a5 (§5.6, declared before the round-2 protocol ran): adopters and
+ *    their other-side trust are read at the ADOPTION snapshot (where the
+ *    borrowed share first holds), not at the final snapshot — round 1
+ *    showed the final snapshot probes the post-churn state, yielding
+ *    "share 0→1 with 0 adopters". Snapshots now carry each agent's
+ *    other-side social ledger (count, mean trust) as measurement-only
+ *    columns; older run data falls back to final trust.
  */
 
 export interface EmissionLog {
@@ -89,8 +96,9 @@ export interface EmissionLog {
 
 export interface LexSnap {
   tick: number;
-  /** per living agent: [id, top0, conf0, top1, conf1, top2, conf2]
-   *  (top = strongest token per class, -1 if none) */
+  /** per living agent: [id, top0, conf0, top1, conf1, top2, conf2,
+   *  otherN?, otherTrust?] (top = strongest token per class, -1 if none;
+   *  the trailing pair — a5 — is the agent's other-side social ledger) */
   rows: number[][];
 }
 
@@ -289,12 +297,14 @@ export function analyzeM2(run: M2RunData,
   // ---- §5.6 borrowing ------------------------------------------------------
   const borrowing: M2Report['borrowing'] = [];
   const trustToOther = otherSideTrust(finalTrust, side);
+  const TRUST_COL = 2 * K + 2;      // a5: [otherN, otherTrust] appended to rows
   for (const dv of divergentClasses) {
     for (const pop of [0, 1]) {
       const foreign = pop === 0 ? dv.east : dv.west;
       const pre = shareOfToken(preContactSnap, pop, dv.k, foreign, side);
       if (!Number.isFinite(pre)) continue;
       let peak = pre, latency = -1, hold = 0, borrowed = false;
+      let adoptionSnap: LexSnap | undefined;
       for (const s of snaps) {
         if (s.tick < run.contactTick) continue;
         const sh = shareOfToken(s, pop, dv.k, foreign, side);
@@ -302,20 +312,27 @@ export function analyzeM2(run: M2RunData,
         peak = Math.max(peak, sh);
         if (sh >= pre + BORROW_RISE) {
           hold++;
-          if (hold >= 2 && latency < 0) { latency = s.tick - run.contactTick; borrowed = true; }
+          if (hold >= 2 && latency < 0) {
+            latency = s.tick - run.contactTick; borrowed = true;
+            adoptionSnap = s;
+          }
         } else hold = 0;
       }
-      if (!borrowed) continue;
-      // adopters: this pop's agents whose final top token for k is foreign
-      const last = snaps[snaps.length - 1];
-      const adopters: number[] = [], others: number[] = [];
-      for (const row of last.rows) {
+      if (!borrowed || !adoptionSnap) continue;
+      // amendment a5: adopters and their other-side trust are read AT the
+      // adoption snapshot — the final snapshot probes the post-churn state,
+      // which is a different question. Falls back to final trust for run
+      // data recorded before the snapshot carried trust columns.
+      const hasTrustCol = adoptionSnap.rows[0]?.length > TRUST_COL;
+      const adopters: number[][] = [], others: number[][] = [];
+      for (const row of adoptionSnap.rows) {
         if ((side.get(row[0]) ?? -1) !== pop) continue;
         if (row[2 * dv.k + 2] < QUAL_CONF) continue;
-        (row[2 * dv.k + 1] === foreign ? adopters : others).push(row[0]);
+        (row[2 * dv.k + 1] === foreign ? adopters : others).push(row);
       }
-      const tr = (ids: number[]) =>
-        r2(mean(ids.map(id => trustToOther.get(id) ?? 0)));
+      const tr = (rows: number[][]) => r2(mean(hasTrustCol
+        ? rows.filter(r => r[TRUST_COL - 1] > 0).map(r => r[TRUST_COL])
+        : rows.map(r => trustToOther.get(r[0]) ?? 0)));
       borrowing.push({
         k: dv.k, adoptingPop: pop, peakShare: r2(peak), preShare: r2(pre),
         latency, adopterTrust: tr(adopters), nonAdopterTrust: tr(others),

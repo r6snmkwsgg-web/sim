@@ -254,5 +254,19 @@ yet cannot hold two classes simultaneously coherent on distinct tokens),
 and the amendment must be made and disclosed before any finite value of
 the metric has been observed.
 
+**A4 (M2 ablation B, adopted after protocol round 1).** SPEC-M2 §5.7's
+expected signature for ablation B (full observability) — "successful
+coordination without symbol differentiation" — was a wrong prediction, not
+a failed mechanism: with vision equal to signal radius, differentiation
+*persists* (10/12 streams, z 4–15), because outcome grounding never needed
+privacy; and universal far sight collapses demography, so B is not a clean
+minimal pair. The corrected reading, binding for reruns: the shared-percept
+confound (§4.1 item 1) is controlled **per measured event** — every §5.2 and
+§5.4 hear event requires the hearer could not see any rich open node — and
+ablation B is retained as a secondary, demography-confounded manipulation
+whose expected signature is *weakened differentiation and inflated
+§5.2 contingency of non-communicative origin*, not the absence of
+differentiation.
+
 Milestone specifications after M0 live beside this file:
 [SPEC-M1.md](SPEC-M1.md), [SPEC-M2.md](SPEC-M2.md).

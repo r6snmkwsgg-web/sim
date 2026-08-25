@@ -76,6 +76,10 @@ export class Sim {
   private tips: { b: number; emitter: number; tok: number; x: number;
                   y: number; kHat: number; deadline: number;
                   arrived: boolean }[] = [];
+  /** M2: node ids by kind, for kind-balanced bloom opportunity */
+  private m2NodesByKind: number[][] = [];
+  /** M2: birth side per agent, for the snapshot's other-side trust column */
+  private bornWest = new Map<number, boolean>();
 
   constructor(cfg: SimConfig) {
     this.cfg = cfg;
@@ -91,6 +95,13 @@ export class Sim {
       // far as any signal, so nothing a call carries is ever private
       this.vision = cfg.fullObservability ? M2.SIGNAL_RADIUS : M2.VISION;
       this.sigR = M2.SIGNAL_RADIUS;
+    }
+    if (cfg.m2) {
+      this.m2NodesByKind = [[], [], []];
+      for (const n of this.world.nodes) this.m2NodesByKind[n.k].push(n.id);
+      for (const a of this.agents) {
+        this.bornWest.set(a.id, a.id < M2.AGENTS_PER_SIDE);
+      }
     }
     this.orderRng = new RNG(cfg.seed, `order:${cfg.stream}`);
     this.noiseRng = new RNG(cfg.seed, `noise:${cfg.stream}`);
@@ -118,8 +129,12 @@ export class Sim {
       this.mortality(t);
     }
     if (this.cfg.m2 && this.reproRng.next() < M2.BLOOM_CHANCE) {
-      // a transient windfall — the §2.1 information asymmetry stays alive
-      const n = this.world.nodes[this.reproRng.int(this.world.nodes.length)];
+      // a transient windfall — the §2.1 information asymmetry stays alive.
+      // Kind drawn uniformly first, so every referent class gets equal call
+      // opportunity (pith has far fewer nodes than thren; protocol round 1
+      // showed kind1 rarely qualifying for coherence at all)
+      const kindIds = this.m2NodesByKind[this.reproRng.int(3)];
+      const n = this.world.nodes[kindIds[this.reproRng.int(kindIds.length)]];
       const target = m2NodeSpec(n.k).cap * M2.BLOOM_MULT;
       if (n.q < target) {
         const dq = target - n.q;
@@ -145,7 +160,22 @@ export class Sim {
     this.world.tick = t + 1;
   }
 
-  /** M2 measurement snapshot: each agent's strongest association per kind */
+  /**
+   * Entrenchment: an agent whose own mark for kind k has kept working
+   * resists conversion — a positive update toward a DIFFERENT token for
+   * that kind scales down with the incumbent's confidence. Private,
+   * outcome-derived, no population feedback.
+   */
+  private entrench(ag: AgentState, tok: number, k: number): number {
+    const [topT, topC] = lexTopToken(ag, k);
+    return topT >= 0 && topT !== tok
+      ? 1 - M2.LEX_ENTRENCH * Math.min(1, topC / M2.LEX_CAP)
+      : 1;
+  }
+
+  /** M2 measurement snapshot: each agent's strongest association per kind,
+   *  plus its other-side social ledger (count, mean trust) for §5.6/a5 —
+   *  measurement columns only, never agent-visible */
   private snapLex(t: number): void {
     const rows: number[][] = [];
     for (const a of this.agents) {
@@ -155,6 +185,14 @@ export class Sim {
         const [tok, conf] = lexTopToken(a, k);
         row.push(tok, Math.round(conf * 100) / 100);
       }
+      const myWest = this.bornWest.get(a.id);
+      let n = 0, sum = 0;
+      for (const [b, rec] of a.social) {
+        if (this.bornWest.get(b) === undefined ||
+            this.bornWest.get(b) === myWest) continue;
+        n++; sum += rec.trust;
+      }
+      row.push(n, n ? Math.round((sum / n) * 100) / 100 : 0);
       rows.push(row);
     }
     this.lexSnaps.push({ tick: t, rows });
@@ -239,6 +277,10 @@ export class Sim {
       gen: child.gen, traits, e: M1.CHILD_ENERGY, dE,
     });
     this.births.push([t, child.id, child.gen, a.id, b.id, child.x]);
+    if (this.cfg.m2) {
+      this.bornWest.set(child.id,
+        child.x < (M2.BARRIER_X0 + M2.BARRIER_X1) / 2);
+    }
     // newborns know their parents and parents know their newborn — kinship
     // is biology, not inherited behavior (§3.2: traits only means the child
     // copies no memories; these are fresh records everyone writes at birth)
@@ -668,7 +710,7 @@ export class Sim {
               const rec = o.social.get(a.id);
               const cw = Math.min(1.25, 0.4 + 0.6 * Math.max(0, rec?.trust ?? 0) +
                                         0.25 * (rec?.familiarity ?? 0));
-              const dCo = M2.LEX_DELTA_CO * cw;
+              const dCo = M2.LEX_DELTA_CO * cw * this.entrench(o, token, seesK);
               const lCo = M2.LEX_LAT * dCo / M2.LEX_DELTA_FOUND;
               const post = lexBump(o, token, seesK, dCo, lCo);
               this.ledger.append(t, 'agent', 'mem.lex', o.id,
@@ -825,21 +867,23 @@ export class Sim {
     const tip = this.tips[i];
     this.tips.splice(i, 1);
     if (this.cfg.ablateReinforce) return;
-    const post = lexBump(b, tip.tok, kFound, M2.LEX_DELTA_FOUND, M2.LEX_LAT);
+    const dF = M2.LEX_DELTA_FOUND * this.entrench(b, tip.tok, kFound);
+    const lF = M2.LEX_LAT * dF / M2.LEX_DELTA_FOUND;
+    const post = lexBump(b, tip.tok, kFound, dF, lF);
     this.ledger.append(t, 'agent', 'mem.lex', b.id,
-      { a: b.id, tk: tip.tok, k: kFound, d: M2.LEX_DELTA_FOUND,
-        l: M2.LEX_LAT, c: r3(post) },
+      { a: b.id, tk: tip.tok, k: kFound, d: dF, l: lF, c: r3(post) },
       [gatherEid]);
     this.social(b, tip.emitter, M2.TRUST_TIP_GOOD, P.FAMILIARITY_STEP, t,
                 gatherEid);
     const em = this.agents[tip.emitter];
     if (em?.alive && chebA(em, b) <= this.vision &&
         !(this.cfg.m2 && m2CrossBlocked(em.x, b.x, t))) {
-      const lEmit = M2.LEX_LAT * M2.LEX_DELTA_EMIT / M2.LEX_DELTA_FOUND;
-      const postE = lexBump(em, tip.tok, kFound, M2.LEX_DELTA_EMIT, lEmit);
+      const dEm = M2.LEX_DELTA_EMIT * this.entrench(em, tip.tok, kFound);
+      const lEm = M2.LEX_LAT * dEm / M2.LEX_DELTA_FOUND;
+      const postE = lexBump(em, tip.tok, kFound, dEm, lEm);
       this.ledger.append(t, 'agent', 'mem.lex', em.id,
-        { a: em.id, tk: tip.tok, k: kFound, d: M2.LEX_DELTA_EMIT,
-          l: lEmit, c: r3(postE) }, [gatherEid]);
+        { a: em.id, tk: tip.tok, k: kFound, d: dEm,
+          l: lEm, c: r3(postE) }, [gatherEid]);
     }
   }
 

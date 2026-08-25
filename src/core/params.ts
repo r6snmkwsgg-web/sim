@@ -207,7 +207,9 @@ export const M2 = {
   // sight is local; a call carries beyond sight. The gap between the two
   // radii is where information asymmetry — and any reason to signal — lives.
   VISION: 3,
-  SIGNAL_RADIUS: 10,
+  SIGNAL_RADIUS: 7,          // was 10; a call recruiting a 21×21 crowd to one
+                             // node eats its own value in the race (protocol
+                             // round 1: §5.2 contingency 0.75–0.96)
 
   // ---- per-side resources (identical mirrored halves) ---------------------
   PITH_SITES_PER_SIDE: 2, PITH_PER_SITE: 26, PITH_SPREAD: 3.6,
@@ -223,6 +225,12 @@ export const M2 = {
   REFS: 3,                   // referent classes = the percept schema's kinds
   LEX_CAP: 3,                // confidence ceiling
   LEX_EMIT_MIN: 0.5,         // below this, coining pressure (§2.2)
+  LEX_COIN_MAX: 0.12,        // coin only from genuine ignorance: above this,
+                             // lean on the best-known mark instead (a newborn
+                             // listens before it invents)
+  LEX_ENTRENCH: 0.85,        // an agent's own repeatedly-successful mark
+                             // resists conversion: competing-token updates for
+                             // that kind scale by 1 − ENTRENCH·topConf/CAP
   LEX_DELTA_FOUND: 0.25,     // hearer, on finding kind k after acting on T
   LEX_DELTA_EMIT: 0.18,      // emitter, on seeing the hearer succeed
   LEX_DELTA_FAIL: 0.18,      // hearer, on arriving and finding nothing
@@ -239,7 +247,8 @@ export const M2 = {
   // past cap — a transient, privately-discovered windfall. Static sites
   // saturate into common knowledge; blooms are what there is to talk about.
   BLOOM_CHANCE: 0.05,        // per tick, one random node world-wide
-  BLOOM_MULT: 2.5,           // surge target, × cap
+  BLOOM_MULT: 4,             // surge target, × cap (was 2.5: a windfall must
+                             // outlast the crowd a call recruits)
   TRUST_TIP_GOOD: 0.04,      // a tip that worked out warms the hearer
   TRUST_TIP_BAD: -0.03,      // a wasted trip cools it
 } as const;
