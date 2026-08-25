@@ -1,0 +1,204 @@
+════════════════════════════════════════════════════════════════════════
+ MILESTONE 2 — SYMBOLS: full preregistered protocol run
+ SPEC-M2 §5–§6 · 12 RNG streams × {main, A, B, C} = 48 runs
+ seed 11, streams 1–12, 10,000 ticks (contact at t=6000), zero LLM calls
+════════════════════════════════════════════════════════════════════════
+
+Protocol date: 2026-08-24/25. Engine at commit 436cb68 (ablation B vision
+= signal radius). Measurement file src/engine/metrics-m2.ts was written in
+full before the first M2 output was examined; four post-hoc amendments
+(a1–a4, disclosed in the file header and below) fixed instruments that
+were undefined or misattributing by construction. No threshold was changed
+in response to an observed value.
+
+Two earlier mechanical iterations FAILED and are preserved in the git
+history: (run 1–2) one all-purpose token per side, §5.4 not
+differentiated — static resource sites saturate into common knowledge, so
+calls carried no news. The mechanics that fixed it: bloom events (nodes
+stochastically surge past cap — transient, privately discovered windfalls
+worth calling about), abundance calls gated above ABUND_Q × cap, lateral
+inhibition (a grounding of (token, kind) weakens that token's other-kind
+ties, scaled by grounding strength), and a mirrored map (east = west
+reflected in x — no inherited ecological advantage).
+
+── Verdict counts (preregistered §6 grading, per stream) ────────────────
+  main: FULL ×3 (s3, s5, s8)   PARTIAL-SIGNALING ×7   FAIL ×2 (s7, s9)
+  A (no reinforcement):   FAIL ×12
+  B (full observability): PARTIAL-SIGNALING ×9, FULL ×1, P-COORD ×1, FAIL ×1
+  C (no observation):     FAIL ×12
+
+  MILESTONE VERDICT: PARTIAL — SIGNALING (modal main-stream outcome;
+  aggregate reasoning below).
+
+── Per-run table ────────────────────────────────────────────────────────
+
+══ main ══
+s 1 z=  26.56 DIFF drift:BEAT cont= 0.89 coh=3/6 div:Y bor:1 pop=82+120 → PARTIAL-SIGNALING
+s 2 z=  34.39 DIFF drift:BEAT cont= 0.91 coh=4/6 div:Y bor:0 pop=58+129 → PARTIAL-SIGNALING
+s 3 z=  32.91 DIFF drift:BEAT cont=  0.9 coh=4/6 div:Y bor:3 pop=97+119 → FULL
+s 4 z=  31.81 DIFF drift:BEAT cont= 0.86 coh=4/6 div:Y bor:2 pop=104+105 → PARTIAL-SIGNALING
+s 5 z=  32.55 DIFF drift:BEAT cont= 0.95 coh=4/6 div:Y bor:1 pop=139+67 → FULL
+s 6 z=   39.9 DIFF drift:BEAT cont= 0.85 coh=4/6 div:Y bor:3 pop=92+107 → PARTIAL-SIGNALING
+s 7 z=   32.6 DIFF drift:no   cont= 0.83 coh=3/6 div:Y bor:1 pop=101+99 → FAIL
+s 8 z=  40.98 DIFF drift:BEAT cont= 0.89 coh=4/6 div:Y bor:2 pop=96+109 → FULL
+s 9 z=  31.56 DIFF drift:no   cont= 0.82 coh=3/6 div:Y bor:2 pop=104+85 → FAIL
+s10 z=  25.99 DIFF drift:BEAT cont= 0.96 coh=4/6 div:Y bor:1 pop=89+103 → PARTIAL-SIGNALING
+s11 z=  23.28 DIFF drift:BEAT cont= 0.88 coh=4/6 div:Y bor:1 pop=119+88 → PARTIAL-SIGNALING
+s12 z=  32.37 DIFF drift:BEAT cont= 0.75 coh=3/6 div:Y bor:1 pop=82+111 → PARTIAL-SIGNALING
+   diff 12/12  beats-drift 10/12  divergence 12/12  borrowing 11/12  verdicts: PARTIAL-SIGNALING×7 FULL×3 FAIL×2
+
+══ A ══
+s 1 z=  -0.41 ---- drift:no   cont= 0.69 coh=0/6 div:n bor:0 pop=107+105 → FAIL
+s 2 z=  -0.48 ---- drift:no   cont= 0.72 coh=0/6 div:n bor:0 pop=108+112 → FAIL
+s 3 z=   4.11 DIFF drift:no   cont= 0.71 coh=0/6 div:n bor:0 pop=105+115 → FAIL
+s 4 z=    7.2 DIFF drift:no   cont= 0.75 coh=0/6 div:n bor:0 pop=99+120 → FAIL
+s 5 z=   8.08 DIFF drift:no   cont= 0.81 coh=0/6 div:n bor:0 pop=103+115 → FAIL
+s 6 z=   1.73 ---- drift:no   cont= 0.72 coh=0/6 div:n bor:0 pop=106+103 → FAIL
+s 7 z=   1.53 ---- drift:no   cont=  0.7 coh=0/6 div:n bor:0 pop=84+134 → FAIL
+s 8 z=  -0.35 ---- drift:no   cont= 0.85 coh=0/6 div:n bor:0 pop=106+113 → FAIL
+s 9 z=    NaN ---- drift:no   cont=  0.8 coh=0/6 div:n bor:0 pop=104+115 → FAIL
+s10 z=    2.8 ---- drift:no   cont= 0.82 coh=0/6 div:n bor:0 pop=103+115 → FAIL
+s11 z=   4.82 DIFF drift:no   cont= 0.72 coh=0/6 div:n bor:0 pop=97+123 → FAIL
+s12 z=   0.39 ---- drift:no   cont= 0.98 coh=0/6 div:n bor:0 pop=98+117 → FAIL
+   diff 4/12  beats-drift 0/12  divergence 0/12  borrowing 0/12  verdicts: FAIL×12
+
+══ B ══
+s 1 z=   9.25 DIFF drift:BEAT cont= 2.21 coh=4/6 div:Y bor:1 pop=40+25 → PARTIAL-SIGNALING
+s 2 z=  14.78 DIFF drift:BEAT cont= 3.13 coh=5/6 div:Y bor:0 pop=31+31 → PARTIAL-SIGNALING
+s 3 z=  11.18 DIFF drift:BEAT cont= 1.24 coh=4/6 div:Y bor:1 pop=27+54 → FULL
+s 4 z=   10.2 DIFF drift:BEAT cont=  NaN coh=4/6 div:n bor:0 pop=31+44 → PARTIAL-SIGNALING
+s 5 z=  11.76 DIFF drift:BEAT cont= 1.07 coh=4/6 div:Y bor:0 pop=33+37 → PARTIAL-SIGNALING
+s 6 z=   8.94 DIFF drift:BEAT cont= 1.33 coh=5/6 div:n bor:0 pop=9+33 → PARTIAL-SIGNALING
+s 7 z=   5.09 DIFF drift:BEAT cont= 1.82 coh=4/6 div:Y bor:0 pop=35+47 → PARTIAL-SIGNALING
+s 8 z=   3.61 DIFF drift:BEAT cont= 1.32 coh=4/6 div:Y bor:0 pop=35+46 → PARTIAL-SIGNALING
+s 9 z=  -0.75 ---- drift:no   cont= 0.98 coh=4/6 div:Y bor:2 pop=2+29 → FAIL
+s10 z=   0.16 ---- drift:BEAT cont= 0.94 coh=4/6 div:Y bor:0 pop=22+36 → PARTIAL-COORDINATION
+s11 z=   5.83 DIFF drift:BEAT cont= 1.13 coh=5/6 div:Y bor:0 pop=19+44 → PARTIAL-SIGNALING
+s12 z=  10.06 DIFF drift:BEAT cont= 0.73 coh=5/6 div:Y bor:2 pop=11+62 → PARTIAL-SIGNALING
+   diff 10/12  beats-drift 11/12  divergence 10/12  borrowing 4/12  verdicts: PARTIAL-SIGNALING×9 FULL×1 FAIL×1 PARTIAL-COORDINATION×1
+
+══ C ══
+s 1 z=   3.61 DIFF drift:no   cont= 0.81 coh=0/6 div:n bor:0 pop=70+106 → FAIL
+s 2 z=   3.53 DIFF drift:no   cont= 0.65 coh=0/6 div:n bor:0 pop=92+103 → FAIL
+s 3 z=      5 DIFF drift:no   cont= 0.79 coh=0/6 div:n bor:0 pop=100+100 → FAIL
+s 4 z=   4.84 DIFF drift:no   cont= 0.57 coh=0/6 div:n bor:0 pop=78+104 → FAIL
+s 5 z=   0.45 ---- drift:no   cont= 0.79 coh=0/6 div:n bor:0 pop=65+93 → FAIL
+s 6 z=   4.32 DIFF drift:no   cont= 0.69 coh=0/6 div:n bor:0 pop=89+96 → FAIL
+s 7 z=   4.68 DIFF drift:no   cont= 0.69 coh=0/6 div:n bor:0 pop=81+94 → FAIL
+s 8 z=    6.7 DIFF drift:no   cont= 0.67 coh=0/6 div:n bor:0 pop=91+95 → FAIL
+s 9 z=      4 DIFF drift:no   cont= 0.61 coh=0/6 div:n bor:0 pop=64+96 → FAIL
+s10 z=  -0.11 ---- drift:no   cont= 0.66 coh=0/6 div:n bor:0 pop=86+87 → FAIL
+s11 z=   5.29 DIFF drift:no   cont= 0.82 coh=0/6 div:n bor:0 pop=88+92 → FAIL
+s12 z=   4.22 DIFF drift:no   cont=  0.8 coh=0/6 div:n bor:0 pop=85+117 → FAIL
+   diff 10/12  beats-drift 0/12  divergence 0/12  borrowing 0/12  verdicts: FAIL×12
+
+(z = §5.4 kind-alignment permutation z-score over asymmetric acted-on
+calls; DIFF = z ≥ 3; drift:BEAT = amended §5.1 test — two classes
+simultaneously coherent on distinct tokens in one population, which a
+single-pool neutral-drift process cannot produce; cont = §5.2 contingency
+vs distance-matched no-call controls; coh = coherent (pop, class) cells
+of 6; div = §5.3 cross-population divergence; bor = §5.6 borrowing
+events; isolation intact in all 48 runs.)
+
+── What the main condition establishes (12 streams) ─────────────────────
+1. TOKENS ARE DIFFERENTIATED BY REFERENT CLASS: 12/12, z = 23–41,
+   measured exclusively on hear events where the hearer could NOT see any
+   rich open node (§2.1 asymmetry enforced per event). What a hearer went
+   on to find aligns with the emitter-side's production mapping for that
+   token far above the token-permuted null. This is the §4.1-confound-3
+   killer: an alarm bell cannot produce kind-conditional alignment.
+2. CLASS-DISTINCT COHERENCE: 10/12 streams hold ≥2 classes simultaneously
+   coherent on different tokens within one population — the signature
+   neutral drift cannot fake (amendment a4). The two failures (s7, s9)
+   had 3/6 coherent cells but never two distinct-token classes at once in
+   the same population; scored FAIL per prereg and counted against.
+3. DIVERGENCE: 12/12 streams end isolation with at least one class
+   coherent in both populations on different modal tokens. Two dialects,
+   same world, every stream.
+4. BORROWING AT CONTACT: 11/12 streams show a divergent class where one
+   population's qualified share of the other's token rises ≥0.20 and
+   holds. In the canonical stream (s1) the east went 0→100% on the west's
+   kind2 token within 500 ticks of the corridor opening. Adopter-vs-non-
+   adopter trust toward the other side is mixed (s8: −0.24 vs −0.30,
+   predicted direction; s5 reversed): the trust-mediation version of the
+   borrowing result is NOT established.
+5. TRANSMISSION FIDELITY IS THE WEAK JOINT: stable (last-3 defined
+   cohorts ≥0.5 in both pops) in only 3/12. The characteristic failure is
+   post-contact lexical churn — after the populations merge, the winning
+   token is displaced every ~500–750 ticks (s1: t6→t3→t2→t5) and cohort
+   fidelity drops to 0. Pre-contact dialects can be stable for thousands
+   of ticks; the merged community's lexicon is not.
+
+── §5.2 communicative success: honestly negative ────────────────────────
+Contingency is 0.75–0.96 across ALL main streams: a hearer within earshot
+of a call is slightly LESS likely to gather near the call's origin within
+50 ticks than the same agent at a matched distance from the same point at
+a call-free time. Two structural reasons, both visible in the data:
+(1) crowding — a call recruits many hearers to one bloomed node, and most
+arrivals lose the race; (2) base-rate saturation — the map is dense
+enough that "gathers within 4 cells of a given point in 50 ticks" happens
+~31% of the time by foraging alone. The information content of calls
+shows up in WHAT hearers find (§5.4, z 23–41), not in WHETHER they find.
+Per SPEC-M2 §6 the graded verdicts do not gate on §5.2 contingency, but
+this number is reported unspun: these tokens name things; they do not
+yet measurably feed anyone.
+
+── Ablation battery ─────────────────────────────────────────────────────
+A (no reinforcement): coherence 0/6 in all 12; no divergence; no
+  borrowing; FAIL ×12. Expected signature confirmed — outcome
+  reinforcement is load-bearing. Residual z ≥ 3 in 4/12 (z 4–8, vs 23–41
+  on main): with lexicons frozen, a bloom of kind k still simultaneously
+  drives local emissions and local k-gathers, and this spatio-temporal
+  clustering survives a full-run within-side token permutation. Disclosed
+  as a known small-sample structure in the null; it produces no
+  coherence, so nothing downstream survives.
+C (no observation channel): identical macro-signature — coherence 0/6 in
+  all 12, FAIL ×12 (same residual small-z clustering, 10/12). The
+  acquisition path (hear-while-seeing co-occurrence) is what lets a
+  newborn ever reach the confidence floor to act on a tip; without it the
+  loop never bootstraps. Spec expectation "lexicon dies with founders"
+  understates the result: it never forms at all.
+B (full observability, vision = signal radius): DEVIATES from the spec's
+  expected signature. §5.7 predicted coordination without differentiation
+  (shared-percept confound made real); observed is differentiation in
+  10/12 (z 4–15, weaker than main's 23–41) with coherence and divergence
+  mostly intact — outcome grounding does not need privacy to build
+  kind-structured associations. B also collapses demography (25–82
+  survivors vs ~200 on main; s9 west pop = 2): universal far sight
+  changes foraging and conflict wholesale, so B is not a clean minimal
+  pair. The §4.1 shared-percept confound is instead controlled per event
+  in measurement: every §5.4/§5.2 hear event requires the hearer could
+  not see any rich node. B's contingency > 1 (8/12) is consistent with
+  vision, not communication, driving arrivals. Reported as-is: an
+  ablation whose observed signature did not match its preregistered
+  expectation, with the per-event filter carrying the confound control.
+
+── Post-hoc measurement amendments (all disclosed in metrics-m2.ts) ─────
+a1 §5.5: cohort measured at end+1200 while mean lifespan ≈390 — every
+   member dead at measurement; the metric returned NaN by construction in
+   every run ever executed. Now end+250. No finite fidelity value was
+   ever observed under the old offset.
+a2 §5.6: borrowed-share scan had no minimum-denominator guard; a 1–2
+   member snapshot could read share 1.0. Snapshots with <10 qualified are
+   now no-information.
+a3 §5.2: control ticks excluded audible calls only in the trailing
+   window while success is scored forward — controls were contaminated by
+   calls inside the scored window. Exclusion now covers [t−50, t+50].
+a4 §5.1: the beats-drift gate compared a fraction (≤1) against
+   driftRate+0.2 ≈ 1.14 — unpassable by any possible data. Replaced by
+   the discriminating prediction of the same null (single-pool drift
+   cannot hold two classes simultaneously coherent on distinct tokens in
+   one population). The single-pool concentration probability (~0.94) is
+   still printed as context.
+
+── Milestone verdict and what it licenses ───────────────────────────────
+PARTIAL — SIGNALING, per SPEC-M2 §6: coherence (amended drift test) and
+the §5.4 permutation pass robustly across streams; divergence and
+borrowing replicate; transmission fidelity does not persist through
+contact-phase mixing (3/12 stable), and communicative success never
+exceeds matched controls. Per §6 this is a real, reportable result:
+proceed to M3 with a within-lifetime symbol layer, and record the
+limitation in the main spec (§8.1) — done in this commit. Not licensed:
+calling this "language" anywhere in the project; the tokens are
+kind-differentiated marks with population-specific conventions and
+contact borrowing, unstable across generations once populations mix.

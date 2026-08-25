@@ -198,6 +198,7 @@ Modes (Observer, God, Experiment, Chaos, Apocalypse, Sandbox, Participant) layer
 ## 8. Open research problems
 These are stated as unsolved so that no one builds a fake version to close the ticket.
 1. **Language evolution.** §3.5 is a plan, not a solution. Emergent signaling systems in the literature produce symbol sets agents cannot *reason in*, while pretrained models reason fluently in a language that cannot drift. Bridging those two layers is unsolved.
+   *M2 result (recorded per SPEC-M2 §6 — verdict: PARTIAL — SIGNALING, 12 streams).* The drift half of the bridge exists in this codebase at T1: private outcome-grounded token–kind associations produce population-level conventions that are kind-differentiated (permutation z 23–41, measured only on hearers who could not see the referent), coherent above a neutral-drift null in 10/12 streams, divergent between isolated populations in 12/12, and borrowed across a contact corridor in 11/12 — with no population-level lexicon object anywhere in the mechanics. What did **not** emerge: stable cross-generation transmission once populations mix (fidelity stable in 3/12; the merged community's modal token is displaced every ~500–750 ticks), and communicative success above matched no-call controls (contingency 0.75–0.96 — calls predict *what* a hearer finds, not *whether* it finds; crowding at called sites eats the benefit). The tokens are conventions, not yet a lexicon that feeds anyone or survives contact. M3 proceeds with a within-lifetime symbol layer per SPEC-M2 §6, and nothing in this project calls the current layer "language". Full protocol: docs/m2-protocol-run.txt.
 2. **Authentic incorrect science.** Requires alien physics deep enough that pretrained priors genuinely fail, plus agents that reason only from in-world evidence. Partially addressed by §2.1; not solved.
 3. **Genuinely novel concepts.** Recombination and invention are externally indistinguishable. §4.2 narrows the gap. It does not close it.
 4. **Evolution at LLM timescales.** Selection needs thousands of generations; T3 cognition costs dollars per thousand ticks. These timescales differ by ~10³. The tier system is a mitigation, not an answer.
@@ -238,6 +239,20 @@ null 3.04×, within-agent null 1.00×). The spec's literal actor permutation
 is a no-op under the §5.3 exposure metric, which never conditions on actor
 identity. Same lesson as A1: a null model must break exactly the linkage
 the claim rests on, and nothing else.
+
+**A3 (M2 verification, adopted during the M2 protocol).** Four disclosed
+amendments to the preregistered M2 measurement (a1–a4, full text in
+`src/engine/metrics-m2.ts` and `docs/m2-protocol-run.txt`), each fixing an
+instrument that was undefined or misattributing **by construction**: a
+fidelity offset that measured only dead agents, a share metric with no
+minimum denominator, baseline controls contaminated inside their own scored
+window, and a drift gate whose passing bar was arithmetically above 1.
+Standard adopted for all future milestones: an unpassable gate is a broken
+instrument, not a strict one — but the replacement must test the same
+null's *discriminating* prediction (here: single-pool drift concentrates,
+yet cannot hold two classes simultaneously coherent on distinct tokens),
+and the amendment must be made and disclosed before any finite value of
+the metric has been observed.
 
 Milestone specifications after M0 live beside this file:
 [SPEC-M1.md](SPEC-M1.md), [SPEC-M2.md](SPEC-M2.md).

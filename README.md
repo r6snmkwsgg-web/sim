@@ -5,10 +5,11 @@ An artificial civilization laboratory. The governing rule, from [SPEC.md](SPEC.m
 > **Create the conditions for civilization. Do not write the civilization yourself.**
 
 The repository contains **Milestone 0, the vertical slice** (SPEC §5),
-verified under the six-test protocol and amendment A1, and **Milestone 1,
-Generations** ([SPEC-M1.md](SPEC-M1.md)) built on top of it. Nothing further
-from the §7 roadmap exists — a project like this fails by breadth, not by
-depth.
+verified under the six-test protocol and amendment A1; **Milestone 1,
+Generations** ([SPEC-M1.md](SPEC-M1.md)), a full pass; and **Milestone 2,
+Symbols** ([SPEC-M2.md](SPEC-M2.md)), closed with the preregistered graded
+verdict *partial — signaling*. Nothing further from the §7 roadmap exists —
+a project like this fails by breadth, not by depth.
 
 ## Milestone 0 — status: target phenomenon demonstrated
 
@@ -219,12 +220,55 @@ degenerates); (4) emission propensity was tuned (a loneliness-gated contact
 call, cheaper signals) so the token substrate exists at all — §8.1/§8.2
 work, mechanically token-neutral.
 
+## Milestone 2 — Symbols (SPEC-M2.md)
+
+Two populations of ~50 founders each, separated by an impassable barrier;
+a corridor opens at t=6000 of 10,000. Vision is 3 cells, signals carry 10
+— what a call reports is usually something the hearer cannot see, and
+bloom events (transient node surges past cap) keep that asymmetry alive
+after static sites saturate into common knowledge. Each agent holds
+private `(token, kind, confidence)` weights updated only by outcomes: act
+on a heard mark and find pith → that association strengthens (and, by
+lateral inhibition, the mark's other-kind ties weaken); arrive and find
+nothing → it weakens and the emitter's tip costs it trust. Coining is an
+action; newborns start empty; nothing anywhere stores what a token
+"means" at population level — the forbidden-vocabulary test enforces the
+mechanic layer's ignorance, and the perceptual asymmetry is asserted
+structurally in tests per SPEC-M2 §4.1.
+
+### Result — PARTIAL: SIGNALING (preregistered §6 grading, 12 streams)
+
+| §5 criterion | result |
+|---|---|
+| 5.4 permutation (run first, decisive) | **12/12 differentiated**, z = 23–41 on asymmetric hear events only |
+| 5.1 coherence above single-pool drift | **10/12** (≥2 classes simultaneously coherent on distinct tokens) |
+| 5.3 divergence between populations | **12/12** — two dialects, same world, every stream |
+| 5.6 borrowing on contact | **11/12**; canonical stream: east adopts west's kind2 token 0→100% in 500 ticks |
+| 5.5 transmission fidelity | **3/12 stable** — the weak joint; post-contact lexical churn displaces the modal token every ~500–750 ticks |
+| 5.2 communicative success | **0.75–0.96×, never above baseline** — calls predict *what* hearers find, not *whether* (crowding at called sites) |
+
+Ablations: A (no reinforcement) and C (no observation channel) each kill
+coherence, divergence, and borrowing in 12/12 — the outcome loop and the
+acquisition path are both load-bearing. B (full observability) deviated
+from its preregistered signature: differentiation persists (grounding
+does not need privacy), demography collapses, and the shared-percept
+confound is instead controlled per event by measuring only hearers who
+could not see any rich node. Two earlier mechanical iterations failed
+outright (one all-purpose token per side) and are preserved in git
+history; four disclosed measurement amendments (a1–a4, in
+`src/engine/metrics-m2.ts` and SPEC.md amendment A3) fixed instruments
+broken by construction — the milestone verdict was reached under the
+preregistered thresholds. Full 48-run log: `docs/m2-protocol-run.txt`.
+Per SPEC-M2 §6 this is a real, reportable partial: the tokens are
+kind-differentiated population conventions that diverge and get borrowed
+— and are not called "language" anywhere in this project.
+
 ## What is deliberately not here
 
-Cognition tiers T0/T2/T3, the symbol layer (the M1 tokens are a substrate
-for it, not a communication system — SPEC-M1 §6), beliefs,
-semantic/procedural/autobiographical memory, institutions, technology, 3D
-rendering, God mode. Each belongs to a §7 milestone and ships only when the
-previous milestone's target phenomenon is demonstrated and logged. The next
-gate is **M2 — Symbols**: measurable lexical divergence between isolated
-populations, then borrowing on contact.
+Cognition tiers T0/T2/T3, beliefs, semantic/procedural/autobiographical
+memory, institutions, technology, 3D rendering, God mode. Each belongs to
+a §7 milestone and ships only when the previous milestone's target
+phenomenon is demonstrated and logged. The next gate is **M3**, which per
+SPEC-M2 §6 proceeds with a within-lifetime symbol layer — M2's recorded
+limitation (fidelity does not survive contact-phase mixing) rides along
+as an open constraint, not a solved problem.
