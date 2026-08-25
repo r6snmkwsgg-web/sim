@@ -7,9 +7,10 @@ An artificial civilization laboratory. The governing rule, from [SPEC.md](SPEC.m
 The repository contains **Milestone 0, the vertical slice** (SPEC §5),
 verified under the six-test protocol and amendment A1; **Milestone 1,
 Generations** ([SPEC-M1.md](SPEC-M1.md)), a full pass; and **Milestone 2,
-Symbols** ([SPEC-M2.md](SPEC-M2.md)), closed with the preregistered graded
-verdict *partial — signaling*. Nothing further from the §7 roadmap exists —
-a project like this fails by breadth, not by depth.
+Symbols** ([SPEC-M2.md](SPEC-M2.md)), closed after two protocol rounds at
+*full pass in 8 of 12 streams* with a guaranteed *partial — signaling*
+floor in all 12. Nothing further from the §7 roadmap exists — a project
+like this fails by breadth, not by depth.
 
 ## Milestone 0 — status: target phenomenon demonstrated
 
@@ -236,32 +237,53 @@ action; newborns start empty; nothing anywhere stores what a token
 mechanic layer's ignorance, and the perceptual asymmetry is asserted
 structurally in tests per SPEC-M2 §4.1.
 
-### Result — PARTIAL: SIGNALING (preregistered §6 grading, 12 streams)
+### Result — FULL in 8/12 streams; PARTIAL-SIGNALING floor in 12/12
 
-| §5 criterion | result |
-|---|---|
-| 5.4 permutation (run first, decisive) | **12/12 differentiated**, z = 23–41 on asymmetric hear events only |
-| 5.1 coherence above single-pool drift | **10/12** (≥2 classes simultaneously coherent on distinct tokens) |
-| 5.3 divergence between populations | **12/12** — two dialects, same world, every stream |
-| 5.6 borrowing on contact | **11/12**; canonical stream: east adopts west's kind2 token 0→100% in 500 ticks |
-| 5.5 transmission fidelity | **3/12 stable** — the weak joint; post-contact lexical churn displaces the modal token every ~500–750 ticks |
-| 5.2 communicative success | **0.75–0.96×, never above baseline** — calls predict *what* hearers find, not *whether* (crowding at called sites) |
+Two protocol rounds. Round 1 graded PARTIAL-SIGNALING with a precisely
+logged failure mode: post-contact lexical churn (the merged community's
+modal token displaced every ~500–750 ticks) collapsing transmission
+fidelity, and a §5.2 crowding penalty. One mechanics round followed,
+each change aimed at a diagnosed cause and committed before any round-2
+output was examined — **entrenchment** (an agent's own repeatedly-
+successful mark resists conversion; private, outcome-derived, no
+conformity copying), annealed exploration and coining (a newborn listens
+before it invents), signal radius 10→7 with fatter blooms (crowd
+economics), and kind-uniform bloom opportunity. Round 2, same thresholds:
 
-Ablations: A (no reinforcement) and C (no observation channel) each kill
-coherence, divergence, and borrowing in 12/12 — the outcome loop and the
-acquisition path are both load-bearing. B (full observability) deviated
-from its preregistered signature: differentiation persists (grounding
-does not need privacy), demography collapses, and the shared-percept
-confound is instead controlled per event by measuring only hearers who
-could not see any rich node. Two earlier mechanical iterations failed
-outright (one all-purpose token per side) and are preserved in git
-history; four disclosed measurement amendments (a1–a4, in
-`src/engine/metrics-m2.ts` and SPEC.md amendment A3) fixed instruments
-broken by construction — the milestone verdict was reached under the
-preregistered thresholds. Full 48-run log: `docs/m2-protocol-run.txt`.
-Per SPEC-M2 §6 this is a real, reportable partial: the tokens are
-kind-differentiated population conventions that diverge and get borrowed
-— and are not called "language" anywhere in this project.
+| §5 criterion | round 1 | round 2 |
+|---|---|---|
+| 5.4 permutation (run first, decisive) | 12/12, z 23–41 | **12/12, z 27–54** |
+| 5.1 coherence above single-pool drift | 10/12 | **12/12** |
+| 5.3 divergence between populations | 12/12 | **12/12**, typically 2 classes |
+| 5.6 borrowing on contact | 11/12 | **12/12** — 28 events, 5–85 adopters each |
+| 5.5 transmission fidelity | 3/12 stable | **8/12 stable** |
+| 5.2 communicative success | 0.75–0.96× | **0.89–1.02×** (median 0.93) |
+
+SPEC-M2 preregistered no cross-stream aggregation rule, so both numbers
+are recorded rather than picking one after the fact: the §6 full-pass
+criteria hold in 8/12 streams (the other four miss only the fidelity
+tail), and every stream clears the signaling-partial bar. Ablations: A
+(no reinforcement) and C (no observation channel) kill coherence,
+divergence, and borrowing in 24/24 runs across both rounds. B (full
+observability) falsified its own preregistered expectation —
+differentiation persists at half strength, demography collapses (three
+round-2 streams lost an entire side) — recorded as SPEC.md amendment A4;
+the shared-percept confound is controlled per measured event instead.
+
+Standing limitations, reported unspun: §5.2 contingency sits at ≈1 —
+calls no longer cost hearers anything net, and what hearers find aligns
+with the token far above chance, but a net foraging gain from hearing a
+call is still not demonstrated; trust-mediated borrowing (the §5.6
+"strongest version") shows in only 2/12 streams; the low-cap resource
+class stays chronically thin in qualified speakers. Five disclosed
+measurement amendments (a1–a5, in `src/engine/metrics-m2.ts`; standards
+in SPEC.md A3/A4) fixed instruments broken by construction; none moved a
+threshold against observed data. Two earlier all-out mechanical failures
+(one all-purpose token per side) are preserved in git history. Full
+two-round, 96-run log: `docs/m2-protocol-run.txt`. The tokens are
+kind-differentiated population conventions that diverge in isolation and
+get borrowed at contact — and are not called "language" anywhere in this
+project.
 
 ## What is deliberately not here
 

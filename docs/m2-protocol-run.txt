@@ -202,3 +202,140 @@ limitation in the main spec (§8.1) — done in this commit. Not licensed:
 calling this "language" anywhere in the project; the tokens are
 kind-differentiated marks with population-specific conventions and
 contact borrowing, unstable across generations once populations mix.
+
+════════════════════════════════════════════════════════════════════════
+ ROUND 2 — after the diagnosed-cause mechanics round (commit f3cc390)
+ Same 12 streams × {main, A, B, C}; measurement thresholds unchanged;
+ mechanics changes and amendments a5/A4 committed before any round-2
+ output was examined.
+════════════════════════════════════════════════════════════════════════
+
+Mechanics changed (each aimed at a round-1 diagnosed cause, per the
+declared one-round stopping rule): entrenchment (an agent's own
+repeatedly-successful mark resists conversion — competing-token updates
+scale by 1 − LEX_ENTRENCH·topConf/CAP), annealed exploration and coining
+(a newborn listens before it invents; a confident agent stops
+experimenting), SIGNAL_RADIUS 10 → 7 and BLOOM_MULT 2.5 → 4 (crowd
+economics), and kind-uniform bloom selection (pith call parity).
+
+── Verdict counts (preregistered §6 grading, per stream) ────────────────
+  main: FULL ×8   PARTIAL-SIGNALING ×4   FAIL ×0     (round 1: 3/7/2)
+  A (no reinforcement):   FAIL ×12                    (round 1: FAIL ×12)
+  B (full observability): PS ×8, FULL ×3, FAIL ×1    (3 streams: one side
+                          extinct — see note)         (round 1: mixed)
+  C (no observation):     FAIL ×12                    (round 1: FAIL ×12)
+
+── Per-run table ────────────────────────────────────────────────────────
+
+══ main ══
+s 1 z=  53.57 DIFF drift:BEAT cont=    1 coh=4/6 div:Y bor:4 pop=87+131 → PARTIAL-SIGNALING
+s 2 z=  54.19 DIFF drift:BEAT cont= 0.93 coh=4/6 div:Y bor:2 pop=109+92 → FULL
+s 3 z=  52.79 DIFF drift:BEAT cont= 0.97 coh=5/6 div:Y bor:4 pop=116+86 → FULL
+s 4 z=  27.18 DIFF drift:BEAT cont=  0.9 coh=4/6 div:Y bor:4 pop=110+101 → PARTIAL-SIGNALING
+s 5 z=  50.16 DIFF drift:BEAT cont= 0.92 coh=5/6 div:Y bor:2 pop=109+101 → PARTIAL-SIGNALING
+s 6 z=  43.65 DIFF drift:BEAT cont= 0.92 coh=6/6 div:Y bor:2 pop=84+113 → FULL
+s 7 z=  43.04 DIFF drift:BEAT cont= 0.99 coh=5/6 div:Y bor:4 pop=67+127 → FULL
+s 8 z=  36.62 DIFF drift:BEAT cont= 0.93 coh=4/6 div:Y bor:1 pop=95+107 → FULL
+s 9 z=  43.11 DIFF drift:BEAT cont= 0.98 coh=4/6 div:Y bor:2 pop=96+115 → FULL
+s10 z=  41.11 DIFF drift:BEAT cont= 1.02 coh=5/6 div:Y bor:3 pop=81+86 → FULL
+s11 z=   35.8 DIFF drift:BEAT cont= 0.89 coh=5/6 div:Y bor:2 pop=106+87 → PARTIAL-SIGNALING
+s12 z=  41.09 DIFF drift:BEAT cont= 0.99 coh=5/6 div:Y bor:1 pop=93+110 → FULL
+   diff 12/12  beats-drift 12/12  divergence 12/12  borrowing 12/12  verdicts: PARTIAL-SIGNALING×4 FULL×8
+
+══ A ══
+s 1 z=   5.42 DIFF drift:no   cont= 0.85 coh=0/6 div:n bor:0 pop=122+98 → FAIL
+s 2 z=   2.75 ---- drift:no   cont= 0.79 coh=0/6 div:n bor:0 pop=112+108 → FAIL
+s 3 z=   5.01 DIFF drift:no   cont= 0.81 coh=0/6 div:n bor:0 pop=109+111 → FAIL
+s 4 z=   3.17 DIFF drift:no   cont= 0.81 coh=0/6 div:n bor:0 pop=116+105 → FAIL
+s 5 z=    1.6 ---- drift:no   cont= 0.91 coh=0/6 div:n bor:0 pop=132+92 → FAIL
+s 6 z=  -1.49 ---- drift:no   cont= 0.84 coh=0/6 div:n bor:0 pop=101+119 → FAIL
+s 7 z=   7.29 DIFF drift:no   cont= 0.84 coh=0/6 div:n bor:0 pop=116+104 → FAIL
+s 8 z=   0.66 ---- drift:no   cont= 0.91 coh=0/6 div:n bor:0 pop=124+96 → FAIL
+s 9 z=    NaN ---- drift:no   cont=  0.8 coh=0/6 div:n bor:0 pop=98+121 → FAIL
+s10 z=    1.6 ---- drift:no   cont= 0.87 coh=0/6 div:n bor:0 pop=107+113 → FAIL
+s11 z=   1.36 ---- drift:no   cont= 0.88 coh=0/6 div:n bor:0 pop=101+117 → FAIL
+s12 z=   4.79 DIFF drift:no   cont= 0.86 coh=0/6 div:n bor:0 pop=120+99 → FAIL
+   diff 5/12  beats-drift 0/12  divergence 0/12  borrowing 0/12  verdicts: FAIL×12
+
+══ B ══
+s 1 z=   20.5 DIFF drift:BEAT cont= 1.45 coh=5/6 div:n bor:0 pop=0+52 → PARTIAL-SIGNALING
+s 2 z=  19.16 DIFF drift:BEAT cont= 1.04 coh=5/6 div:Y bor:1 pop=60+55 → FULL
+s 3 z=  17.09 DIFF drift:no   cont= 1.02 coh=5/6 div:Y bor:2 pop=24+39 → FAIL
+s 4 z=  21.74 DIFF drift:BEAT cont= 1.77 coh=6/6 div:Y bor:0 pop=50+92 → PARTIAL-SIGNALING
+s 5 z=  16.42 DIFF drift:BEAT cont= 0.86 coh=5/6 div:Y bor:1 pop=77+35 → FULL
+s 6 z=    7.4 DIFF drift:BEAT cont= 0.67 coh=6/6 div:Y bor:0 pop=17+71 → PARTIAL-SIGNALING
+s 7 z=  22.73 DIFF drift:BEAT cont= 1.24 coh=5/6 div:Y bor:0 pop=26+48 → PARTIAL-SIGNALING
+s 8 z=  18.65 DIFF drift:BEAT cont=    1 coh=6/6 div:Y bor:0 pop=29+51 → PARTIAL-SIGNALING
+s 9 z=  15.43 DIFF drift:BEAT cont= 0.73 coh=5/6 div:Y bor:3 pop=0+48 → PARTIAL-SIGNALING
+s10 z=   13.8 DIFF drift:BEAT cont=  0.8 coh=6/6 div:Y bor:0 pop=35+43 → PARTIAL-SIGNALING
+s11 z=  15.68 DIFF drift:BEAT cont= 0.94 coh=6/6 div:n bor:0 pop=75+48 → PARTIAL-SIGNALING
+s12 z=  19.54 DIFF drift:BEAT cont= 0.76 coh=5/6 div:Y bor:2 pop=0+63 → FULL
+   diff 12/12  beats-drift 11/12  divergence 10/12  borrowing 5/12  verdicts: PARTIAL-SIGNALING×8 FULL×3 FAIL×1
+
+══ C ══
+s 1 z=   6.05 DIFF drift:no   cont= 0.91 coh=0/6 div:n bor:0 pop=110+107 → FAIL
+s 2 z=   5.89 DIFF drift:no   cont= 0.96 coh=0/6 div:n bor:0 pop=86+94 → FAIL
+s 3 z=   3.66 DIFF drift:no   cont= 0.85 coh=0/6 div:n bor:0 pop=80+106 → FAIL
+s 4 z=   1.86 ---- drift:no   cont= 0.87 coh=0/6 div:n bor:0 pop=95+95 → FAIL
+s 5 z=   6.91 DIFF drift:no   cont= 0.74 coh=0/6 div:n bor:0 pop=69+91 → FAIL
+s 6 z=    5.2 DIFF drift:no   cont= 0.92 coh=0/6 div:n bor:0 pop=68+96 → FAIL
+s 7 z=   3.44 DIFF drift:no   cont= 0.88 coh=0/6 div:n bor:0 pop=100+115 → FAIL
+s 8 z=   2.32 ---- drift:no   cont= 0.83 coh=0/6 div:n bor:0 pop=104+116 → FAIL
+s 9 z=   1.29 ---- drift:no   cont= 0.98 coh=0/6 div:n bor:0 pop=98+77 → FAIL
+s10 z=    5.2 DIFF drift:no   cont=  0.9 coh=0/6 div:n bor:0 pop=105+81 → FAIL
+s11 z=   3.01 DIFF drift:no   cont= 0.81 coh=0/6 div:n bor:0 pop=85+123 → FAIL
+s12 z=    5.5 DIFF drift:no   cont= 0.89 coh=0/6 div:n bor:0 pop=95+99 → FAIL
+   diff 9/12  beats-drift 0/12  divergence 0/12  borrowing 0/12  verdicts: FAIL×12
+
+── Round-over-round, main condition ─────────────────────────────────────
+                          round 1      round 2
+  §5.4 differentiation    12/12, z 23–41   12/12, z 27–54
+  §5.1 beats drift        10/12            12/12
+  §5.3 divergence         12/12            12/12  (now typically 2 classes)
+  §5.6 borrowing          11/12            12/12  (28 events, adopters
+                                           5–85 at adoption time, a5)
+  §5.5 fidelity stable    3/12             8/12
+  §5.2 contingency        0.75–0.96        0.89–1.02 (median 0.93)
+  final agreement (typ.)  0.46–0.87        0.6–0.99
+
+Entrenchment did what it was built for: post-contact churn is largely
+gone (final agreements 0.97–0.99 are common; round 1's token-replacement
+cascade every ~500–750 ticks no longer appears in the coherent classes),
+and fidelity stabilized in 8 of 12 streams. The four PARTIAL-SIGNALING
+streams fail only the fidelity-tail statistic, by margin, not by
+collapse. Pith (kind1) remains the weak class — bloom parity gives it
+calls, but its low cap keeps its qualified population small; it no
+longer sinks streams because two classes suffice for the a4 test.
+
+§5.2 stays the honest negative: contingency moved from clearly-below-1
+(crowding penalty) to ≈1 (median 0.93, max 1.02). Calls now cost hearers
+nothing net, and what hearers find still aligns with the token (z 27–54)
+— but a net foraging gain from hearing a call is STILL not demonstrated.
+Recorded as a standing limitation, not tuned further (stopping rule).
+
+Adopter trust (a5, at adoption): mixed. Most streams show adopters ≈
+non-adopters or slightly cooler; s5/s6 show adopters clearly warmer
+(−0.02 vs −0.23; −0.08 vs −0.22). The trust-mediated "strongest version"
+of §5.6 remains NOT established.
+
+Ablation note (B): in 3/12 B streams one side went extinct before the
+run ended (universal far sight restructures foraging and conflict), so
+their §6 verdicts are degenerate; B's informative content is per
+amendment A4 — differentiation persists at roughly half strength
+(z 7–23 vs 27–54), demography collapses, and its contingency >1 values
+are of non-communicative origin. A and C stay cleanly dead: coherence
+0/6 in all 24 runs, residual z occasionally 3–7 from bloom-driven
+spatio-temporal clustering (disclosed round 1), never any coherence,
+divergence, or borrowing.
+
+── Milestone verdict ────────────────────────────────────────────────────
+SPEC-M2 preregistered no cross-stream aggregation rule, so both numbers
+are reported rather than picking one after the fact:
+  FULL:              8/12 streams (every §6 full-pass criterion; the
+                     other four miss only the fidelity tail)
+  PARTIAL-SIGNALING: 12/12 floor — every stream clears coherence,
+                     permutation, divergence, and borrowing.
+All four structural criteria replicate in every stream; transmission
+fidelity is the single criterion below 12/12. Standing limitations:
+§5.2 contingency ≈1, trust mediation unestablished, kind1 chronically
+thin. §8.1 of the main spec updated accordingly.
