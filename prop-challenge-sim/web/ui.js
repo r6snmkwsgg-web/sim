@@ -25,21 +25,26 @@ const DAY_MS = 86400000;
 
 const S = {
   i0: 0, n: 0, dir: 1, size: 0.45, ddMode: 'trailing_equity',
-  tp: null, sl: null, res: null, reveal: 0, playing: false,
-  view0: 0, view1: 0, hover: null, drag: null, raf: 0,
+  entry: null, tp: null, sl: null, res: null, reveal: 0, playing: false,
+  view0: 0, view1: 0, hover: null, drag: null, dragFrom: null, raf: 0,
+  speed: 3,
 };
 
 const config = () => defaultConfig({ drawdownMode: S.ddMode, exposureBasis: 'margin' });
 
 /* -- the strategy the terminal drives: one position, your levels ---------- */
-function terminalStrategy(dir, size, tpPrice, slPrice) {
+function terminalStrategy(dir, size, entry, tpPrice, slPrice) {
   let done = false;
   return {
     onStart() { done = false; },
     onBar(ctx) {
       if (done || ctx.position) return null;
+      const i = ctx.i;
+      // A resting limit: it only fills on a bar that actually trades through it.
+      if (entry < ctx.low[i] || entry > ctx.high[i]) return null;
       done = true;
-      return { direction: dir, sizing: 'margin_pct', size, tpPrice, slPrice };
+      return { direction: dir, sizing: 'margin_pct', size, tpPrice, slPrice,
+               fillPrice: entry };
     },
   };
 }
@@ -63,15 +68,16 @@ function pickWindow(seed) {
 }
 
 function resetLevels() {
-  const entry = BARS.close[S.i0];
-  const dpp = dollarsPerPrice(entry, S.size);
-  S.tp = entry + S.dir * (1500 / dpp);
-  S.sl = entry - S.dir * (250 / dpp);
+  S.entry = BARS.close[S.i0];
+  const dpp = dollarsPerPrice(S.entry, S.size);
+  S.tp = S.entry + S.dir * (1500 / dpp);
+  S.sl = S.entry - S.dir * (250 / dpp);
 }
 
 function runDay() {
   const cfg = config();
-  S.res = runChallenge(BARS, terminalStrategy(S.dir, S.size, S.tp, S.sl),
+  S.res = runChallenge(BARS,
+                       terminalStrategy(S.dir, S.size, S.entry, S.tp, S.sl),
                        INST, COSTS, cfg, rng(1), S.i0, null, true);
   if (!S.playing) S.reveal = S.n - 1;
   paintHUD();
@@ -136,6 +142,14 @@ function yEq(v) {
 
 function draw() {
   if (!S.res) return;
+  // During replay the chart tracks the head like a live feed, instead of
+  // sitting still while a static window fills in.
+  if (S.playing) {
+    const head = S.i0 + S.reveal;
+    const span = Math.max(140, Math.min(S.n, 460));
+    S.view1 = Math.min(S.i0 + S.n, head + Math.round(span * 0.16));
+    S.view0 = Math.max(S.i0, S.view1 - span);
+  }
   const { cands, step } = aggregate();
   const plotW = W - PADR;
   LAYOUT.cands = cands; LAYOUT.step = step;
@@ -145,14 +159,38 @@ function draw() {
   // replay never makes the chart jump under the cursor.
   let lo = Infinity, hi = -Infinity;
   for (const c of cands) { if (c.l < lo) lo = c.l; if (c.h > hi) hi = c.h; }
-  for (const v of [S.tp, S.sl]) if (isFinite(v)) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
-  for (const v of S.res.curveFloorPx) if (isFinite(v)) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
-  const padp = (hi - lo) * 0.08 || 0.001;
-  LAYOUT.lo = lo - padp; LAYOUT.hi = hi + padp;
+  // Always keep the entry and the kill line in frame.  A far-off target is
+  // allowed off-screen while replaying and gets an edge marker instead --
+  // otherwise the candles are squeezed into a band and nothing reads.
+  const must = S.playing ? [S.entry] : [S.entry, S.tp, S.sl];
+  for (const v of must) if (isFinite(v)) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
+  const upto = Math.min(S.reveal, S.res.curveFloorPx.length - 1);
+  for (let q = 0; q <= upto; q++) {
+    const v = S.res.curveFloorPx[q];
+    if (isFinite(v)) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
+  }
+  const padp = (hi - lo) * 0.10 || 0.001;
+  const tLo = lo - padp, tHi = hi + padp;
+  if (S.playing && LAYOUT.lo != null && isFinite(LAYOUT.lo)) {
+    LAYOUT.lo += (tLo - LAYOUT.lo) * 0.18;
+    LAYOUT.hi += (tHi - LAYOUT.hi) * 0.18;
+  } else { LAYOUT.lo = tLo; LAYOUT.hi = tHi; }
 
   const eq = S.res.curveEq, fl = S.res.curveFloor;
-  let eLo = Math.min(19650, ...eq, ...fl), eHi = Math.max(21550, ...eq);
-  LAYOUT.eqLo = eLo - 40; LAYOUT.eqHi = eHi + 40;
+  const from = Math.max(0, S.view0 - S.i0);
+  const to = Math.min(eq.length - 1, Math.min(S.reveal, S.view1 - S.i0));
+  let eLo = Infinity, eHi = -Infinity;
+  for (let q = from; q <= to; q++) {
+    eLo = Math.min(eLo, eq[q], fl[q]); eHi = Math.max(eHi, eq[q], fl[q]);
+  }
+  if (!isFinite(eLo)) { eLo = 19700; eHi = 20000; }
+  if (!S.playing) { eLo = Math.min(eLo, 19650); eHi = Math.max(eHi, 21550); }
+  const epad = Math.max(30, (eHi - eLo) * 0.12);
+  const teLo = eLo - epad, teHi = eHi + epad;
+  if (S.playing && LAYOUT.eqLo != null && isFinite(LAYOUT.eqLo)) {
+    LAYOUT.eqLo += (teLo - LAYOUT.eqLo) * 0.18;
+    LAYOUT.eqHi += (teHi - LAYOUT.eqHi) * 0.18;
+  } else { LAYOUT.eqLo = teLo; LAYOUT.eqHi = teHi; }
 
   const g = ctx2;
   g.clearRect(0, 0, W, H);
@@ -179,11 +217,14 @@ function drawGrid(g, plotW) {
     g.beginPath(); g.moveTo(0, y); g.lineTo(plotW, y); g.stroke();
     g.fillText(p.toFixed(5), plotW + 8, y);
   }
-  for (const v of [20000, 20500, 21000, 21500]) {
-    if (v < LAYOUT.eqLo || v > LAYOUT.eqHi) continue;
+  const eqSpan = LAYOUT.eqHi - LAYOUT.eqLo;
+  const eqStep = eqSpan > 1400 ? 500 : eqSpan > 700 ? 250 : eqSpan > 300 ? 100 : 50;
+  const first = Math.ceil(LAYOUT.eqLo / eqStep) * eqStep;
+  for (let v = first; v <= LAYOUT.eqHi; v += eqStep) {
     const y = Math.round(yEq(v)) + 0.5;
     g.beginPath(); g.moveTo(0, y); g.lineTo(plotW, y); g.stroke();
-    g.fillText((v / 1000).toFixed(1) + 'k', plotW + 8, y);
+    g.fillText(eqStep >= 250 ? (v / 1000).toFixed(1) + 'k'
+                             : '$' + v.toLocaleString('en-US'), plotW + 8, y);
   }
 }
 
@@ -237,8 +278,21 @@ function tag(g, x, y, text, color, align) {
   g.fillText(text, bx + 5, y + 0.5);
 }
 
+function grip(g, x, y, color) {
+  g.save();
+  g.fillStyle = color;
+  const w = 22, h = 13;
+  g.beginPath();
+  if (g.roundRect) g.roundRect(x - w, y - h / 2, w, h, 3);
+  else g.rect(x - w, y - h / 2, w, h);
+  g.fill();
+  g.fillStyle = cssVar('--panel');
+  for (let k = -1; k <= 1; k++) g.fillRect(x - w / 2 + k * 4 - 0.5, y - 3, 1.5, 6);
+  g.restore();
+}
+
 function drawLevels(g, plotW) {
-  const entry = BARS.close[S.i0];
+  const entry = S.entry;
   const dpp = dollarsPerPrice(entry, S.size);
 
   // Position box, TradingView style: the profit leg and the risk leg shaded.
@@ -255,7 +309,7 @@ function drawLevels(g, plotW) {
     g.beginPath(); g.moveTo(0, Math.round(y) + 0.5); g.lineTo(plotW, Math.round(y) + 0.5);
     g.stroke(); g.restore();
   };
-  line(yE, cssVar('--muted'), [3, 3], 1);
+  line(yE, cssVar('--muted'), [5, 3], 1.5);
   line(yT, cssVar('--tp'), [], 1.5);
   line(yS, cssVar('--sl'), [], 1.5);
 
@@ -276,11 +330,20 @@ function drawLevels(g, plotW) {
   }
   g.stroke(); g.restore();
 
-  tag(g, plotW, yE, px5(entry), cssVar('--muted'), 'right');
-  tag(g, plotW, yT, px5(S.tp), cssVar('--tp'), 'right');
-  tag(g, plotW, yS, px5(S.sl), cssVar('--sl'), 'right');
+  const clampY = (y) => Math.max(PADT + 7, Math.min(PRICE_H - 7, y));
+  const arrow = (y, real) => real < PADT ? ' ▲' : (real > PRICE_H ? ' ▼' : '');
+  tag(g, plotW, clampY(yE), px5(entry) + arrow(yE, yE), cssVar('--muted'), 'right');
+  tag(g, plotW, clampY(yT), px5(S.tp) + arrow(yT, yT), cssVar('--tp'), 'right');
+  tag(g, plotW, clampY(yS), px5(S.sl) + arrow(yS, yS), cssVar('--sl'), 'right');
   const lastFloor = lastFloorPx(S.reveal);
-  tag(g, plotW, yOf(lastFloor), px5(lastFloor), cssVar('--kill'), 'right');
+  tag(g, plotW, clampY(yOf(lastFloor)), px5(lastFloor), cssVar('--kill'), 'right');
+
+  // Grab handles.  The lines were draggable before, but with nothing to show
+  // for it -- which is the same as not being draggable.
+  const gx = plotW - 8;
+  if (yE > PADT && yE < PRICE_H) grip(g, gx, yE, cssVar('--muted'));
+  if (yT > PADT && yT < PRICE_H) grip(g, gx, yT, cssVar('--tp'));
+  if (yS > PADT && yS < PRICE_H) grip(g, gx, yS, cssVar('--sl'));
 
   g.font = '600 10px ' + cssVar('--mono');
   g.textAlign = 'left'; g.textBaseline = 'bottom';
@@ -292,8 +355,9 @@ function drawLevels(g, plotW) {
   if (Math.abs(yOf(lastFloor) - yS) > 13)
     g.fillText('LIQUIDATION', 7, yOf(lastFloor) - 4);
   g.fillStyle = cssVar('--muted');
-  if (Math.abs(yE - yOf(lastFloor)) > 13 && Math.abs(yE - yS) > 13)
-    g.fillText('ENTRY', 7, yE - 4);
+  if (Math.abs(yE - yOf(lastFloor)) > 15 && Math.abs(yE - yS) > 15)
+    g.fillText(S.res.trades.length ? 'ENTRY  filled' : 'ENTRY  limit — not filled',
+               7, yE - 4);
 }
 
 function drawEquity(g, plotW) {
@@ -309,39 +373,32 @@ function drawEquity(g, plotW) {
   g.textAlign = 'left'; g.textBaseline = 'top';
   g.fillText('ACCOUNT EQUITY', 4, top - GAP / 2 + 5);
 
-  const xForSrc = (s) => {
-    const abs = S.i0 + s;
-    const k = Math.min(LAYOUT.cands.length - 1,
-      Math.max(0, Math.round((abs - S.view0) / LAYOUT.step)));
-    return xOf(k);
-  };
+  const xForSrc = (s) => xOf((S.i0 + s - S.view0) / LAYOUT.step);
   const upto = Math.min(S.reveal, eq.length - 1);
+  const from = Math.max(0, S.view0 - S.i0);   // scrolled off the left
 
-  g.save();
-  g.strokeStyle = cssVar('--tp'); g.setLineDash([4, 4]); g.lineWidth = 1;
-  const yT = yEq(21500);
-  g.beginPath(); g.moveTo(0, yT); g.lineTo(plotW, yT); g.stroke();
-  g.restore();
-
-  g.save();
-  g.strokeStyle = cssVar('--kill'); g.lineWidth = 1.75;
-  g.beginPath();
-  for (let s = 0; s <= upto; s++) {
-    const x = xForSrc(s), y = yEq(fl[s]);
-    s === 0 ? g.moveTo(x, y) : g.lineTo(x, y);
+  if (21500 >= LAYOUT.eqLo && 21500 <= LAYOUT.eqHi) {
+    g.save();
+    g.strokeStyle = cssVar('--tp'); g.setLineDash([4, 4]); g.lineWidth = 1;
+    const yT = yEq(21500);
+    g.beginPath(); g.moveTo(0, yT); g.lineTo(plotW, yT); g.stroke();
+    g.restore();
   }
-  g.stroke(); g.restore();
 
-  g.save();
-  g.strokeStyle = cssVar('--ink'); g.lineWidth = 1.75;
-  g.beginPath();
-  for (let s = 0; s <= upto; s++) {
-    const x = xForSrc(s), y = yEq(eq[s]);
-    s === 0 ? g.moveTo(x, y) : g.lineTo(x, y);
-  }
-  g.stroke(); g.restore();
+  const trace = (series, color, width) => {
+    g.save();
+    g.strokeStyle = color; g.lineWidth = width;
+    g.beginPath();
+    for (let q = from; q <= upto; q++) {
+      const x = xForSrc(q), y = yEq(series[q]);
+      q === from ? g.moveTo(x, y) : g.lineTo(x, y);
+    }
+    g.stroke(); g.restore();
+  };
+  trace(fl, cssVar('--kill'), 1.75);
+  trace(eq, cssVar('--ink'), 1.75);
 
-  if (upto >= 0) {
+  if (upto >= from) {
     const x = xForSrc(upto), y = yEq(eq[upto]);
     const dead = S.res.outcome === 'FAIL_DRAWDOWN' && upto >= eq.length - 1;
     const won = S.res.outcome === 'PASS' && upto >= eq.length - 1;
@@ -385,9 +442,10 @@ function drawCrosshair(g, plotW) {
 /* ============================ interaction ================================ */
 
 function nearestLine(y) {
-  if (Math.abs(y - yOf(S.tp)) < 7) return 'tp';
-  if (Math.abs(y - yOf(S.sl)) < 7) return 'sl';
-  return null;
+  const c = [['tp', yOf(S.tp)], ['sl', yOf(S.sl)], ['entry', yOf(S.entry)]]
+    .map(([k, ly]) => [k, Math.abs(y - ly)])
+    .sort((a, b) => a[1] - b[1])[0];
+  return c && c[1] < 11 ? c[0] : null;
 }
 
 cv.addEventListener('pointermove', (e) => {
@@ -396,16 +454,22 @@ cv.addEventListener('pointermove', (e) => {
   S.hover = { x, y };
 
   if (S.drag) {
-    const entry = BARS.close[S.i0];
-    let p = priceAt(y);
+    const p = priceAt(y);
     const minGap = 0.00005;
-    if (S.drag === 'tp') p = S.dir > 0 ? Math.max(p, entry + minGap) : Math.min(p, entry - minGap);
-    else p = S.dir > 0 ? Math.min(p, entry - minGap) : Math.max(p, entry + minGap);
-    S[S.drag] = p;
+    if (S.drag === 'entry') {
+      // Move the whole position, the way a position tool does: the target and
+      // the stop keep the distances you set.
+      const d = p - S.entry;
+      S.entry = p; S.tp += d; S.sl += d;
+    } else if (S.drag === 'tp') {
+      S.tp = S.dir > 0 ? Math.max(p, S.entry + minGap) : Math.min(p, S.entry - minGap);
+    } else {
+      S.sl = S.dir > 0 ? Math.min(p, S.entry - minGap) : Math.max(p, S.entry + minGap);
+    }
     if (!S.raf) S.raf = requestAnimationFrame(() => { S.raf = 0; runDay(); draw(); });
     return;
   }
-  cv.style.cursor = y < PRICE_H && nearestLine(y) ? 'ns-resize' : 'crosshair';
+  cv.style.cursor = y < PRICE_H && nearestLine(y) ? 'grab' : 'crosshair';
 
   const k = Math.max(0, Math.min(LAYOUT.cands.length - 1, Math.floor(x / LAYOUT.bw)));
   const c = LAYOUT.cands[k];
@@ -417,7 +481,8 @@ cv.addEventListener('pointerdown', (e) => {
   const r = cv.getBoundingClientRect();
   const y = e.clientY - r.top;
   const hit = y < PRICE_H ? nearestLine(y) : null;
-  if (hit) { S.drag = hit; cv.setPointerCapture(e.pointerId); }
+  if (hit) { S.drag = hit; cv.style.cursor = 'grabbing';
+             cv.setPointerCapture(e.pointerId); }
 });
 cv.addEventListener('pointerup', (e) => {
   if (S.drag) { S.drag = null; cv.releasePointerCapture(e.pointerId); runDay(); draw(); }
@@ -444,9 +509,9 @@ function play() {
   S.playing = true;
   S.reveal = 0;
   $('play').textContent = '■ Stop';
-  const total = S.res.curveEq.length - 1;
+  const total = S.n - 1;
   const t0 = performance.now();
-  const dur = 6500;
+  const dur = 10000 / S.speed;
   const tick = (t) => {
     if (!S.playing) return;
     const f = Math.min(1, (t - t0) / dur);
@@ -487,8 +552,10 @@ function paintHUD() {
   const togo = cfg.startingBalance + cfg.profitTarget - eq;
   $('hTarget').textContent = togo <= 0 ? 'reached' : money(togo, 0);
 
-  const entry = BARS.close[S.i0];
+  const entry = S.entry;
   const dpp = dollarsPerPrice(entry, S.size);
+  $('lEntry').textContent = px5(entry) +
+    (r.trades.length ? '  filled' : '  waiting');
   $('lTP').textContent = `${px5(S.tp)}  +${money(Math.abs(S.tp - entry) * dpp)}`;
   $('lSL').textContent = `${px5(S.sl)}  −${money(Math.abs(S.sl - entry) * dpp)}`;
   $('lKill').textContent = px5(lastFloorPx(k));
@@ -530,6 +597,13 @@ function setDir(d) {
   resetLevels(); runDay(); stop();
 }
 $('cDD').onchange = () => { S.ddMode = $('cDD').value; runDay(); stop(); };
+for (const b of document.querySelectorAll('[data-speed]')) {
+  b.onclick = () => {
+    S.speed = +b.dataset.speed;
+    for (const o of document.querySelectorAll('[data-speed]'))
+      o.setAttribute('aria-pressed', String(o === b));
+  };
+}
 $('cSize').oninput = () => {
   S.size = +$('cSize').value / 100;
   $('vSize').textContent = $('cSize').value + '%';
@@ -671,7 +745,7 @@ function representativeWindow() {
     const entry = BARS.close[w.i0];
     const dpp = dollarsPerPrice(entry, S.size);
     const res = runChallenge(BARS,
-      terminalStrategy(1, S.size, entry + 1500 / dpp, entry - 250 / dpp),
+      terminalStrategy(1, S.size, entry, entry + 1500 / dpp, entry - 250 / dpp),
       INST, COSTS, cfg, rng(1), w.i0, null, true);
     if (res.outcome === 'FAIL_DRAWDOWN' && res.curveEq.length > 220 &&
         res.curveEq.length < 900) return seed * 7919;

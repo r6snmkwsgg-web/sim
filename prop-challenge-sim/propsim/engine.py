@@ -179,6 +179,11 @@ class Order:
     #: limit: a $450 stop simply cannot be reached: the account dies first.
     take_profit_dollars: Optional[float] = None
     stop_loss_dollars: Optional[float] = None
+    #: Fill at this exact mid instead of the bar's close -- a resting limit
+    #: order.  The engine rejects the order unless the level lies inside the
+    #: signalling bar's range, so a limit that price never reached does not
+    #: quietly become a market order at the close.
+    fill_price: Optional[float] = None
     tag: str = ""
 
     def __post_init__(self) -> None:
@@ -662,8 +667,12 @@ def run_challenge(
                 # A strategy must flatten before it can reverse.  Silently
                 # ignoring the order keeps the position model unambiguous.
                 orders_rejected += 1
+            elif (signal.fill_price is not None
+                  and not (lo[i] - EPS <= signal.fill_price <= hi[i] + EPS)):
+                # A resting limit the bar never traded through.
+                orders_rejected += 1
             else:
-                mid = cl[i]
+                mid = cl[i] if signal.fill_price is None else signal.fill_price
                 size = _resolve_size(signal, instrument, mid, equity)
                 size = _cap_exposure(size, instrument, mid, equity,
                                      cfg.max_symbol_exposure_pct, margin_basis)

@@ -332,6 +332,7 @@ liquidation price drawn as a stepped line that ratchets up behind the market.
 | `web/ui.js` | canvas chart, replay, Monte Carlo panel |
 | `web/build.py` | inlines engine + data + UI into `web/index.html` |
 | `web/smoke.mjs` | drives the built page in real Chromium over CDP and reads the numbers back out |
+| `web/interact.mjs` | dispatches **real mouse events** and asserts the entry / TP / SL lines can actually be dragged — setting `S.tp` from JS proves nothing about whether a human can grab the line |
 
 `web/realbars.js` and the built `web/index.html` are generated and not
 committed — they are 4 MB of third-party price data. Rebuild them with:
@@ -341,8 +342,13 @@ python -m propsim fetch --symbol EURUSD          # or supply your own CSV
 python web/pack_bars.py cache/bars/EURUSD_60s_histdata_2022-2023.csv \
        web/realbars.js --from 2023-01-01 --to 2023-12-01
 python web/build.py
-node web/verify.js && node web/smoke.mjs
+node web/verify.js && node web/smoke.mjs && node web/interact.mjs
 ```
+
+The entry is a **resting limit**: `Order.fill_price` fills at that exact level
+when the signalling bar trades through it, and the order is rejected outright
+when it does not — otherwise an unfilled limit silently becomes a market order
+at the close. Both engines implement it and both suites test it.
 
 ## Known limitations
 

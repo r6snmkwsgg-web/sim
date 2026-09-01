@@ -199,8 +199,9 @@ footer{margin-top:44px; padding-top:18px; border-top:1px solid var(--rule);
 <header class="mast">
   <p class="kicker">Prop-firm 24-hour challenge · $20,000 · +$1,500 · −$300</p>
   <h1>The line that kills you moves up behind you</h1>
-  <p>Drag the take-profit and stop-loss where you want them, hit replay, and watch a
-  real EURUSD day play out minute by minute. The red line is the price at which the
+  <p>Drag your entry, take-profit and stop-loss onto the chart, hit replay, and watch a
+  real EURUSD day play out minute by minute. The entry is a resting limit — it only
+  fills if price actually trades through it. The red line is the price at which the
   firm closes your account — under a trailing rule it ratchets up with every new
   equity high and never comes back down. The $500 fee against a $5,000 payout means
   you need to pass <strong>one attempt in ten</strong> to break even.</p>
@@ -221,7 +222,7 @@ footer{margin-top:44px; padding-top:18px; border-top:1px solid var(--rule);
   <div class="deck">
     <div class="chartwrap">
       <canvas id="chart" height="560"></canvas>
-      <div class="hint">drag the TP / SL lines &nbsp;·&nbsp; scroll to zoom</div>
+      <div class="hint">drag the entry, TP and SL lines by their handles &nbsp;·&nbsp; scroll to zoom</div>
     </div>
     <div class="side">
       <dl class="hud">
@@ -231,6 +232,8 @@ footer{margin-top:44px; padding-top:18px; border-top:1px solid var(--rule);
         <div><dt>To target</dt><dd id="hTarget">$1,500</dd></div>
       </dl>
       <div class="lines">
+        <div class="lrow"><i style="border-color:var(--muted); border-top-style:dashed"></i>
+          <span>Entry</span><b id="lEntry">—</b></div>
         <div class="lrow"><i style="border-color:var(--tp)"></i><span>TP</span><b id="lTP">—</b></div>
         <div class="lrow"><i style="border-color:var(--sl)"></i><span>SL</span><b id="lSL">—</b></div>
         <div class="lrow"><i style="border-color:var(--kill); border-top-style:dashed"></i>
@@ -247,6 +250,12 @@ footer{margin-top:44px; padding-top:18px; border-top:1px solid var(--rule);
         </select></label>
       <label class="field"><span>Position size <em id="vSize">45%</em></span>
         <input type="range" id="cSize" min="5" max="75" step="5" value="45"></label>
+      <div class="field"><span>Replay speed</span>
+        <div class="seg" role="group" aria-label="Replay speed">
+          <button data-speed="1" aria-pressed="false">1×</button>
+          <button data-speed="3" aria-pressed="true">3×</button>
+          <button data-speed="8" aria-pressed="false">8×</button>
+        </div></div>
       <div class="btns">
         <button class="primary" id="play">▶ Replay the day</button>
         <button id="shuffle" title="Jump to another real 24-hour window">⟳</button>

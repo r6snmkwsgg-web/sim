@@ -115,6 +115,22 @@ const STATIC = defaultConfig({ drawdownMode: 'static' });
   ok('exposure cap scales size down', near(r.trades[0].size, 150, 1e-9), r.trades[0].size);
 }
 
+/* -- limit entries --------------------------------------------------------- */
+
+{
+  const bars = makeBars([[100,100,100,100],[100,102,98,101],[101,101,101,101]]);
+  const hit = runChallenge(bars, scripted({ 1: longUnits(100, { fillPrice: 99 }), 2: 'CLOSE' }),
+                           TEST_INST, ZERO_COSTS, STATIC, rng(1), 0, null, false);
+  ok('limit fills at its level', near(hit.trades[0].entryMid, 99, 1e-9), hit.trades[0]?.entryMid);
+  ok('limit P&L', near(hit.finalBalance, 20200, 1e-6), hit.finalBalance);
+
+  const miss = makeBars([[100,100,100,100],[100,100.5,99.8,100.2],[100.2,100.2,100.2,100.2]]);
+  const r2 = runChallenge(miss, scripted({ 1: longUnits(100, { fillPrice: 99 }) }),
+                          TEST_INST, ZERO_COSTS, STATIC, rng(1), 0, null, false);
+  ok('unreached limit is rejected', r2.trades.length === 0 && r2.ordersRejected === 1,
+     `trades ${r2.trades.length} rejected ${r2.ordersRejected}`);
+}
+
 /* -- trailing vs static ---------------------------------------------------- */
 
 {

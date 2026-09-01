@@ -588,3 +588,54 @@ def test_bar_series_validation_rejects_unsorted_timestamps():
         pass
     else:
         raise AssertionError("descending timestamps should have been rejected")
+
+
+# ---------------------------------------------------------------------------
+# Limit entries
+# ---------------------------------------------------------------------------
+
+def test_limit_order_fills_at_its_level_not_the_close():
+    """A resting limit must fill where it rests, not where the bar closed."""
+    bars = make_bars("TEST", [
+        (100.0, 100.0, 100.0, 100.0),
+        (100.0, 102.0, 98.0, 101.0),     # trades through 99.00
+        (101.0, 101.0, 101.0, 101.0),
+    ])
+    order = Order(direction=1, sizing_mode=SizingMode.UNITS, size=100,
+                  fill_price=99.0)
+    res = run(bars, Scripted({1: order, 2: CLOSE}))
+    assert len(res.trades) == 1
+    assert_close(res.trades[0].entry_mid, 99.0, what="filled at the limit")
+    # Bought at 99.00, closed at 101.00 on 100 units of $1/point.
+    assert_close(res.final_balance, 20_200.0, what="final_balance")
+
+
+def test_limit_order_the_bar_never_reached_is_rejected():
+    """Otherwise an unfilled limit silently becomes a market order."""
+    bars = make_bars("TEST", [
+        (100.0, 100.0, 100.0, 100.0),
+        (100.0, 100.5, 99.8, 100.2),     # never trades down to 99.00
+        (100.2, 100.2, 100.2, 100.2),
+    ])
+    order = Order(direction=1, sizing_mode=SizingMode.UNITS, size=100,
+                  fill_price=99.0)
+    res = run(bars, Scripted({1: order}))
+    assert res.trades == []
+    assert res.orders_rejected == 1
+    assert_close(res.final_balance, 20_000.0, what="no trade, no cost")
+
+
+def test_limit_order_still_pays_the_spread():
+    """Filling at your own level does not exempt you from the spread."""
+    costs = CostModel(spread=0.10, commission_per_side=2.50)
+    bars = make_bars("TEST", [
+        (100.0, 100.0, 100.0, 100.0),
+        (100.0, 102.0, 98.0, 99.0),
+        (99.0, 99.0, 99.0, 99.0),
+    ])
+    order = Order(direction=1, sizing_mode=SizingMode.UNITS, size=10,
+                  fill_price=99.0)
+    res = run(bars, Scripted({1: order, 2: CLOSE}), costs=costs)
+    assert_close(res.spread_paid, 1.00, what="spread")
+    assert_close(res.commission_paid, 50.00, what="commission")
+    assert_close(res.final_balance, 19_949.00, what="entry and exit both at 99")

@@ -414,8 +414,11 @@ export function runChallenge(bars, strategy, inst, cm, cfg, r, startIndex,
         }
       } else if (pos !== null) {
         ordersRejected++;
+      } else if (signal.fillPrice != null &&
+                 !(signal.fillPrice >= lo[i] - EPS && signal.fillPrice <= hi[i] + EPS)) {
+        ordersRejected++;                       // a limit the bar never reached
       } else {
-        const mid = cl[i];
+        const mid = signal.fillPrice == null ? cl[i] : signal.fillPrice;
         let size = resolveSize(signal, inst, mid, equity);
         size = capExposure(size, inst, mid, equity, cfg.maxExposurePct, marginBasis);
         size = roundSize(inst, size);
