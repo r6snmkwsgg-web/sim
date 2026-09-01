@@ -100,6 +100,10 @@ class SizingMode(str, Enum):
     NOTIONAL = "notional"
     #: ``size`` is a fraction of current equity, as notional.
     ACCOUNT_PCT = "account_pct"
+    #: ``size`` is a fraction of current equity committed as *margin*.  With a
+    #: margin-based exposure cap this is the natural knob: ``size=0.75``
+    #: saturates a 75% cap exactly, so the sweep axis runs 0 -> the limit.
+    MARGIN_PCT = "margin_pct"
 
 
 # ---------------------------------------------------------------------------
@@ -124,7 +128,7 @@ class ChallengeConfig:
 
     drawdown_mode: DrawdownMode = DrawdownMode.TRAILING_EQUITY
     intrabar_order: IntrabarOrder = IntrabarOrder.ADVERSE_FIRST
-    exposure_basis: ExposureBasis = ExposureBasis.NOTIONAL
+    exposure_basis: ExposureBasis = ExposureBasis.MARGIN
     #: If True the target is met the instant *equity* touches it, mid-trade.
     #: If False it must be met by realised balance after a position closes.
     target_on_equity: bool = True
@@ -170,6 +174,11 @@ class Order:
     stop_loss_pct: Optional[float] = None
     take_profit_price: Optional[float] = None
     stop_loss_price: Optional[float] = None
+    #: Exits expressed as dollars of P&L instead of a price percentage.  Far
+    #: more legible here, because they are directly comparable to the $300
+    #: limit: a $450 stop simply cannot be reached: the account dies first.
+    take_profit_dollars: Optional[float] = None
+    stop_loss_dollars: Optional[float] = None
     tag: str = ""
 
     def __post_init__(self) -> None:
@@ -239,7 +248,7 @@ class BarContext:
         "bars", "instrument", "config", "rng", "i", "start_index",
         "ts", "open", "high", "low", "close", "volume",
         "balance", "equity", "position", "deadline_ns", "half_spread",
-        "state",
+        "state", "n_trades",
     )
 
     def __init__(self, bars: BarSeries, instrument: Instrument,
@@ -263,6 +272,11 @@ class BarContext:
         self.balance = config.starting_balance
         self.equity = config.starting_balance
         self.position: Optional[Position] = None
+        #: Trades closed so far this attempt.  A strategy cannot see the trade
+        #: log, but it does need to know that a position it opened has since
+        #: been closed -- a take-profit inside the very next bar closes and
+        #: reopens without the strategy ever observing an open position.
+        self.n_trades = 0
         #: Free scratch space for strategies; cleared between attempts.
         self.state: Dict[str, Any] = {}
 
@@ -633,6 +647,7 @@ def run_challenge(
         ctx.balance = balance
         ctx.equity = equity
         ctx.position = pos
+        ctx.n_trades = len(trades)
         signal = strategy.on_bar(ctx)
 
         if signal is not None:
@@ -658,7 +673,7 @@ def run_challenge(
                 else:
                     d = signal.direction
                     entry_fill = mid + d * hs
-                    tp, sl = _resolve_levels(signal, mid, d)
+                    tp, sl = _resolve_levels(signal, mid, d, size, pv)
                     balance -= comm_side * size
                     commission_paid += comm_side * size
                     pos = Position(
@@ -752,6 +767,11 @@ def _resolve_size(order: Order, instrument: Instrument, price: float,
         return order.size / denom
     if mode is SizingMode.ACCOUNT_PCT:
         return max(0.0, equity) * order.size / denom
+    if mode is SizingMode.MARGIN_PCT:
+        budget = max(0.0, equity) * order.size
+        if instrument.margin_per_unit is not None:
+            return budget / instrument.margin_per_unit
+        return budget * instrument.leverage / denom
     raise ValueError(f"unknown sizing mode {mode!r}")
 
 
@@ -772,14 +792,21 @@ def _cap_exposure(size: float, instrument: Instrument, price: float,
     return size * (cap / used)
 
 
-def _resolve_levels(order: Order, entry_mid: float, direction: int):
+def _resolve_levels(order: Order, entry_mid: float, direction: int,
+                    size: float = 0.0, point_value: float = 0.0):
     """Take-profit and stop-loss as absolute *mid-price* levels.
 
-    Percentages are applied to the entry mid, so a 0.1% stop on a long at
-    1.10000 rests at 1.09890 regardless of instrument.
+    Explicit prices win, then dollar distances, then percentages.  Percentages
+    are applied to the entry mid, so a 0.1% stop on a long at 1.10000 rests at
+    1.09890 regardless of instrument.
     """
     tp = order.take_profit_price
     sl = order.stop_loss_price
+    unit = point_value * size
+    if tp is None and order.take_profit_dollars is not None and unit > 0:
+        tp = entry_mid + direction * (order.take_profit_dollars / unit)
+    if sl is None and order.stop_loss_dollars is not None and unit > 0:
+        sl = entry_mid - direction * (order.stop_loss_dollars / unit)
     if tp is None and order.take_profit_pct is not None:
         tp = entry_mid * (1.0 + direction * order.take_profit_pct)
     if sl is None and order.stop_loss_pct is not None:

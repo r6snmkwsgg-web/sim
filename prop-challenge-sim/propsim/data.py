@@ -133,6 +133,10 @@ class BarSeries:
     low: List[float]
     close: List[float]
     volume: List[float] = field(default_factory=list)
+    #: Measured bid/ask spread per bar, in price units.  Populated by tick
+    #: sources; empty when the source only gives OHLC, in which case the cost
+    #: model falls back to its configured spread.
+    spread: List[float] = field(default_factory=list)
     timeframe: str = "1m"
     source: str = ""
 
@@ -140,6 +144,11 @@ class BarSeries:
         n = len(self.ts)
         if not self.volume:
             self.volume = [0.0] * n
+        if self.spread and len(self.spread) != n:
+            raise ValueError(
+                f"{self.symbol}: spread has {len(self.spread)} entries "
+                f"but ts has {n}"
+            )
         for name in ("open", "high", "low", "close", "volume"):
             if len(getattr(self, name)) != n:
                 raise ValueError(
@@ -178,6 +187,7 @@ class BarSeries:
             open=self.open[start:stop], high=self.high[start:stop],
             low=self.low[start:stop], close=self.close[start:stop],
             volume=self.volume[start:stop],
+            spread=self.spread[start:stop] if self.spread else [],
             timeframe=self.timeframe, source=self.source,
         )
 
@@ -215,15 +225,20 @@ class BarSeries:
     # -- persistence --------------------------------------------------------
 
     def to_csv(self, path: str) -> None:
-        os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+        os.makedirs(os.path.dirname(os.path.abspath(path)) or ".", exist_ok=True)
+        has_spread = bool(self.spread)
+        header = ["ts_ns", "open", "high", "low", "close", "volume"]
+        if has_spread:
+            header.append("spread")
         with open(path, "w", newline="") as fh:
             w = csv.writer(fh)
-            w.writerow(["ts_ns", "open", "high", "low", "close", "volume"])
+            w.writerow(header)
             for i in range(len(self)):
-                w.writerow([
-                    self.ts[i], self.open[i], self.high[i],
-                    self.low[i], self.close[i], self.volume[i],
-                ])
+                row = [self.ts[i], self.open[i], self.high[i],
+                       self.low[i], self.close[i], self.volume[i]]
+                if has_spread:
+                    row.append(self.spread[i])
+                w.writerow(row)
 
     @classmethod
     def from_csv(cls, path: str, symbol: str, timeframe: str = "1m",
@@ -234,6 +249,7 @@ class BarSeries:
         l: List[float] = []
         c: List[float] = []
         v: List[float] = []
+        sp: List[float] = []
         with open(path, newline="") as fh:
             for row in csv.DictReader(fh):
                 ts.append(int(row["ts_ns"]))
@@ -242,8 +258,11 @@ class BarSeries:
                 l.append(float(row["low"]))
                 c.append(float(row["close"]))
                 v.append(float(row.get("volume") or 0.0))
+                if row.get("spread"):
+                    sp.append(float(row["spread"]))
         return cls(symbol=symbol, ts=ts, open=o, high=h, low=l, close=c,
-                   volume=v, timeframe=timeframe, source=source or path)
+                   volume=v, spread=sp, timeframe=timeframe,
+                   source=source or path)
 
     # -- optional pandas interop -------------------------------------------
 
@@ -299,3 +318,454 @@ def make_bars(symbol: str, ohlc: Sequence[Sequence[float]],
         volume=[float(b[4]) if len(b) > 4 else 1.0 for b in ohlc],
         timeframe=timeframe, source="literal",
     )
+
+
+# ---------------------------------------------------------------------------
+# Dukascopy tick history
+# ---------------------------------------------------------------------------
+#
+# Why this source.  The drawdown rule is a statement about the price *path*,
+# so the answer is only as good as the resolution of the extremes.  Dukascopy
+# publishes free tick history back to ~2003 for FX majors, with both bid and
+# ask -- which means the spread in the cost model is measured rather than
+# assumed.  The price is that it is one HTTP request per instrument-hour
+# (~8,760 per symbol-year), so the first pull is slow and everything after it
+# comes from the cache.
+#
+# Wire format: LZMA-alone compressed, then 20-byte big-endian records of
+# ``(ms_since_hour: u32, ask: u32, bid: u32, ask_vol: f32, bid_vol: f32)``
+# with prices as integers to be divided by a per-symbol factor.  A zero-length
+# body means "no ticks this hour" -- a weekend or a holiday, not an error.
+
+DUKASCOPY_BASE = "https://datafeed.dukascopy.com/datafeed"
+
+#: symbol -> (dukascopy instrument code, integer price divisor, is_proxy)
+DUKASCOPY_SYMBOLS = {
+    "EURUSD": ("EURUSD", 1e5, False),
+    "XAUUSD": ("XAUUSD", 1e3, False),
+    # Dukascopy has no CME futures.  Its Nasdaq-100 CFD tracks the index and
+    # is the closest free tick proxy for NQ/MNQ; results using it are labelled
+    # as a proxy rather than quietly presented as futures.
+    "MNQ": ("USATECHIDXUSD", 1e3, True),
+    "NQ": ("USATECHIDXUSD", 1e3, True),
+}
+
+TICK_STRUCT = ">IIIff"
+TICK_SIZE = 20
+
+
+@dataclass
+class TickSeries:
+    """Raw bid/ask ticks.  ``ts`` is nanoseconds UTC."""
+
+    symbol: str
+    ts: List[int]
+    bid: List[float]
+    ask: List[float]
+    bid_volume: List[float] = field(default_factory=list)
+    ask_volume: List[float] = field(default_factory=list)
+    source: str = "dukascopy"
+
+    def __len__(self) -> int:
+        return len(self.ts)
+
+
+def decode_bi5(payload: bytes, divisor: float, hour_start_ns: int,
+               symbol: str = "") -> TickSeries:
+    """Decode one Dukascopy hourly tick file.
+
+    Split out as a pure function precisely so it can be tested without the
+    network: the tests build a payload with the documented layout and assert
+    it round-trips.
+    """
+    import lzma
+    import struct
+
+    if not payload:
+        return TickSeries(symbol=symbol, ts=[], bid=[], ask=[])
+    try:
+        raw = lzma.decompress(payload, format=lzma.FORMAT_ALONE)
+    except lzma.LZMAError:
+        # Some hours are served already-decompressed.
+        raw = payload
+    if len(raw) % TICK_SIZE:
+        raise ValueError(
+            f"{symbol}: tick payload is {len(raw)} bytes, not a multiple of "
+            f"{TICK_SIZE}"
+        )
+
+    n = len(raw) // TICK_SIZE
+    ts: List[int] = []
+    bid: List[float] = []
+    ask: List[float] = []
+    bvol: List[float] = []
+    avol: List[float] = []
+    unpack = struct.Struct(TICK_STRUCT).unpack_from
+    for k in range(n):
+        ms, a, b, av, bv = unpack(raw, k * TICK_SIZE)
+        ts.append(hour_start_ns + ms * 1_000_000)
+        ask.append(a / divisor)
+        bid.append(b / divisor)
+        avol.append(av)
+        bvol.append(bv)
+    return TickSeries(symbol=symbol, ts=ts, bid=bid, ask=ask,
+                      bid_volume=bvol, ask_volume=avol)
+
+
+def _dukascopy_url(code: str, dt: datetime) -> str:
+    # Dukascopy months are zero-indexed.  This has cost more people more
+    # debugging time than any other detail of the format.
+    return (f"{DUKASCOPY_BASE}/{code}/{dt.year:04d}/{dt.month - 1:02d}/"
+            f"{dt.day:02d}/{dt.hour:02d}h_ticks.bi5")
+
+
+def _cache_path(cache_dir: str, code: str, dt: datetime) -> str:
+    return os.path.join(cache_dir, "dukascopy", code, f"{dt.year:04d}",
+                        f"{dt.month:02d}", f"{dt.day:02d}",
+                        f"{dt.hour:02d}h_ticks.bi5")
+
+
+def _fetch_hour(code: str, dt: datetime, cache_dir: str,
+                timeout: float = 30.0, retries: int = 3) -> bytes:
+    """Fetch (or read from cache) one hour of ticks."""
+    import urllib.error
+    import urllib.request
+
+    path = _cache_path(cache_dir, code, dt)
+    if os.path.exists(path):
+        with open(path, "rb") as fh:
+            return fh.read()
+
+    url = _dukascopy_url(code, dt)
+    req = urllib.request.Request(url, headers={
+        "User-Agent": "propsim/0.1 (research)",
+        "Referer": "https://www.dukascopy.com/",
+    })
+    last: Optional[Exception] = None
+    for attempt in range(retries):
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                body = resp.read()
+            break
+        except urllib.error.HTTPError as exc:
+            if exc.code == 404:
+                body = b""      # no data for this hour; cache the absence
+                break
+            last = exc
+        except Exception as exc:                       # noqa: BLE001
+            last = exc
+        time_sleep = 2.0 ** attempt
+        try:
+            import time as _t
+            _t.sleep(time_sleep)
+        except Exception:                              # pragma: no cover
+            pass
+    else:
+        raise RuntimeError(f"failed to fetch {url}: {last}")
+
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = path + ".part"
+    with open(tmp, "wb") as fh:
+        fh.write(body)
+    os.replace(tmp, path)
+    return body
+
+
+def fetch_dukascopy_ticks(symbol: str, start: datetime, end: datetime,
+                          cache_dir: str = "cache", jobs: int = 8,
+                          progress=None) -> TickSeries:
+    """Download (and cache) tick history for ``[start, end)``.
+
+    Hours are fetched concurrently -- the job is entirely network-bound, so
+    threads are the right tool and 8 of them turn a multi-hour first pull into
+    a manageable one.  Results are reassembled in chronological order.
+    """
+    from concurrent.futures import ThreadPoolExecutor
+
+    if symbol.upper() not in DUKASCOPY_SYMBOLS:
+        raise KeyError(f"no Dukascopy mapping for {symbol!r}")
+    code, divisor, is_proxy = DUKASCOPY_SYMBOLS[symbol.upper()]
+
+    hours: List[datetime] = []
+    cur = start.replace(minute=0, second=0, microsecond=0,
+                        tzinfo=start.tzinfo or timezone.utc)
+    while cur < end:
+        # Skip the weekend outright: the request would 404 anyway and there
+        # are 48 of them every week.
+        if not (cur.weekday() == 5 or (cur.weekday() == 6 and cur.hour < 21)
+                or (cur.weekday() == 4 and cur.hour >= 21)):
+            hours.append(cur)
+        cur += timedelta(hours=1)
+
+    payloads: List[Optional[bytes]] = [None] * len(hours)
+    done = 0
+    with ThreadPoolExecutor(max_workers=max(1, jobs)) as pool:
+        futures = {pool.submit(_fetch_hour, code, h, cache_dir): k
+                   for k, h in enumerate(hours)}
+        for fut, k in futures.items():
+            payloads[k] = fut.result()
+            done += 1
+            if progress and done % 50 == 0:
+                progress(done, len(hours))
+
+    ts: List[int] = []
+    bid: List[float] = []
+    ask: List[float] = []
+    bvol: List[float] = []
+    avol: List[float] = []
+    for h, payload in zip(hours, payloads):
+        hour_ns = int(h.timestamp()) * NS_PER_SECOND
+        chunk = decode_bi5(payload or b"", divisor, hour_ns, symbol)
+        ts.extend(chunk.ts)
+        bid.extend(chunk.bid)
+        ask.extend(chunk.ask)
+        bvol.extend(chunk.bid_volume)
+        avol.extend(chunk.ask_volume)
+
+    src = "dukascopy-proxy" if is_proxy else "dukascopy"
+    return TickSeries(symbol=symbol, ts=ts, bid=bid, ask=ask,
+                      bid_volume=bvol, ask_volume=avol, source=src)
+
+
+def ticks_to_bars(ticks: TickSeries, seconds: int = 60,
+                  timeframe: Optional[str] = None) -> BarSeries:
+    """Resample ticks into mid-price OHLC bars with a measured mean spread.
+
+    OHLC is built from the *mid*, matching the engine's convention that the
+    series is mid and the cost model owns the spread.  The mean spread inside
+    each bar is carried alongside, so execution cost is data rather than
+    assumption.
+    """
+    step = seconds * NS_PER_SECOND
+    out_ts: List[int] = []
+    o: List[float] = []
+    h: List[float] = []
+    l: List[float] = []
+    c: List[float] = []
+    v: List[float] = []
+    sp: List[float] = []
+
+    bucket = -1
+    spread_sum = 0.0
+    count = 0
+    for k in range(len(ticks)):
+        mid = 0.5 * (ticks.bid[k] + ticks.ask[k])
+        b = (ticks.ts[k] // step) * step
+        if b != bucket:
+            if bucket >= 0:
+                sp.append(spread_sum / count)
+                v.append(float(count))
+            bucket = b
+            out_ts.append(b)
+            o.append(mid)
+            h.append(mid)
+            l.append(mid)
+            c.append(mid)
+            spread_sum = 0.0
+            count = 0
+        else:
+            if mid > h[-1]:
+                h[-1] = mid
+            elif mid < l[-1]:
+                l[-1] = mid
+            c[-1] = mid
+        spread_sum += ticks.ask[k] - ticks.bid[k]
+        count += 1
+    if bucket >= 0:
+        sp.append(spread_sum / count)
+        v.append(float(count))
+
+    if timeframe is None:
+        timeframe = f"{seconds}s" if seconds < 60 else f"{seconds // 60}m"
+    return BarSeries(symbol=ticks.symbol, ts=out_ts, open=o, high=h, low=l,
+                     close=c, volume=v, spread=sp, timeframe=timeframe,
+                     source=ticks.source)
+
+
+# ---------------------------------------------------------------------------
+# Synthetic data
+# ---------------------------------------------------------------------------
+#
+# A generator earns its place here for two reasons.  It makes the whole
+# pipeline verifiable end to end without a network, and -- more usefully -- it
+# is a *null model*: a driftless market with realistic volatility structure
+# and honest costs.  If a strategy clears the 10% breakeven on synthetic data
+# it has found an artefact of the cost model or the rules, not an edge, and
+# that is worth knowing before trusting the same number on real prices.
+#
+# Bars are built by simulating sub-bar steps and aggregating them, never by
+# decorating a close with a made-up range.  The whole study lives or dies on
+# intrabar extremes, so those have to come from a simulated path.
+
+SYNTHETIC_PARAMS = {
+    #             start price, annualised vol, base spread (price units)
+    "EURUSD": (1.0850, 0.07, 0.00008),
+    "XAUUSD": (2350.0, 0.16, 0.30),
+    "MNQ":    (18500.0, 0.22, 0.25),
+    "NQ":     (18500.0, 0.22, 0.25),
+}
+
+#: Rough intraday volatility shape by UTC hour: Asia quiet, London open,
+#: London/NY overlap busiest, late NY fading.
+_SESSION_VOL = [
+    0.55, 0.50, 0.50, 0.55, 0.65, 0.75, 0.85, 1.00,   # 00-07
+    1.20, 1.25, 1.15, 1.05, 1.10, 1.45, 1.55, 1.40,   # 08-15
+    1.20, 1.05, 0.90, 0.80, 0.70, 0.60, 0.55, 0.55,   # 16-23
+]
+
+
+def _fx_market_open(dt: datetime) -> bool:
+    """Sunday 21:00 UTC to Friday 21:00 UTC."""
+    wd = dt.weekday()
+    if wd == 5:
+        return False
+    if wd == 6:
+        return dt.hour >= 21
+    if wd == 4:
+        return dt.hour < 21
+    return True
+
+
+def generate_synthetic(symbol: str, days: int = 60,
+                       start: str = "2024-01-01T00:00:00Z",
+                       seed: int = 0, bar_seconds: int = 60,
+                       substeps: int = 10,
+                       jumps_per_day: float = 2.0) -> BarSeries:
+    """Driftless price path with volatility clustering, jumps and sessions.
+
+    * log-price is a martingale -- no edge is baked in;
+    * an AR(1) on log volatility produces the clustering that drives fat
+      drawdown tails, which a constant-vol GBM would understate badly;
+    * jumps arrive as a Poisson process, sized in units of the current bar's
+      sigma, so news gaps blow through stops the way they really do;
+    * the spread widens on the same session schedule as the volatility.
+    """
+    if symbol.upper() not in SYNTHETIC_PARAMS:
+        raise KeyError(f"no synthetic parameters for {symbol!r}")
+    p0, ann_vol, base_spread = SYNTHETIC_PARAMS[symbol.upper()]
+    rng = random.Random(seed)
+
+    t0 = datetime.fromisoformat(start.replace("Z", "+00:00"))
+    step_ns = bar_seconds * NS_PER_SECOND
+    n_bars = int(days * 86_400 // bar_seconds)
+
+    seconds_per_year = 252.0 * 24.0 * 3600.0
+    dt_sub = (bar_seconds / substeps) / seconds_per_year
+    sigma_base = ann_vol * math.sqrt(dt_sub)
+
+    rho, sigma_v = 0.97, 0.30
+    log_vol = 0.0
+    jump_p = jumps_per_day / (86_400.0 / bar_seconds)
+
+    ts: List[int] = []
+    o: List[float] = []
+    h: List[float] = []
+    l: List[float] = []
+    c: List[float] = []
+    v: List[float] = []
+    sp: List[float] = []
+
+    price = p0
+    for k in range(n_bars):
+        when = t0 + timedelta(seconds=k * bar_seconds)
+        if not _fx_market_open(when):
+            continue
+
+        log_vol = rho * log_vol + math.sqrt(1.0 - rho * rho) * sigma_v * \
+            rng.gauss(0.0, 1.0)
+        session = _SESSION_VOL[when.hour]
+        sigma = sigma_base * session * math.exp(log_vol)
+
+        bar_open = price
+        bar_high = price
+        bar_low = price
+        for _ in range(substeps):
+            price *= math.exp(-0.5 * sigma * sigma + sigma * rng.gauss(0.0, 1.0))
+            if price > bar_high:
+                bar_high = price
+            elif price < bar_low:
+                bar_low = price
+        if rng.random() < jump_p:
+            shock = rng.gauss(0.0, 1.0) * sigma * math.sqrt(substeps) * 6.0
+            price *= math.exp(shock)
+            if price > bar_high:
+                bar_high = price
+            elif price < bar_low:
+                bar_low = price
+
+        ts.append(int(when.timestamp()) * NS_PER_SECOND)
+        o.append(bar_open)
+        h.append(bar_high)
+        l.append(bar_low)
+        c.append(price)
+        v.append(float(substeps))
+        # Spread is inverse to activity, with an extra kick over the
+        # 21:00-22:00 UTC rollover where liquidity genuinely evaporates.
+        widen = 0.35 + 0.75 / session
+        if when.hour in (21, 22):
+            widen *= 2.5
+        sp.append(base_spread * widen)
+
+    return BarSeries(symbol=symbol.upper(), ts=ts, open=o, high=h, low=l,
+                     close=c, volume=v, spread=sp,
+                     timeframe=f"{bar_seconds}s" if bar_seconds < 60
+                     else f"{bar_seconds // 60}m",
+                     source=f"synthetic(seed={seed})")
+
+
+# ---------------------------------------------------------------------------
+# Cache-backed loading
+# ---------------------------------------------------------------------------
+
+DEFAULT_CACHE = os.environ.get("PROPSIM_CACHE", "cache")
+
+
+def load_bars(symbol: str, source: str = "dukascopy",
+              start: str = "2024-01-01", end: str = "2024-04-01",
+              timeframe_seconds: int = 60, cache_dir: str = DEFAULT_CACHE,
+              seed: int = 0, jobs: int = 8, refresh: bool = False,
+              progress=None) -> BarSeries:
+    """Load bars, using the local cache when possible.
+
+    ``source`` is one of ``dukascopy`` (tick history, resampled),
+    ``synthetic`` (offline null model) or a path to a CSV written by
+    :meth:`BarSeries.to_csv`.
+    """
+    if os.path.exists(source) and source.endswith(".csv"):
+        return BarSeries.from_csv(source, symbol,
+                                  timeframe=f"{timeframe_seconds}s")
+
+    tag = f"{symbol.upper()}_{timeframe_seconds}s_{start}_{end}_{source}"
+    if source == "synthetic":
+        tag += f"_seed{seed}"
+    bar_path = os.path.join(cache_dir, "bars", tag.replace(":", "") + ".csv")
+    if os.path.exists(bar_path) and not refresh:
+        return BarSeries.from_csv(bar_path, symbol.upper(),
+                                  timeframe=f"{timeframe_seconds}s",
+                                  source=source)
+
+    if source == "synthetic":
+        d0 = datetime.fromisoformat(start).replace(tzinfo=timezone.utc)
+        d1 = datetime.fromisoformat(end).replace(tzinfo=timezone.utc)
+        bars = generate_synthetic(
+            symbol, days=max(1, int((d1 - d0).total_seconds() // 86_400)),
+            start=d0.strftime("%Y-%m-%dT%H:%M:%SZ"), seed=seed,
+            bar_seconds=timeframe_seconds)
+    elif source == "dukascopy":
+        d0 = datetime.fromisoformat(start).replace(tzinfo=timezone.utc)
+        d1 = datetime.fromisoformat(end).replace(tzinfo=timezone.utc)
+        ticks = fetch_dukascopy_ticks(symbol, d0, d1, cache_dir=cache_dir,
+                                      jobs=jobs, progress=progress)
+        if not len(ticks):
+            raise RuntimeError(
+                f"Dukascopy returned no ticks for {symbol} {start}..{end}. "
+                f"Check the symbol mapping and that the range is not entirely "
+                f"weekend/holiday."
+            )
+        bars = ticks_to_bars(ticks, timeframe_seconds)
+    else:
+        raise ValueError(f"unknown source {source!r}")
+
+    bars.validate()
+    bars.to_csv(bar_path)
+    return bars

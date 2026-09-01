@@ -43,6 +43,13 @@ class CostModel:
     #: ``(start_hour_utc, end_hour_utc, multiplier)`` triples, end exclusive.
     #: Ranges may wrap past midnight.
     session_widening: Tuple[Tuple[int, int, float], ...] = ()
+    #: When the series carries a measured bid/ask spread, use it in preference
+    #: to the configured constant.  Tick sources give the real thing; assuming
+    #: a spread when the data knows it is a needless source of error.
+    use_measured_spread: bool = True
+    #: Multiplier applied on top of whichever spread is used.  Stress knob:
+    #: 2.0 asks what happens if execution is twice as bad as assumed.
+    spread_multiplier: float = 1.0
 
     @property
     def round_turn_commission(self) -> float:
@@ -61,12 +68,22 @@ class CostModel:
 
     def half_spread_at(self, ts_ns: int) -> float:
         """Half-turn cost in price units at a point in time."""
-        return 0.5 * self.spread * self.widening_at(ts_ns) + self.slippage
+        return (0.5 * self.spread * self.widening_at(ts_ns)
+                * self.spread_multiplier + self.slippage)
 
     def half_spread_series(self, bars: BarSeries) -> List[float]:
-        """Precompute the per-bar half-turn cost for a whole series."""
+        """Precompute the per-bar half-turn cost for a whole series.
+
+        Measured spreads already contain the session widening that the
+        synthetic schedule only approximates, so the multiplier table is not
+        applied on top of them.
+        """
+        if self.use_measured_spread and bars.spread:
+            m, slip = 0.5 * self.spread_multiplier, self.slippage
+            return [s * m + slip for s in bars.spread]
         if not self.session_widening:
-            return [0.5 * self.spread + self.slippage] * len(bars)
+            return [0.5 * self.spread * self.spread_multiplier
+                    + self.slippage] * len(bars)
         return [self.half_spread_at(t) for t in bars.ts]
 
     # -- reporting ----------------------------------------------------------
@@ -112,9 +129,13 @@ DEFAULT_COSTS = {
     ),
 }
 
-#: A frictionless model.  Only ever appropriate inside unit tests -- a
-#: frictionless simulation of this challenge is worthless.
-ZERO_COSTS = CostModel(spread=0.0, commission_per_side=0.0, slippage=0.0)
+#: A frictionless model.  Only ever appropriate inside unit tests and as an
+#: explicit control -- a frictionless simulation of this challenge is
+#: worthless.  ``use_measured_spread`` is off deliberately: otherwise a series
+#: carrying real bid/ask would quietly reintroduce the spread and a model
+#: named ZERO_COSTS would charge for execution.
+ZERO_COSTS = CostModel(spread=0.0, commission_per_side=0.0, slippage=0.0,
+                       use_measured_spread=False)
 
 
 def get_costs(symbol: str) -> CostModel:

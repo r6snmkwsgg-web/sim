@@ -1,0 +1,9 @@
+# The simulator core runs on the standard library alone -- data.py, costs.py,
+# engine.py, strategies.py, montecarlo.py and sweep.py have no imports outside
+# it, and `python run_tests.py` executes the whole suite with nothing
+# installed.  Everything below is optional and only affects the edges.
+
+pytest>=7.0          # nicer test runner; `python run_tests.py` works without it
+matplotlib>=3.5      # PNG heatmaps; sweep.py writes SVG when it is absent
+pandas>=1.4          # BarSeries.to_dataframe / from_dataframe interop
+numpy>=1.22          # only pulled in by pandas/matplotlib

@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "propsim"
+version = "0.1.0"
+description = "Monte Carlo simulator for prop-firm 24-hour challenges"
+requires-python = ">=3.9"
+dependencies = []
+
+[project.optional-dependencies]
+plots = ["matplotlib>=3.5"]
+pandas = ["pandas>=1.4"]
+dev = ["pytest>=7.0"]
+
+[project.scripts]
+propsim = "propsim.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["propsim*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-q"
