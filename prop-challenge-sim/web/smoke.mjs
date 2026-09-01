@@ -148,21 +148,28 @@ try {
   // Exercise the replay: it must advance the reveal head and then settle back
   // on the finished day.
   const replay = await evaluate(`(async () => {
-    const before = S.reveal;
+    const before = S.headBar;
     document.getElementById('play').click();
-    await new Promise(r => setTimeout(r, 600));
-    const during = S.reveal;
+    await new Promise(r => setTimeout(r, 900));
+    const during = S.headBar;
     const label = document.getElementById('play').textContent;
+    const speed = S.minsPerSec;
     document.getElementById('play').click();
-    await new Promise(r => setTimeout(r, 120));
-    return JSON.stringify({ before, during, after: S.reveal, label,
+    await new Promise(r => setTimeout(r, 150));
+    return JSON.stringify({ before, during, after: S.headBar, label, speed,
                             playing: S.playing });
   })()`);
   const rp = JSON.parse(replay);
-  console.log(`  replay    reveal ${rp.before} -> ${rp.during} -> ${rp.after}` +
-              `  (button read "${rp.label}")`);
+  console.log(`  replay    head ${rp.before} -> ${rp.during} -> ${rp.after} bars` +
+              `  at ${rp.speed} min/s  (button read "${rp.label}")`);
   if (!(rp.during > 0 && rp.during < rp.before)) problems.push('replay did not advance');
   if (rp.playing) problems.push('replay did not stop');
+  // A market that crosses a whole trading day in under a second is not a
+  // market.  Guard the pace, not just that it moves.
+  const expected = rp.speed * 0.9;
+  if (rp.during > expected * 3)
+    problems.push(`replay ran ${(rp.during / expected).toFixed(1)}x faster than ` +
+                  `${rp.speed} min/s implies (${rp.during} bars in ~0.9s)`);
 
   // And that dragging a line re-runs the engine.
   const drag = await evaluate(`(() => {

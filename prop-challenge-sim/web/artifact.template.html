@@ -72,6 +72,8 @@ h1,h2,h3{margin:0; text-wrap:balance}
   padding:10px 14px; border-bottom:1px solid var(--rule); background:var(--panel-2)}
 .sym{font-family:var(--mono); font-size:14px; font-weight:600; letter-spacing:.02em}
 .sym span{color:var(--muted); font-weight:400; margin-left:8px; font-size:11.5px}
+.tfseg{padding:2px}
+.tfseg button{padding:4px 10px; font-size:11.5px; font-family:var(--mono)}
 .ohlc{display:flex; gap:12px; font-family:var(--mono); font-size:11.5px; color:var(--muted)}
 .ohlc b{color:var(--ink); font-weight:500}
 .tbar-right{margin-left:auto; display:flex; align-items:center; gap:8px}
@@ -210,7 +212,13 @@ footer{margin-top:44px; padding-top:18px; border-top:1px solid var(--rule);
 
 <div class="term">
   <div class="tbar">
-    <span class="sym">EURUSD<span>1m · spot FX</span></span>
+    <span class="sym">EURUSD<span>spot FX</span></span>
+    <div class="seg tfseg" role="group" aria-label="Timeframe">
+      <button data-tf="1" aria-pressed="false">1m</button>
+      <button data-tf="5" aria-pressed="true">5m</button>
+      <button data-tf="15" aria-pressed="false">15m</button>
+      <button data-tf="60" aria-pressed="false">1H</button>
+    </div>
     <div class="ohlc" id="ohlc">
       <span>O <b>—</b></span><span>H <b>—</b></span><span>L <b>—</b></span><span>C <b>—</b></span>
     </div>
@@ -222,7 +230,7 @@ footer{margin-top:44px; padding-top:18px; border-top:1px solid var(--rule);
   <div class="deck">
     <div class="chartwrap">
       <canvas id="chart" height="560"></canvas>
-      <div class="hint">drag the entry, TP and SL lines by their handles &nbsp;·&nbsp; scroll to zoom</div>
+      <div class="hint" id="hint">drag the entry, TP and SL lines by their handles &nbsp;·&nbsp; scroll to zoom</div>
     </div>
     <div class="side">
       <dl class="hud">
@@ -250,14 +258,16 @@ footer{margin-top:44px; padding-top:18px; border-top:1px solid var(--rule);
         </select></label>
       <label class="field"><span>Position size <em id="vSize">45%</em></span>
         <input type="range" id="cSize" min="5" max="75" step="5" value="45"></label>
-      <div class="field"><span>Replay speed</span>
+      <div class="field"><span>Replay speed <em id="vSpeed">5 min/s</em></span>
         <div class="seg" role="group" aria-label="Replay speed">
           <button data-speed="1" aria-pressed="false">1×</button>
-          <button data-speed="3" aria-pressed="true">3×</button>
-          <button data-speed="8" aria-pressed="false">8×</button>
+          <button data-speed="5" aria-pressed="true">5×</button>
+          <button data-speed="20" aria-pressed="false">20×</button>
+          <button data-speed="60" aria-pressed="false">60×</button>
         </div></div>
       <div class="btns">
-        <button class="primary" id="play">▶ Replay the day</button>
+        <button class="primary" id="play">▶ Replay</button>
+        <button id="pause" title="Pause" disabled>❚❚</button>
         <button id="shuffle" title="Jump to another real 24-hour window">⟳</button>
       </div>
       <p style="margin:0; font-size:11.5px; color:var(--muted)" id="windowNote">—</p>
