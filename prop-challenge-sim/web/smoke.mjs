@@ -138,7 +138,7 @@ try {
   if (r.rows.length !== 6) problems.push(`expected 6 rulebook rows, got ${r.rows.length}`);
   if (r.distinctColors < 8) problems.push(`chart looks blank (${r.distinctColors} colours)`);
   if (!/^1\.\d{4}/.test(r.lTP)) problems.push(`TP line not priced: "${r.lTP}"`);
-  if (!/^1\.\d{4}/.test(r.lKill)) problems.push(`liquidation price not drawn: "${r.lKill}"`);
+  if (r.lKill !== '—') problems.push(`no position yet, so no liquidation price: "${r.lKill}"`);
   if (!/^\d/.test(r.rate)) problems.push(`headline pass rate not rendered: "${r.rate}"`);
   if (r.stats.length !== 8) problems.push(`expected 8 stat tiles, got ${r.stats.length}`);
 
@@ -148,7 +148,7 @@ try {
   // Exercise the replay: it must advance the reveal head and then settle back
   // on the finished day.
   const replay = await evaluate(`(async () => {
-    const before = S.headBar;
+    const before = S.res.curveEq.length - 1;
     document.getElementById('play').click();
     await new Promise(r => setTimeout(r, 900));
     const during = S.headBar;

@@ -26,6 +26,10 @@ const DAY_MS = 86400000;
 const S = {
   i0: 0, n: 0, dir: 1, size: 0.45, ddMode: 'trailing_equity',
   entry: null, tp: null, sl: null, res: null,
+  // 'setup'   -- flat, your order rests in front of the market, nothing filled
+  // 'running' -- the day is playing forward
+  // 'done'    -- decided; the whole attempt is on screen
+  phase: 'setup',
   // Replay clock.  headBar is the last completed minute; headFrac walks
   // through the bar that is still forming, which is what makes it read as a
   // market rather than a slideshow.
@@ -74,11 +78,38 @@ function pickWindow(seed) {
   return { i0: 0, n: 1440 };
 }
 
+/** Only on a new window or a direction flip.  Never on a size change: moving
+    somebody's lines because they touched a slider is how you lose their
+    order. */
 function resetLevels() {
-  S.entry = BARS.close[S.i0];
+  const px = BARS.close[S.i0];
+  S.entry = px - S.dir * 0.0004;          // a resting limit, 4 pips in front
   const dpp = dollarsPerPrice(S.entry, S.size);
   S.tp = S.entry + S.dir * (1500 / dpp);
   S.sl = S.entry - S.dir * (250 / dpp);
+}
+
+/** What kind of order the entry line currently is, relative to the price the
+    day opens at. */
+function orderKind() {
+  const px = BARS.close[S.i0];
+  const side = S.dir > 0 ? 'BUY' : 'SELL';
+  if (Math.abs(S.entry - px) < 1e-6) return side + ' MARKET';
+  const below = S.entry < px;
+  return side + ' ' + ((S.dir > 0) === below ? 'LIMIT' : 'STOP');
+}
+
+function setPhase(p) {
+  S.phase = p;
+  if (p === 'setup') { S.headBar = 0; S.headFrac = 1; S.panCandles = 0; }
+  if (p === 'done') { S.headBar = exitBar(); S.headFrac = 1; }
+  const play = $('play');
+  play.textContent = p === 'running' ? '■ Stop'
+    : p === 'done' ? '▶ Replay again' : '▶ Start the day';
+  $('pause').disabled = p !== 'running';
+  $('hint').innerHTML = p === 'setup'
+    ? 'place your order — drag the entry, TP and SL by their handles, then press start'
+    : 'drag any line to re-arm the order &nbsp;·&nbsp; scroll to zoom';
 }
 
 /** Bar at which the attempt is decided -- the replay ends here, because
@@ -92,7 +123,8 @@ function runDay() {
   S.res = runChallenge(BARS,
                        terminalStrategy(S.dir, S.size, S.entry, S.tp, S.sl),
                        INST, COSTS, cfg, rng(1), S.i0, null, true);
-  if (!S.playing) { S.headBar = exitBar(); S.headFrac = 1; }
+  if (S.phase === 'done') { S.headBar = exitBar(); S.headFrac = 1; }
+  else if (S.phase === 'setup') { S.headBar = 0; S.headFrac = 1; }
   paintHUD();
 }
 
@@ -230,7 +262,9 @@ function visibleCandles() {
   const out = [];
   const jHead = Math.floor(headCandleF() - S.panCandles);
   const span = Math.ceil(((W - PADR) - RIGHT_GAP) / S.bw) + 2;
-  const HISTORY = 34;                       // candles of lead-in context
+  // Setup has no future to draw, so fill the pane with real history; while
+  // running, keep the lead-in short so the price scale stays on the trade.
+  const HISTORY = S.phase === 'setup' ? span : 34;
   for (let j = Math.max(jHead - span, -HISTORY); j <= jHead; j++) {
     const c = candleAt(j);
     if (c) out.push(c);
@@ -396,7 +430,7 @@ function drawLevels(g, plotW) {
   g.strokeStyle = cssVar('--kill'); g.lineWidth = 2; g.setLineDash([6, 4]);
   g.beginPath();
   let started = false;
-  const upto = Math.min(S.headBar, fp.length - 1);
+  const upto = S.phase === 'setup' ? -1 : Math.min(S.headBar, fp.length - 1);
   const firstSrc = Math.max(0, upto - Math.ceil(plotW / S.bw) * S.tf - S.tf);
   for (let q = firstSrc; q <= upto; q++) {
     const v = fp[q];
@@ -412,7 +446,8 @@ function drawLevels(g, plotW) {
   tag(g, plotW, clampY(yT), px5(S.tp) + arr(yT), cssVar('--tp'));
   tag(g, plotW, clampY(yS), px5(S.sl) + arr(yS), cssVar('--sl'));
   const lastFloor = lastFloorPx(S.headBar);
-  tag(g, plotW, clampY(yOf(lastFloor)), px5(lastFloor), cssVar('--kill'));
+  if (S.phase !== 'setup')
+    tag(g, plotW, clampY(yOf(lastFloor)), px5(lastFloor), cssVar('--kill'));
 
   const gx = plotW - 8;
   if (yE > PADT && yE < PRICE_H) grip(g, gx, yE, cssVar('--muted'));
@@ -426,10 +461,12 @@ function drawLevels(g, plotW) {
   g.fillStyle = cssVar('--sl');
   g.fillText(`STOP  −${money(Math.abs(S.sl - entry) * dpp)}`, 7, yS - 4);
   g.fillStyle = cssVar('--kill');
-  if (Math.abs(yOf(lastFloor) - yS) > 15) g.fillText('LIQUIDATION', 7, yOf(lastFloor) - 4);
+  if (S.phase !== 'setup' && Math.abs(yOf(lastFloor) - yS) > 15)
+    g.fillText('LIQUIDATION', 7, yOf(lastFloor) - 4);
   g.fillStyle = cssVar('--muted');
   if (Math.abs(yE - yOf(lastFloor)) > 22 && Math.abs(yE - yS) > 22)
-    g.fillText(S.res.trades.length ? 'ENTRY  filled' : 'ENTRY  limit — not filled',
+    g.fillText(S.phase === 'setup' ? orderKind()
+               : S.res.trades.length ? 'ENTRY  filled' : 'ENTRY  never filled',
                7, yE - 4);
 }
 
@@ -469,7 +506,7 @@ function drawEquity(g, plotW, from) {
   g.textAlign = 'left'; g.textBaseline = 'top';
   g.fillText('ACCOUNT EQUITY', 4, top - GAP / 2 + 5);
 
-  const upto = Math.min(S.headBar, eq.length - 1);
+  const upto = S.phase === 'setup' ? -1 : Math.min(S.headBar, eq.length - 1);
   const start = Math.max(0, from);
   if (21500 >= LAYOUT.eqLo && 21500 <= LAYOUT.eqHi) {
     g.save();
@@ -563,7 +600,11 @@ cv.addEventListener('pointermove', (e) => {
     } else {
       S.sl = S.dir > 0 ? Math.min(p, S.entry - minGap) : Math.max(p, S.entry + minGap);
     }
-    if (!S.raf) S.raf = requestAnimationFrame(() => { S.raf = 0; runDay(); draw(); });
+    if (!S.raf) S.raf = requestAnimationFrame(() => {
+      S.raf = 0;
+      if (S.phase !== 'setup') setPhase('setup');
+      runDay(); draw();
+    });
     return;
   }
 
@@ -595,7 +636,7 @@ cv.addEventListener('pointerup', (e) => {
   S.drag = null;
   cv.releasePointerCapture(e.pointerId);
   cv.style.cursor = 'crosshair';
-  if (wasLine) { runDay(); }
+  if (wasLine) { rearm(); }
   draw();
 });
 cv.addEventListener('wheel', (e) => {
@@ -609,8 +650,9 @@ cv.addEventListener('wheel', (e) => {
 let rafId = 0;
 
 function fitAll() {
-  // Show the whole attempt plus a little history either side.
-  const total = (exitBar() + 1) / S.tf + 14;
+  const total = S.phase === 'setup'
+    ? 96                                   // a screen of history to place against
+    : (exitBar() + 1) / S.tf + 14;
   S.bw = Math.max(2.2, Math.min(16, ((W - PADR) - RIGHT_GAP) / total));
   S.panCandles = 0;
 }
@@ -618,13 +660,12 @@ function fitAll() {
 function play() {
   if (S.playing) return;
   S.playing = true;
+  setPhase('running');
   S.headBar = 0; S.headFrac = 0;
   S.panCandles = 0;
   S.bw = 9;
   S.lastT = performance.now();
   S.lastTick = livePrice();
-  $('play').textContent = '■ Stop';
-  $('pause').disabled = false;
   $('pause').textContent = '❚❚';
   rafId = requestAnimationFrame(step);
 }
@@ -650,11 +691,19 @@ function step(t) {
 function finish() {
   S.playing = false;
   cancelAnimationFrame(rafId);
-  S.headBar = exitBar(); S.headFrac = 1;
-  $('play').textContent = '▶ Replay';
-  $('pause').disabled = true;
+  setPhase('done');
   fitAll();
   paintHUD(); draw();
+}
+
+/** Any change to the order takes you back to a flat, pre-trade chart -- the
+    result on screen belonged to the old order. */
+function rearm() {
+  if (S.playing) { S.playing = false; cancelAnimationFrame(rafId); }
+  setPhase('setup');
+  runDay();
+  fitAll();
+  draw();
 }
 
 function stop() { if (S.playing) finish(); }
@@ -665,42 +714,49 @@ $('pause').onclick = () => {
     S.playing = true;
     S.lastT = performance.now();
     $('pause').textContent = '❚❚';
-    $('play').textContent = '■ Stop';
     rafId = requestAnimationFrame(step);
   } else {                                // pause, keeping the head where it is
     S.playing = false;
     cancelAnimationFrame(rafId);
     $('pause').textContent = '▶';
-    $('play').textContent = '■ Stop';
     draw();
   }
 };
 
 function paintHUD() {
-  const r = S.res, k = Math.min(S.headBar, r.curveEq.length - 1);
-  const eq = r.curveEq[k], fl = r.curveFloor[k];
-  const cfg = config();
-  const done = k >= r.curveEq.length - 1 && !S.playing;
+  const r = S.res, cfg = config();
+  const setup = S.phase === 'setup';
+  const k = setup ? 0 : Math.min(S.headBar, r.curveEq.length - 1);
+  const eq = setup ? cfg.startingBalance : r.curveEq[k];
+  const fl = setup ? cfg.startingBalance - cfg.maxDrawdown : r.curveFloor[k];
+  const done = S.phase === 'done';
+
   $('hBal').textContent = money(done ? r.finalBalance : eq, 0);
   $('hEq').textContent = money(eq, 0);
   const room = eq - fl;
   $('hRoom').textContent = money(room, 0);
-  $('hRoom').style.color = room < 100 ? cssVar('--kill') : cssVar('--ink');
+  $('hRoom').style.color = room < 100 ? 'var(--kill)' : 'var(--ink)';
   const togo = cfg.startingBalance + cfg.profitTarget - eq;
   $('hTarget').textContent = togo <= 0 ? 'reached' : money(togo, 0);
 
   const entry = S.entry;
   const dpp = dollarsPerPrice(entry, S.size);
-  $('lEntry').textContent = px5(entry) + (r.trades.length ? '  filled' : '  waiting');
+  // Has the order actually filled *by the point on screen*?
+  const filled = !setup && r.trades.length &&
+                 k >= (r.trades[0].entryIndex - S.i0);
+  $('lEntry').textContent = px5(entry) + (setup ? '  ' + orderKind().toLowerCase()
+                                                : filled ? '  filled' : '  working');
   $('lTP').textContent = `${px5(S.tp)}  +${money(Math.abs(S.tp - entry) * dpp)}`;
   $('lSL').textContent = `${px5(S.sl)}  −${money(Math.abs(S.sl - entry) * dpp)}`;
-  $('lKill').textContent = px5(lastFloorPx(S.headBar));
+  $('lKill').textContent = setup ? '—' : px5(lastFloorPx(S.headBar));
 
   const v = $('verdict');
-  if (!done) {
+  if (setup) { v.className = 'tag live'; v.textContent = orderKind() + ' — NOT SENT'; }
+  else if (!done) {
     v.className = 'tag live';
-    v.textContent = r.trades.length && k >= (r.trades[0].entryIndex - S.i0)
-      ? 'IN TRADE' : 'WAITING FOR FILL';
+    v.textContent = filled ? 'IN TRADE' : 'ORDER WORKING';
+  } else if (!r.trades.length) {
+    v.className = 'tag fail'; v.textContent = 'NEVER FILLED  ' + money(-cfg.entryFee);
   } else if (r.outcome === 'PASS') { v.className = 'tag pass'; v.textContent = 'PASSED  +$5,000'; }
   else if (r.outcome === 'FAIL_DRAWDOWN') {
     v.className = 'tag fail'; v.textContent = 'LIQUIDATED  ' + money(-cfg.entryFee);
@@ -714,6 +770,7 @@ function newWindow(seed) {
   S.i0 = w.i0; S.n = w.n;
   S.panCandles = 0;
   resetLevels();
+  setPhase('setup');
   runDay();
   fitAll();
   const a = BARS.ts[S.i0], b = BARS.ts[Math.min(S.i0 + S.n - 1, BARS.ts.length - 1)];
@@ -725,20 +782,29 @@ function newWindow(seed) {
 }
 
 $('play').onclick = () => { S.playing ? finish() : play(); };
-$('shuffle').onclick = () => { finish(); newWindow((Math.random() * 1e9) | 0); };
+$('shuffle').onclick = () => {
+  if (S.playing) { S.playing = false; cancelAnimationFrame(rafId); }
+  newWindow((Math.random() * 1e9) | 0);
+};
 $('dLong').onclick = () => setDir(1);
 $('dShort').onclick = () => setDir(-1);
 function setDir(d) {
+  if (d === S.dir) return;
   S.dir = d;
   $('dLong').setAttribute('aria-pressed', String(d === 1));
   $('dShort').setAttribute('aria-pressed', String(d === -1));
-  resetLevels(); runDay(); finish();
+  // Flip the exits around the entry rather than throwing them away.
+  const tp = S.tp, sl = S.sl;
+  S.tp = 2 * S.entry - tp;
+  S.sl = 2 * S.entry - sl;
+  rearm();
 }
-$('cDD').onchange = () => { S.ddMode = $('cDD').value; runDay(); finish(); };
+$('cDD').onchange = () => { S.ddMode = $('cDD').value; rearm(); };
 $('cSize').oninput = () => {
+  // Size changes what your levels are WORTH, never where they are.
   S.size = +$('cSize').value / 100;
   $('vSize').textContent = $('cSize').value + '%';
-  resetLevels(); runDay(); draw(); paintHUD();
+  rearm();
 };
 for (const b of document.querySelectorAll('[data-speed]')) {
   b.onclick = () => {
@@ -805,12 +871,12 @@ function renderSummary(s) {
   const be = s.breakeven;
   const top = Math.max(0.2, s.passRate * 1.35, be * 1.6);
   $('bigRate').textContent = pct(s.passRate);
-  $('bigRate').style.color = s.passRate >= be ? cssVar('--pass') : cssVar('--ink');
+  $('bigRate').style.color = s.passRate >= be ? 'var(--pass)' : 'var(--ink)';
   $('bigSub').innerHTML = s.passRate >= be
     ? 'pass rate — <b style="color:var(--pass)">above</b> the 10% breakeven'
     : 'pass rate — you need <b>10%</b> to break even on the $500 fee';
   $('meterFill').style.width = Math.min(100, s.passRate / top * 100) + '%';
-  $('meterFill').style.background = s.passRate >= be ? cssVar('--pass') : cssVar('--dd');
+  $('meterFill').style.background = s.passRate >= be ? 'var(--pass)' : 'var(--dd)';
   $('meterBE').style.left = (be / top * 100) + '%';
   $('meterMax').textContent = pct(top, 0);
   $('stack').innerHTML = [['nPass', '--pass'], ['nDD', '--dd'], ['nTO', '--timeout']]
@@ -890,11 +956,13 @@ function representativeWindow() {
   const cfg = config();
   for (let seed = 1; seed < 400; seed++) {
     const w = pickWindow(seed * 7919);
-    const entry = BARS.close[w.i0];
+    // Search with the same default order the page actually opens with.
+    const entry = BARS.close[w.i0] - 0.0004;
     const dpp = dollarsPerPrice(entry, S.size);
     const res = runChallenge(BARS,
       terminalStrategy(1, S.size, entry, entry + 1500 / dpp, entry - 250 / dpp),
       INST, COSTS, cfg, rng(1), w.i0, null, true);
+    if (!res.trades.length) continue;               // never filled: not useful
     if (res.outcome === 'FAIL_DRAWDOWN' && res.curveEq.length > 220 &&
         res.curveEq.length < 900) return seed * 7919;
   }

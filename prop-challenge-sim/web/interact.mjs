@@ -55,6 +55,38 @@ try {
     if (await ev(`!document.getElementById('runBtn').disabled`)) break;
   }
 
+  // --- the page must open FLAT with an unsent order, not mid-trade ---
+  const boot = JSON.parse(await ev(`JSON.stringify({
+    phase: S.phase, headBar: S.headBar, trades: S.res.trades.length,
+    verdict: document.getElementById('verdict').textContent,
+    entryLabel: document.getElementById('lEntry').textContent,
+    kill: document.getElementById('lKill').textContent,
+    bal: document.getElementById('hBal').textContent })`));
+  console.log(`  boot: phase=${boot.phase} head=${boot.headBar} ` +
+              `verdict="${boot.verdict}" entry="${boot.entryLabel}" bal=${boot.bal}`);
+  ok('opens in setup, not mid-trade', boot.phase === 'setup', boot.phase);
+  ok('nothing filled before you start', boot.headBar === 0, `head ${boot.headBar}`);
+  ok('verdict says the order is unsent', /NOT SENT/.test(boot.verdict), boot.verdict);
+  ok('no liquidation price before entry', boot.kill === '—', boot.kill);
+
+  // --- the size slider must NOT move the lines (this is the bug he hit) ---
+  const sz = JSON.parse(await ev(`(() => {
+    const before = { e: S.entry, tp: S.tp, sl: S.sl };
+    const el = document.getElementById('cSize');
+    el.value = '5'; el.dispatchEvent(new Event('input'));
+    return JSON.stringify({ before, after: { e: S.entry, tp: S.tp, sl: S.sl },
+                            label: document.getElementById('lTP').textContent });
+  })()`));
+  ok('size does not move the entry', sz.before.e === sz.after.e,
+     `${sz.before.e} -> ${sz.after.e}`);
+  ok('size does not move the TP', sz.before.tp === sz.after.tp,
+     `${sz.before.tp} -> ${sz.after.tp}`);
+  ok('size does not move the SL', sz.before.sl === sz.after.sl,
+     `${sz.before.sl} -> ${sz.after.sl}`);
+  console.log(`  size 45%->5%: TP stays at ${sz.after.tp.toFixed(5)}, now worth ${sz.label.split('  ')[1]}`);
+  await ev(`(() => { const el=document.getElementById('cSize');
+                     el.value='45'; el.dispatchEvent(new Event('input')); })()`);
+
   const geom = JSON.parse(await ev(`(() => {
     const r = document.getElementById('chart').getBoundingClientRect();
     return JSON.stringify({ left: r.left, top: r.top, w: r.width, h: r.height,
@@ -100,6 +132,24 @@ try {
 
   const rerun = await ev(`S.res.trades.length >= 0 && typeof S.res.outcome === 'string'`);
   ok('engine re-ran after dragging', rerun);
+  ok('dragging returns to setup', await ev(`S.phase === 'setup'`),
+     await ev(`S.phase`));
+
+  // --- start the day: the order should work, then fill ---
+  await ev(`(() => { S.minsPerSec = 60; document.getElementById('play').click(); })()`);
+  await sleep(400);
+  const mid = JSON.parse(await ev(`JSON.stringify({ phase: S.phase, head: S.headBar,
+    verdict: document.getElementById('verdict').textContent })`));
+  ok('start puts it in running', mid.phase === 'running', mid.phase);
+  ok('running head advances', mid.head > 0, `head ${mid.head}`);
+  console.log(`  after start: phase=${mid.phase} head=${mid.head} verdict="${mid.verdict}"`);
+  await sleep(2500);
+  const late = JSON.parse(await ev(`JSON.stringify({ phase: S.phase,
+    verdict: document.getElementById('verdict').textContent,
+    entry: document.getElementById('lEntry').textContent })`));
+  console.log(`  later: phase=${late.phase} verdict="${late.verdict}" entry="${late.entry}"`);
+  ok('order fills or is still working', /IN TRADE|ORDER WORKING|LIQUIDATED|PASSED|EXPIRED|NEVER/.test(late.verdict),
+     late.verdict);
 
   console.log(`\n${pass} passed, ${fails.length} failed`);
   for (const f of fails) console.log('  FAIL ' + f);
