@@ -151,17 +151,24 @@ genuinely zero.
 
 ## Data
 
-**Implemented: Dukascopy tick history**, via `urllib` + `lzma` — no `yfinance`
-dependency. LZMA-alone compressed, 20-byte big-endian records, and note that
+**Used for the results above: HistData ASCII M1**, parsed by
+`load_histdata_dir()`. Two properties are easy to get wrong and both are
+handled explicitly: timestamps are EST fixed at UTC-5 **with no daylight
+saving**, and prices are **bid only**, so the spread is modelled rather than
+measured. The weekly gap lands Friday 21:59 → Sunday 22:00 UTC, which is the
+check that the timezone conversion is right.
+
+**Also implemented: Dukascopy tick history**, via `urllib` + `lzma` — no
+`yfinance` dependency. LZMA-alone compressed, 20-byte big-endian records, and note that
 **Dukascopy months are zero-indexed**, which is the single most common way to
 silently fetch the wrong month. Everything is cached hour-by-hour under
 `cache/`, so the slow first pull happens once.
 
 | source | resolution | history | cost | catch |
 |---|---|---|---|---|
+| **HistData** *(used here)* | 1m OHLC | 2000→ | free | bid only, so the spread is modelled rather than measured; timestamps are **EST fixed at UTC-5 with no DST** |
 | **Dukascopy** | true tick, bid **and** ask | ~2003 FX, ~2010 gold | free | one request per instrument-hour (~8,760/symbol-year); no CME futures — NQ/MNQ fall back to a Nasdaq CFD, flagged as a proxy |
 | yfinance | 1m | **~30 days** | free | see below; FX highs/lows are quote-derived and unreliable, and the highs and lows *are* the answer here |
-| HistData | 1m | 2000→ | free | bid only, so the spread stays an assumption; form-token POST, brittle |
 | Databento / Polygon | tick, real CME NQ+MNQ | years | paid | the only honest NQ source |
 
 The yfinance problem is **sample independence**, not convenience. Thirty days
@@ -191,45 +198,58 @@ artefact of the cost model or the rules, not an edge.
 
 ## Results
 
-**Synthetic data only.** The environment this was built in blocks PyPI and
-every market-data host, so no real prices have been run through it yet. These
-numbers characterise the machinery and the rulebook; they are not claims about
-EURUSD. Re-run the commands above with `--source dukascopy` for real ones.
-
-180 days of synthetic EURUSD, 10,000 attempts per row, position at 45% of the
-margin cap, costs on:
+**Real EURUSD.** 660,574 actual 1-minute bars from HistData.com covering January
+2022 to November 2023 — 690 independent 24-hour windows. 10,000 attempts per
+row, position at 45% of the margin cap, spread and commission charged on both
+sides:
 
 | strategy | rulebook | pass rate | 95% cluster CI | DD fail | timeout | EV / $500 attempt |
 |---|---|---|---|---|---|---|
-| buy and hold | trailing equity | 0.38% | [0.12%, 0.74%] | 99.6% | 0.0% | −$481 |
-| buy and hold | **static** | **10.62%** | **[7.69%, 13.47%]** | 82.1% | 7.3% | +$31 |
-| fixed tp/sl | trailing equity | 0.40% | [0.26%, 0.54%] | 96.8% | 2.8% | −$480 |
-| fixed tp/sl | static | 3.93% | [3.39%, 4.49%] | 75.0% | 21.0% | −$304 |
-| momentum | trailing equity | 0.34% | [0.15%, 0.56%] | 99.6% | 0.1% | −$483 |
-| momentum | static | 7.02% | [5.65%, 8.49%] | 85.8% | 7.2% | −$149 |
+| buy and hold | trailing equity | 0.85% | [0.53%, 1.26%] | 99.0% | 0.1% | −$458 |
+| buy and hold | **static** | **10.57%** | **[9.29%, 11.92%]** | 82.5% | 6.9% | +$28 |
+| fixed tp/sl | trailing equity | 0.43% | [0.29%, 0.59%] | 95.7% | 3.8% | −$478 |
+| fixed tp/sl | static | 3.89% | [3.40%, 4.40%] | 73.2% | 22.9% | −$306 |
+| momentum | trailing equity | 0.59% | [0.31%, 0.90%] | 99.0% | 0.4% | −$470 |
+| momentum | static | 6.23% | [5.43%, 7.01%] | 85.6% | 8.2% | −$188 |
 
-Three things stand out.
+Three findings.
 
-1. **Under a trailing floor, nothing survives.** Every zero-edge strategy
-   lands near 0.4%, and ~99% of failures are drawdown breaches, not timeouts.
-   The 5:1 ratio between the target and the limit is not the binding
-   constraint; the ratchet is. Getting $500 ahead leaves you $300 of room from
+1. **Under a trailing floor, nothing survives.** Every zero-edge strategy lands
+   near half a percent, and ~99% of failures are drawdown breaches, not
+   timeouts. The 5:1 ratio between target and limit is not the binding
+   constraint; the ratchet is. Get $500 ahead and you have $300 of room from
    *there*, not $800.
-2. **Under a static floor the picture changes completely.** Buy-and-hold at
-   10.62% straddles breakeven — and that is not a strategy, it is the gambler's
-   ruin bound (300/1800 = 16.7%, less what the 24-hour clock and the costs take
-   out). The product is priced close to the fair value of pure variance under
-   that rulebook.
-3. **Trading more makes it worse.** Fixed TP/SL takes more entries than
-   buy-and-hold and does worse under both rulebooks: it pays the round-turn
-   friction repeatedly against a $300 limit. With $300 of room, roughly 23
-   round turns at 45% size is the whole account, before the market moves at all.
+2. **Under a static floor the product is priced near fair.** Buy-and-hold at
+   10.57% straddles breakeven — and that is not a strategy, it is the gambler's
+   ruin bound (300/1800 = 16.7%) less what the 24-hour clock and the costs take.
+3. **Trading more makes it worse.** Fixed TP/SL takes the most entries and does
+   worst under both rulebooks: it pays round-turn friction repeatedly into a
+   $300 allowance.
+
+### The synthetic generator was right
+
+Before HistData was wired in, the same study ran on the driftless generator.
+The numbers barely moved:
+
+| | synthetic | real |
+|---|---|---|
+| buy and hold, trailing | 0.38% | 0.85% |
+| **buy and hold, static** | **10.62%** | **10.57%** |
+| fixed tp/sl, trailing | 0.40% | 0.43% |
+| fixed tp/sl, static | 3.93% | 3.89% |
+| momentum, static | 7.02% | 6.23% |
+
+That is the useful result: the answer is a property of the rulebook and the
+cost model, not of any particular market. It also means the generator is a
+sound null model for instruments with no free tick history.
 
 ### Parameter sweep
 
 216 cells (6 take-profit × 6 stop-loss × 6 position sizes), 800 attempts each,
 grid laid out in multiples of *the move that costs you the $300 limit* rather
-than in round percentages that mean different things per instrument:
+than in round percentages that mean different things per instrument. These
+figures are from the synthetic run; re-run with `--source cache/bars/...` for
+the HistData equivalent:
 
 ```
 best in-sample pass rate     1.12%
@@ -298,12 +318,37 @@ $300 limit — a $450 stop simply cannot be reached, the account dies first.
 
 ---
 
+## Browser terminal
+
+`web/` carries a JavaScript port of the engine and a published trading terminal
+built on it: real candles, draggable take-profit and stop-loss lines, and the
+liquidation price drawn as a stepped line that ratchets up behind the market.
+
+| file | |
+|---|---|
+| `web/propsim.js` | the port — same intrabar marking, same net-liquidation equity, same closed-form liquidation at the limit |
+| `web/verify.js` | 26 checks re-running the Python suite's invariants against the port under node |
+| `web/pack_bars.py` | packs real bars to ~5 bytes each (zigzag varint deltas) so a year fits in the page |
+| `web/ui.js` | canvas chart, replay, Monte Carlo panel |
+| `web/build.py` | inlines engine + data + UI into `web/index.html` |
+| `web/smoke.mjs` | drives the built page in real Chromium over CDP and reads the numbers back out |
+
+`web/realbars.js` and the built `web/index.html` are generated and not
+committed — they are 4 MB of third-party price data. Rebuild them with:
+
+```bash
+python -m propsim fetch --symbol EURUSD          # or supply your own CSV
+python web/pack_bars.py cache/bars/EURUSD_60s_histdata_2022-2023.csv \
+       web/realbars.js --from 2023-01-01 --to 2023-12-01
+python web/build.py
+node web/verify.js && node web/smoke.mjs
+```
+
 ## Known limitations
 
 - **Single symbol, single position.** The exposure cap is enforced per symbol,
   but the engine does not run a portfolio. The brief's rules are per-symbol, so
   this is faithful, but a multi-symbol variant would need a different engine.
-- **No real data has been run through it.** See Results.
 - **NQ/MNQ via Dukascopy is a CFD proxy**, flagged as such in
   `DUKASCOPY_SYMBOLS` and in the series `source`. Real futures need a paid
   feed.

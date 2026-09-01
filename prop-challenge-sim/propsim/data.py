@@ -769,3 +769,102 @@ def load_bars(symbol: str, source: str = "dukascopy",
     bars.validate()
     bars.to_csv(bar_path)
     return bars
+
+
+# ---------------------------------------------------------------------------
+# HistData ASCII M1
+# ---------------------------------------------------------------------------
+#
+# HistData.com publishes free 1-minute OHLC bars back to 2000 as semicolon
+# separated ASCII:
+#
+#     YYYYMMDD HHMMSS;open;high;low;close;volume
+#
+# Two properties matter and both are easy to get wrong:
+#
+# * Timestamps are **EST, fixed at UTC-5, with no daylight saving** -- they do
+#   not shift in summer.  Treating them as UTC puts every session five hours
+#   out and silently misaligns the spread-widening schedule.
+# * Prices are **bid only**.  There is no ask, so unlike the Dukascopy tick
+#   path the spread has to be modelled rather than measured; the series
+#   carries no ``spread`` column and the cost model falls back to its
+#   configured value.
+#
+# Volume is always 0 for FX and is ignored.
+
+HISTDATA_UTC_OFFSET_HOURS = 5
+
+
+def parse_histdata_m1(path: str, symbol: str = "EURUSD") -> "BarSeries":
+    """Parse one HistData ASCII M1 file into a mid-less (bid) BarSeries."""
+    ts: List[int] = []
+    o: List[float] = []
+    h: List[float] = []
+    l: List[float] = []
+    c: List[float] = []
+    shift = HISTDATA_UTC_OFFSET_HOURS * NS_PER_HOUR
+
+    with open(path, "r", newline="") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            parts = line.split(";")
+            if len(parts) < 5:
+                continue
+            stamp = parts[0]
+            if len(stamp) != 15 or stamp[8] != " ":
+                continue                      # header or status-report line
+            try:
+                y, mo, d = int(stamp[0:4]), int(stamp[4:6]), int(stamp[6:8])
+                hh, mi, ss = int(stamp[9:11]), int(stamp[11:13]), int(stamp[13:15])
+                bar_o, bar_h, bar_l, bar_c = (float(parts[1]), float(parts[2]),
+                                              float(parts[3]), float(parts[4]))
+            except ValueError:
+                continue
+            when = datetime(y, mo, d, hh, mi, ss, tzinfo=timezone.utc)
+            ts.append(int(when.timestamp()) * NS_PER_SECOND + shift)
+            o.append(bar_o)
+            h.append(bar_h)
+            l.append(bar_l)
+            c.append(bar_c)
+
+    if not ts:
+        raise ValueError(f"{path}: no HistData M1 rows found")
+    return BarSeries(symbol=symbol, ts=ts, open=o, high=h, low=l, close=c,
+                     volume=[0.0] * len(ts), timeframe="1m",
+                     source="histdata")
+
+
+def load_histdata_dir(root: str, symbol: str = "EURUSD") -> "BarSeries":
+    """Parse and concatenate every HistData M1 CSV under ``root``.
+
+    Files are ordered by the period embedded in their name, de-duplicated on
+    timestamp (a yearly file and its monthly siblings overlap), and validated.
+    """
+    import glob
+
+    paths = sorted(glob.glob(os.path.join(root, "**", "*.csv"), recursive=True))
+    paths = [p for p in paths
+             if f"_{symbol.upper()}_M1_" in os.path.basename(p).upper()]
+    if not paths:
+        raise FileNotFoundError(
+            f"no DAT_ASCII_{symbol.upper()}_M1_*.csv under {root}")
+
+    merged: Dict[int, Tuple[float, float, float, float]] = {}
+    for p in paths:
+        part = parse_histdata_m1(p, symbol)
+        for i in range(len(part)):
+            merged[part.ts[i]] = (part.open[i], part.high[i],
+                                  part.low[i], part.close[i])
+
+    order = sorted(merged)
+    bars = BarSeries(
+        symbol=symbol.upper(), ts=order,
+        open=[merged[t][0] for t in order], high=[merged[t][1] for t in order],
+        low=[merged[t][2] for t in order], close=[merged[t][3] for t in order],
+        volume=[0.0] * len(order), timeframe="1m",
+        source=f"histdata ({len(paths)} files)",
+    )
+    bars.validate()
+    return bars

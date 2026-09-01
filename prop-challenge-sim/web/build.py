@@ -25,11 +25,17 @@ def build() -> str:
     if "export " in engine:
         raise SystemExit("build: unhandled `export` left in propsim.js")
 
+    bars = open(os.path.join(HERE, "realbars.js"), encoding="utf-8").read()
+    ui = open(os.path.join(HERE, "ui.js"), encoding="utf-8").read()
+
     template = open(os.path.join(HERE, "artifact.template.html"),
                     encoding="utf-8").read()
-    if "/*__ENGINE__*/" not in template:
-        raise SystemExit("build: template is missing the /*__ENGINE__*/ marker")
-    return template.replace("/*__ENGINE__*/", engine)
+    for marker, payload in (("/*__ENGINE__*/", engine), ("/*__BARS__*/", bars),
+                            ("/*__UI__*/", ui)):
+        if marker not in template:
+            raise SystemExit(f"build: template is missing the {marker} marker")
+        template = template.replace(marker, payload)
+    return template
 
 
 if __name__ == "__main__":

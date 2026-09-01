@@ -81,15 +81,13 @@ try {
     await sleep(250);
     done = await evaluate(
       `!document.getElementById('runBtn').disabled &&
-       document.querySelectorAll('#ruleBody tr').length === 6 &&
-       document.querySelectorAll('#heat .hm-cell').length === 36`);
+       document.querySelectorAll('#ruleBody tr').length === 6`);
   }
   const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
   if (!done) {
     const state = await evaluate(`JSON.stringify({
       btn: document.getElementById('runBtn').textContent,
       rows: document.querySelectorAll('#ruleBody tr').length,
-      cells: document.querySelectorAll('#heat .hm-cell').length,
       rate: document.getElementById('bigRate').textContent })`);
     fail(`boot pipeline did not finish in 60s -- ${state}`);
   }
@@ -100,13 +98,21 @@ try {
       [...tr.children].map(td => td.textContent.trim()));
     const stats = [...document.querySelectorAll('#stats div')].map(d =>
       [d.querySelector('dt').textContent, d.querySelector('dd').textContent]);
-    const cells = [...document.querySelectorAll('#heat .hm-cell')].map(c => c.textContent);
+    // Confirm the canvas actually painted rather than sitting blank.
+    const cv = document.getElementById('chart');
+    const g = cv.getContext('2d');
+    const px = g.getImageData(0, 0, cv.width, Math.floor(cv.height / 2)).data;
+    const seen = new Set();
+    for (let p = 0; p < px.length; p += 4 * 97)
+      seen.add(px[p] + ',' + px[p+1] + ',' + px[p+2]);
     return JSON.stringify({
-      chip: t('#dataChip'), rate: t('#bigRate'), sub: t('#bigSub'),
-      verdict: t('#trapVerdict'), rows, stats,
-      cellCount: cells.length, bestCell: cells.slice().sort((a,b)=>parseFloat(b)-parseFloat(a))[0],
-      hotCells: document.querySelectorAll('#heat .hm-cell.hot').length,
-      svg: document.querySelectorAll('#trapChart *').length,
+      chip: t('.src'), rate: t('#bigRate'), sub: t('#bigSub'),
+      verdict: t('#verdict'), rows, stats,
+      bars: REAL_BARS.n, windowNote: t('#windowNote'),
+      lTP: t('#lTP'), lSL: t('#lSL'), lKill: t('#lKill'),
+      hud: ['hBal','hEq','hRoom','hTarget'].map(i => t('#'+i)),
+      distinctColors: seen.size,
+      canvasW: cv.width, canvasH: cv.height,
       scrollX: document.documentElement.scrollWidth > window.innerWidth + 1,
       height: document.documentElement.scrollHeight,
     });
@@ -116,8 +122,11 @@ try {
   console.log(`  booted and completed in ${elapsed}s`);
   console.log(`  data      ${r.chip}`);
   console.log(`  headline  ${r.rate}  (${r.sub})`);
-  console.log(`  trap      ${r.verdict}   svg nodes ${r.svg}`);
-  console.log(`  heatmap   ${r.cellCount} cells, best ${r.bestCell}, ${r.hotCells} clearing breakeven`);
+  console.log(`  chart     ${r.canvasW}x${r.canvasH}, ${r.distinctColors} distinct colours painted`);
+  console.log(`  verdict   ${r.verdict}`);
+  console.log(`  window    ${r.windowNote}`);
+  console.log(`  lines     TP ${r.lTP} | SL ${r.lSL} | kill ${r.lKill}`);
+  console.log(`  hud       ${r.hud.join('  ')}`);
   console.log(`  page      ${r.height}px tall, horizontal overflow: ${r.scrollX}`);
   console.log('\n  rulebook table');
   for (const row of r.rows) console.log('    ' + row.map(c => c.padStart(13)).join(''));
@@ -125,13 +134,47 @@ try {
   for (const [k, v] of r.stats) console.log(`    ${k.padEnd(24)} ${v}`);
 
   const problems = [];
+  console.log('');
   if (r.rows.length !== 6) problems.push(`expected 6 rulebook rows, got ${r.rows.length}`);
-  if (r.cellCount !== 36) problems.push(`expected 36 heatmap cells, got ${r.cellCount}`);
+  if (r.distinctColors < 8) problems.push(`chart looks blank (${r.distinctColors} colours)`);
+  if (!/^1\.\d{4}/.test(r.lTP)) problems.push(`TP line not priced: "${r.lTP}"`);
+  if (!/^1\.\d{4}/.test(r.lKill)) problems.push(`liquidation price not drawn: "${r.lKill}"`);
   if (!/^\d/.test(r.rate)) problems.push(`headline pass rate not rendered: "${r.rate}"`);
   if (r.stats.length !== 8) problems.push(`expected 8 stat tiles, got ${r.stats.length}`);
-  if (!r.verdict.includes('FAIL')) problems.push('trap verdict should start on FAIL');
+
   if (r.scrollX) problems.push('page scrolls horizontally');
   if (consoleErrors.length) problems.push('console errors: ' + consoleErrors.join(' | '));
+
+  // Exercise the replay: it must advance the reveal head and then settle back
+  // on the finished day.
+  const replay = await evaluate(`(async () => {
+    const before = S.reveal;
+    document.getElementById('play').click();
+    await new Promise(r => setTimeout(r, 600));
+    const during = S.reveal;
+    const label = document.getElementById('play').textContent;
+    document.getElementById('play').click();
+    await new Promise(r => setTimeout(r, 120));
+    return JSON.stringify({ before, during, after: S.reveal, label,
+                            playing: S.playing });
+  })()`);
+  const rp = JSON.parse(replay);
+  console.log(`  replay    reveal ${rp.before} -> ${rp.during} -> ${rp.after}` +
+              `  (button read "${rp.label}")`);
+  if (!(rp.during > 0 && rp.during < rp.before)) problems.push('replay did not advance');
+  if (rp.playing) problems.push('replay did not stop');
+
+  // And that dragging a line re-runs the engine.
+  const drag = await evaluate(`(() => {
+    const before = { tp: S.tp, outcome: S.res.outcome };
+    S.tp = BARS.close[S.i0] + (S.tp - BARS.close[S.i0]) * 0.25;
+    runDay();
+    return JSON.stringify({ before, after: { tp: S.tp, outcome: S.res.outcome } });
+  })()`);
+  const dg = JSON.parse(drag);
+  console.log(`  drag      TP ${dg.before.tp.toFixed(5)} -> ${dg.after.tp.toFixed(5)}` +
+              `   outcome ${dg.before.outcome} -> ${dg.after.outcome}`);
+  if (dg.before.tp === dg.after.tp) problems.push('TP did not move');
 
   if (SHOT) {
     await send('Emulation.setDeviceMetricsOverride', {

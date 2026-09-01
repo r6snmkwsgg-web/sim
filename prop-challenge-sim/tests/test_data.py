@@ -238,3 +238,81 @@ def test_zero_costs_really_is_zero_even_with_measured_spreads():
     bars = make_bars("EURUSD", [(1.0,) * 4] * 3)
     bars.spread = [0.0002] * 3
     assert ZERO_COSTS.half_spread_series(bars) == [0.0, 0.0, 0.0]
+
+
+# ---------------------------------------------------------------------------
+# HistData ASCII M1
+# ---------------------------------------------------------------------------
+
+HISTDATA_SAMPLE = """HistData.com (c) 2012
+File: DAT_ASCII_EURUSD_M1_202301.csv Status Report
+
+20230103 000000;1.066900;1.067100;1.066850;1.067050;0
+20230103 000100;1.067050;1.067200;1.067000;1.067150;0
+20230103 170000;1.055000;1.055200;1.054900;1.055100;0
+"""
+
+
+def _write_histdata(tmp):
+    path = os.path.join(tmp, "DAT_ASCII_EURUSD_M1_202301.csv")
+    with open(path, "w") as fh:
+        fh.write(HISTDATA_SAMPLE)
+    return path
+
+
+def test_histdata_timestamps_are_est_not_utc():
+    """HistData stamps are EST fixed at UTC-5 and do NOT observe DST.
+
+    Reading them as UTC puts every bar five hours out, which silently
+    misaligns the session-based spread widening and the weekend filter.
+    """
+    from propsim.data import parse_histdata_m1
+
+    with tempfile.TemporaryDirectory() as d:
+        bars = parse_histdata_m1(_write_histdata(d))
+    first = datetime.fromtimestamp(bars.ts[0] / 1e9, timezone.utc)
+    assert (first.hour, first.minute) == (5, 0), \
+        f"00:00 EST should be 05:00 UTC, got {first:%H:%M}"
+    last = datetime.fromtimestamp(bars.ts[-1] / 1e9, timezone.utc)
+    assert (last.hour, last.minute) == (22, 0), \
+        f"17:00 EST should be 22:00 UTC, got {last:%H:%M}"
+
+
+def test_histdata_skips_the_status_report_header():
+    """Every HistData archive ships a prose status report in the same folder;
+    its lines must not be parsed as bars."""
+    from propsim.data import parse_histdata_m1
+
+    with tempfile.TemporaryDirectory() as d:
+        bars = parse_histdata_m1(_write_histdata(d))
+    assert len(bars) == 3
+    assert_close(bars.open[0], 1.066900, 1e-9, "first open")
+    assert_close(bars.high[0], 1.067100, 1e-9, "first high")
+    bars.validate()
+
+
+def test_histdata_carries_no_measured_spread():
+    """HistData is bid-only, so the cost model must fall back to its
+    configured spread rather than silently charging zero."""
+    from propsim.costs import CostModel
+    from propsim.data import parse_histdata_m1
+
+    with tempfile.TemporaryDirectory() as d:
+        bars = parse_histdata_m1(_write_histdata(d))
+    assert bars.spread == [], "bid-only source must not claim a measured spread"
+    cm = CostModel(spread=0.0001, commission_per_side=0.0)
+    assert_close(cm.half_spread_series(bars)[0], 0.00005, 1e-12,
+                 "falls back to the configured spread")
+
+
+def test_histdata_directory_merges_and_dedupes():
+    from propsim.data import load_histdata_dir
+
+    with tempfile.TemporaryDirectory() as d:
+        _write_histdata(d)
+        # A yearly file overlapping the monthly one must not double-count.
+        with open(os.path.join(d, "DAT_ASCII_EURUSD_M1_2023.csv"), "w") as fh:
+            fh.write(HISTDATA_SAMPLE)
+        bars = load_histdata_dir(d)
+    assert len(bars) == 3, f"overlapping files should dedupe, got {len(bars)}"
+    assert bars.ts == sorted(bars.ts)

@@ -3,3 +3,9 @@ out/
 __pycache__/
 *.pyc
 .pytest_cache/
+
+# Generated: third-party price data packed for the browser, and the page it is
+# inlined into.  Regenerate with the two commands in the README rather than
+# committing 4 MB of someone else's dataset.
+web/realbars.js
+web/index.html

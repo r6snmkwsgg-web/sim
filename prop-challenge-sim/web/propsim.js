@@ -259,7 +259,19 @@ export function runChallenge(bars, strategy, inst, cm, cfg, r, startIndex,
   const trades = [];
   let commissionPaid = 0, spreadPaid = 0, ordersRejected = 0, barsInMarket = 0;
   let outcome = null, breachTs = null, breachEquity = null;
-  const curveTs = [], curveEq = [];
+  const curveTs = [], curveEq = [], curveFloor = [], curveFloorPx = [];
+
+  /* The number a trader actually wants on the chart: the price at which the
+     account dies right now.  Under a trailing rule it ratchets up behind every
+     new equity high and never comes back down, which is the whole argument
+     made visible. */
+  const pushCurve = (t, eq) => {
+    curveTs.push(t); curveEq.push(eq); curveFloor.push(floor);
+    if (pos === null) { curveFloorPx.push(NaN); return; }
+    const unit = pv * pos.size;
+    curveFloorPx.push(solveMidForEquity(floor, balance, pos.direction,
+      pos.entryFill, hsArr[Math.min(i, n - 1)], unit, commSide * pos.size));
+  };
 
   const ctx = {
     bars, inst, cfg, rng: r, i: startIndex, startIndex, deadline,
@@ -375,7 +387,7 @@ export function runChallenge(bars, strategy, inst, cm, cfg, r, startIndex,
       }
 
       if (outcome !== null) {
-        if (collectCurve) { curveTs.push(ts[i]); curveEq.push(equity); }
+        if (collectCurve) pushCurve(ts[i], equity);
         break;
       }
     } else {
@@ -384,7 +396,7 @@ export function runChallenge(bars, strategy, inst, cm, cfg, r, startIndex,
         outcome = 'FAIL_DRAWDOWN';
         breachTs = ts[i];
         breachEquity = equity;
-        if (collectCurve) { curveTs.push(ts[i]); curveEq.push(equity); }
+        if (collectCurve) pushCurve(ts[i], equity);
         break;
       }
     }
@@ -433,7 +445,7 @@ export function runChallenge(bars, strategy, inst, cm, cfg, r, startIndex,
       }
     }
 
-    if (collectCurve) { curveTs.push(ts[i]); curveEq.push(equity); }
+    if (collectCurve) pushCurve(ts[i], equity);
     if (outcome !== null) break;
     i++;
   }
@@ -456,7 +468,7 @@ export function runChallenge(bars, strategy, inst, cm, cfg, r, startIndex,
     finalBalance: balance, finalEquity: equity, peakEquity, minEquity,
     maxDrawdownReached: maxDD, commissionPaid, spreadPaid,
     totalCosts: commissionPaid + spreadPaid, trades,
-    curveTs, curveEq, breachTs, breachEquity, truncated,
+    curveTs, curveEq, curveFloor, curveFloorPx, breachTs, breachEquity, truncated,
     ordersRejected, barsInMarket,
   };
 }
@@ -661,4 +673,48 @@ export function summarise(attempts, cfg, rejected = 0, indepWindows = 0,
     meanTrades: n ? trades / n : 0,
     attempts,
   };
+}
+
+
+/* ------------------------------------------------------- packed bars --- */
+
+/**
+ * Decode the base64 varint blob produced by web/pack_bars.py.
+ * Deltas are zigzag varints in integer points; see that script for the layout.
+ */
+export function decodePackedBars(blob, symbol = 'EURUSD') {
+  const bin = atob(blob.b64);
+  const n = blob.n, scale = blob.scale;
+  const ts = new Float64Array(n), open = new Float64Array(n);
+  const high = new Float64Array(n), low = new Float64Array(n);
+  const close = new Float64Array(n);
+
+  let p = 0;
+  const readVarint = () => {
+    let shift = 0, result = 0, b;
+    do {
+      b = bin.charCodeAt(p++);
+      result += (b & 0x7F) * Math.pow(2, shift);  // += not |=: stay off 32-bit truncation
+      shift += 7;
+    } while (b & 0x80);
+    return (result >>> 1) ^ -(result & 1);          // un-zigzag
+  };
+
+  let minute = blob.t0, prevClose = 0;
+  for (let k = 0; k < n; k++) {
+    const dt = readVarint();
+    const dOpen = readVarint();
+    const dHigh = readVarint();
+    const dLow = readVarint();
+    const dClose = readVarint();
+    minute += dt;
+    const o = (k === 0 ? dOpen : prevClose + dOpen);
+    const h = o + dHigh, l = o + dLow, c = o + dClose;
+    ts[k] = minute * 60000;
+    open[k] = o / scale; high[k] = h / scale;
+    low[k] = l / scale; close[k] = c / scale;
+    prevClose = c;
+  }
+  return { symbol, timeframe: '1m', source: 'HistData.com EURUSD M1',
+           ts, open, high, low, close, spread: null };
 }
