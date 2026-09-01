@@ -1,0 +1,850 @@
+<title>Does Any Strategy Clear 10%?</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --ground:#E9ECF1; --surface:#FCFDFE; --surface-2:#F1F4F8; --sunken:#DFE4EB;
+  --ink:#151B24; --ink-2:#3C4753; --muted:#69747F; --faint:#8B95A1;
+  --rule:#D3D9E1; --rule-strong:#B2BDC9;
+  --pass:#0D9488; --dd:#C0392B; --timeout:#4457C7;
+  --accent:#0D9488; --accent-deep:#0B5F57; --on-accent:#FFFFFF;
+  --pass-wash:#DCF1EE; --dd-wash:#F7E2DF; --timeout-wash:#E2E5F8;
+  --seq0:#F3FAF9; --seq1:#D8EFEB; --seq2:#ADDFD7; --seq3:#79CABF;
+  --seq4:#48B2A5; --seq5:#22988A; --seq6:#117B6F; --seq7:#0A5D54;
+  --shadow:0 1px 2px rgba(21,27,36,.05),0 8px 24px -12px rgba(21,27,36,.16);
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --sans:"Public Sans",ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif;
+  --display:"Fraunces",Georgia,"Times New Roman",serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --ground:#0F1319; --surface:#181D25; --surface-2:#1F252E; --sunken:#0B0E13;
+  --ink:#E7ECF2; --ink-2:#BAC4CF; --muted:#8A95A3; --faint:#6B7684;
+  --rule:#2A323C; --rule-strong:#3B4550;
+  --pass:#0FA697; --dd:#D9503F; --timeout:#6E7CE0;
+  --accent:#0FA697; --accent-deep:#7FE0D3; --on-accent:#062522;
+  --pass-wash:#0E2E2B; --dd-wash:#331A17; --timeout-wash:#1C2044;
+  --seq0:#0C2523; --seq1:#0F3733; --seq2:#134B44; --seq3:#186056;
+  --seq4:#1E7669; --seq5:#268D7E; --seq6:#33A695; --seq7:#4FC0AE;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px -14px rgba(0,0,0,.7);
+}}
+:root[data-theme="dark"]{
+  --ground:#0F1319; --surface:#181D25; --surface-2:#1F252E; --sunken:#0B0E13;
+  --ink:#E7ECF2; --ink-2:#BAC4CF; --muted:#8A95A3; --faint:#6B7684;
+  --rule:#2A323C; --rule-strong:#3B4550;
+  --pass:#0FA697; --dd:#D9503F; --timeout:#6E7CE0;
+  --accent:#0FA697; --accent-deep:#7FE0D3; --on-accent:#062522;
+  --pass-wash:#0E2E2B; --dd-wash:#331A17; --timeout-wash:#1C2044;
+  --seq0:#0C2523; --seq1:#0F3733; --seq2:#134B44; --seq3:#186056;
+  --seq4:#1E7669; --seq5:#268D7E; --seq6:#33A695; --seq7:#4FC0AE;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px -14px rgba(0,0,0,.7);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--ground); color:var(--ink);
+  font-family:var(--sans); font-size:15px; line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1180px; margin:0 auto; padding:0 24px 96px}
+h1,h2,h3{text-wrap:balance; margin:0}
+a{color:var(--accent-deep)}
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:3px}
+.num{font-variant-numeric:tabular-nums; font-family:var(--mono)}
+
+/* ---- masthead ---- */
+.mast{padding:56px 0 34px; border-bottom:1px solid var(--rule)}
+.eyebrow{
+  font-family:var(--mono); font-size:11px; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--muted); margin:0 0 18px;
+  display:flex; flex-wrap:wrap; gap:10px; align-items:center;
+}
+.eyebrow b{color:var(--ink-2); font-weight:500}
+.mast h1{
+  font-family:var(--display); font-optical-sizing:auto; font-weight:600;
+  font-size:clamp(38px,6.2vw,68px); line-height:1.02; letter-spacing:-.022em;
+  max-width:19ch;
+}
+.standfirst{
+  margin:20px 0 0; max-width:62ch; font-size:17px; color:var(--ink-2);
+}
+.standfirst strong{color:var(--ink); font-weight:600}
+.rules{
+  display:flex; flex-wrap:wrap; gap:0; margin:26px 0 0;
+  border:1px solid var(--rule); border-radius:10px; overflow:hidden;
+  background:var(--surface);
+}
+.rules div{
+  flex:1 1 150px; padding:12px 16px; border-right:1px solid var(--rule);
+}
+.rules div:last-child{border-right:0}
+.rules dt{
+  font-family:var(--mono); font-size:10.5px; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--muted); margin:0 0 3px;
+}
+.rules dd{margin:0; font-family:var(--mono); font-size:19px; font-weight:500;
+  letter-spacing:-.01em}
+
+/* ---- sections ---- */
+section{padding:52px 0 0}
+.sec-head{display:flex; align-items:baseline; gap:14px; margin-bottom:6px}
+.sec-num{
+  font-family:var(--mono); font-size:11px; color:var(--accent-deep);
+  letter-spacing:.1em; padding-top:6px;
+}
+h2{
+  font-family:var(--display); font-weight:600; font-size:clamp(24px,3vw,33px);
+  letter-spacing:-.016em; line-height:1.14;
+}
+.lede{margin:10px 0 26px; max-width:66ch; color:var(--ink-2)}
+.card{
+  background:var(--surface); border:1px solid var(--rule); border-radius:12px;
+  box-shadow:var(--shadow);
+}
+.pad{padding:20px 22px}
+
+/* ---- the trap ---- */
+.trap{display:grid; grid-template-columns:minmax(0,0.86fr) minmax(0,1.14fr); gap:26px; align-items:start}
+@media (max-width:900px){.trap{grid-template-columns:1fr}}
+.seg{
+  display:inline-flex; background:var(--surface-2); border:1px solid var(--rule);
+  border-radius:8px; padding:3px; gap:3px;
+}
+.seg button{
+  font:inherit; font-size:13px; font-weight:500; border:0; cursor:pointer;
+  background:transparent; color:var(--muted); padding:7px 14px; border-radius:6px;
+  transition:background .16s,color .16s;
+}
+.seg button[aria-pressed="true"]{background:var(--surface); color:var(--ink);
+  box-shadow:0 1px 2px rgba(21,27,36,.12)}
+.verdict{
+  display:inline-flex; align-items:center; gap:8px; font-family:var(--mono);
+  font-size:12.5px; font-weight:600; letter-spacing:.06em; padding:6px 12px;
+  border-radius:999px; border:1px solid transparent;
+}
+.verdict.pass{background:var(--pass-wash); color:var(--pass); border-color:var(--pass)}
+.verdict.fail{background:var(--dd-wash); color:var(--dd); border-color:var(--dd)}
+.verdict .dot{width:8px;height:8px;border-radius:50%;background:currentColor}
+.trap-note{font-size:13.5px; color:var(--muted); margin:14px 0 0; min-height:3.4em}
+.bars{margin:0; padding:0; list-style:none; font-family:var(--mono); font-size:12.5px}
+.bars li{display:flex; justify-content:space-between; gap:12px; padding:5px 0;
+  border-bottom:1px dashed var(--rule); color:var(--ink-2)}
+.bars li:last-child{border-bottom:0}
+.bars b{color:var(--ink); font-weight:500}
+
+/* ---- controls ---- */
+.lab{display:grid; grid-template-columns:1fr 1fr; gap:14px 18px}
+@media (max-width:640px){.lab{grid-template-columns:1fr}}
+.field{display:flex; flex-direction:column; gap:6px; min-width:0}
+.field > span{
+  font-family:var(--mono); font-size:10.5px; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--muted);
+  display:flex; justify-content:space-between; gap:8px;
+}
+.field > span em{font-style:normal; color:var(--ink); font-weight:600;
+  font-variant-numeric:tabular-nums}
+select{
+  font:inherit; font-size:14px; padding:8px 10px; border-radius:8px;
+  border:1px solid var(--rule-strong); background:var(--surface); color:var(--ink);
+  width:100%;
+}
+input[type=range]{width:100%; accent-color:var(--accent); margin:6px 0 0}
+.run{
+  font:inherit; font-weight:600; font-size:15px; cursor:pointer;
+  background:var(--accent); color:var(--on-accent); border:0; border-radius:9px;
+  padding:12px 22px; transition:filter .16s;
+}
+.run:hover{filter:brightness(1.07)}
+.run[disabled]{opacity:.55; cursor:progress}
+.toggle{display:flex; align-items:center; gap:9px; font-size:14px; cursor:pointer;
+  user-select:none; padding-top:4px}
+.toggle input{accent-color:var(--accent); width:16px; height:16px}
+
+/* ---- results ---- */
+.sim{display:grid; grid-template-columns:320px minmax(0,1fr); gap:26px; align-items:start}
+@media (max-width:940px){.sim{grid-template-columns:1fr}}
+.headline{display:flex; align-items:flex-end; gap:18px; flex-wrap:wrap}
+.big{
+  font-family:var(--display); font-weight:600; font-size:clamp(46px,8vw,76px);
+  line-height:.94; letter-spacing:-.03em; font-variant-numeric:tabular-nums;
+}
+.big-sub{font-size:13.5px; color:var(--muted); max-width:30ch; padding-bottom:8px}
+.meter{margin:22px 0 6px}
+.meter-track{
+  position:relative; height:15px; border-radius:8px; background:var(--sunken);
+  overflow:visible;
+}
+.meter-fill{height:100%; border-radius:8px; background:var(--pass);
+  transition:width .5s cubic-bezier(.4,0,.2,1)}
+.meter-be{
+  position:absolute; top:-7px; bottom:-7px; width:2px; background:var(--ink);
+  border-radius:1px;
+}
+.meter-be::after{
+  content:"breakeven 10%"; position:absolute; left:8px; top:-2px; white-space:nowrap;
+  font-family:var(--mono); font-size:10.5px; letter-spacing:.05em; color:var(--ink);
+}
+.meter-scale{display:flex; justify-content:space-between; margin-top:16px;
+  font-family:var(--mono); font-size:10.5px; color:var(--faint)}
+.stack{display:flex; height:30px; gap:2px; margin:8px 0 10px}
+.stack div{
+  min-width:2px; display:flex; align-items:center; justify-content:center;
+  font-family:var(--mono); font-size:11px; font-weight:600; color:#fff;
+  overflow:hidden; transition:flex-grow .5s cubic-bezier(.4,0,.2,1);
+}
+.stack div:first-child{border-radius:5px 0 0 5px}
+.stack div:last-child{border-radius:0 5px 5px 0}
+.legend{display:flex; flex-wrap:wrap; gap:6px 18px; font-size:12.5px; color:var(--ink-2)}
+.legend span{display:inline-flex; align-items:center; gap:7px}
+.swatch{width:11px; height:11px; border-radius:3px; flex:none}
+.grid4{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:1px;
+  background:var(--rule); border:1px solid var(--rule); border-radius:10px; overflow:hidden;
+  margin-top:22px}
+.grid4 div{background:var(--surface); padding:13px 15px}
+@media (max-width:700px){.grid4{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.grid4 dt{font-family:var(--mono); font-size:10px; letter-spacing:.09em;
+  text-transform:uppercase; color:var(--muted); margin:0 0 4px}
+.grid4 dd{margin:0; font-family:var(--mono); font-size:17px; font-weight:500;
+  letter-spacing:-.01em}
+.prog{height:3px; background:var(--sunken); border-radius:2px; overflow:hidden;
+  margin-top:14px; opacity:0; transition:opacity .2s}
+.prog.on{opacity:1}
+.prog i{display:block; height:100%; width:0; background:var(--accent); transition:width .2s}
+
+/* ---- tables ---- */
+.scroll{overflow-x:auto; -webkit-overflow-scrolling:touch}
+table{border-collapse:collapse; width:100%; font-size:13.5px; min-width:640px}
+th,td{padding:10px 12px; text-align:right; border-bottom:1px solid var(--rule)}
+th:first-child,td:first-child{text-align:left}
+thead th{
+  font-family:var(--mono); font-size:10px; letter-spacing:.09em; text-transform:uppercase;
+  color:var(--muted); font-weight:500; border-bottom:1px solid var(--rule-strong);
+  white-space:nowrap;
+}
+tbody td{font-family:var(--mono); font-variant-numeric:tabular-nums}
+tbody td:first-child{font-family:var(--sans); font-weight:500}
+tbody tr.hot td{background:var(--pass-wash)}
+tbody tr:last-child td{border-bottom:0}
+.chip{font-family:var(--mono); font-size:11px; padding:2px 7px; border-radius:5px;
+  background:var(--surface-2); color:var(--ink-2); border:1px solid var(--rule)}
+
+/* ---- heatmap ---- */
+.hm-wrap{display:grid; grid-template-columns:auto 1fr; gap:10px; align-items:start}
+.hm{display:grid; gap:3px; min-width:0}
+.hm-cell{
+  position:relative; height:46px; border-radius:5px; display:flex;
+  align-items:center; justify-content:center; font-family:var(--mono);
+  font-size:11px; font-weight:600; cursor:default; transition:transform .12s;
+}
+.hm-cell:hover{transform:scale(1.06); z-index:3}
+.hm-cell.hot{outline:2px solid var(--dd); outline-offset:-2px}
+.hm-ylab,.hm-xlab{font-family:var(--mono); font-size:10.5px; color:var(--muted);
+  display:flex; align-items:center; justify-content:flex-end}
+.hm-xlab{justify-content:center; padding-top:4px}
+.axis-title{font-family:var(--mono); font-size:10.5px; letter-spacing:.09em;
+  text-transform:uppercase; color:var(--muted)}
+.tip{
+  position:fixed; z-index:50; pointer-events:none; opacity:0; transition:opacity .12s;
+  background:var(--ink); color:var(--ground); padding:8px 11px; border-radius:7px;
+  font-family:var(--mono); font-size:11.5px; line-height:1.5; white-space:pre;
+  box-shadow:0 6px 20px rgba(0,0,0,.28);
+}
+.ramp{display:flex; align-items:center; gap:8px; margin-top:16px;
+  font-family:var(--mono); font-size:10.5px; color:var(--muted)}
+.ramp i{display:block; width:20px; height:11px}
+.ramp i:first-of-type{border-radius:3px 0 0 3px}
+.ramp i:last-of-type{border-radius:0 3px 3px 0}
+
+/* ---- prose ---- */
+.cols{display:grid; grid-template-columns:repeat(auto-fit,minmax(272px,1fr)); gap:22px}
+.find{border-top:2px solid var(--ink); padding-top:14px}
+.find h3{font-family:var(--display); font-size:19px; font-weight:600; letter-spacing:-.01em;
+  margin-bottom:6px}
+.find p{margin:0; font-size:14px; color:var(--ink-2)}
+.warn{
+  border-left:3px solid var(--dd); background:var(--dd-wash); border-radius:0 10px 10px 0;
+  padding:16px 20px; margin-top:26px;
+}
+.warn h3{font-size:15px; font-weight:700; margin-bottom:5px}
+.warn p{margin:0; font-size:14px; color:var(--ink-2)}
+.warn p + p{margin-top:8px}
+pre{
+  background:var(--sunken); border:1px solid var(--rule); border-radius:9px;
+  padding:15px 17px; overflow-x:auto; font-family:var(--mono); font-size:12.5px;
+  line-height:1.65; margin:0;
+}
+pre b{color:var(--accent-deep); font-weight:500}
+footer{margin-top:56px; padding-top:22px; border-top:1px solid var(--rule);
+  font-size:13px; color:var(--muted); display:flex; flex-wrap:wrap; gap:8px 24px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important; animation:none!important}}
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <p class="eyebrow">
+    <b>Monte Carlo</b> · 24-hour prop-firm challenge
+    <span class="chip" id="dataChip">generating market…</span>
+  </p>
+  <h1>Does any strategy clear&nbsp;10%?</h1>
+  <p class="standfirst">
+    A $500 entry fee against a $5,000 payout means you need to pass
+    <strong>one attempt in ten</strong> just to break even. This page simulates the
+    challenge tick by tick — checking the drawdown limit <strong>continuously against
+    open-position P&amp;L</strong>, not at bar close — and every number below is
+    computed in your browser, right now, from a market it generates on load.
+  </p>
+  <div class="rules">
+    <div><dt>Balance</dt><dd>$20,000</dd></div>
+    <div><dt>Target</dt><dd>+$1,500</dd></div>
+    <div><dt>Max drawdown</dt><dd>−$300</dd></div>
+    <div><dt>Time limit</dt><dd>24 h</dd></div>
+    <div><dt>Fee → payout</dt><dd>$500 → $5,000</dd></div>
+    <div><dt>Breakeven</dt><dd>10.0%</dd></div>
+  </div>
+</header>
+
+<section>
+  <div class="sec-head"><span class="sec-num">01</span>
+    <h2>Why bar closes lie</h2></div>
+  <p class="lede">
+    The drawdown limit is a property of the price <em>path</em>, not of the closes.
+    Here is one long trade over three bars. Read only the closes and it is a pass.
+    Read the path and the account was liquidated on bar&nbsp;1 and never saw bar&nbsp;2.
+  </p>
+  <div class="trap">
+    <div>
+      <div class="seg" role="group" aria-label="Drawdown checking method">
+        <button id="mClose" aria-pressed="false">Check at bar close</button>
+        <button id="mPath" aria-pressed="true">Check continuously</button>
+      </div>
+      <p class="trap-note" id="trapNote"></p>
+      <ul class="bars">
+        <li><span>bar 0 · enter long 100 units</span><b>100.00</b></li>
+        <li><span>bar 1 · low</span><b>96.00 &nbsp;→&nbsp; −$400</b></li>
+        <li><span>bar 1 · close</span><b>101.00 &nbsp;→&nbsp; +$100</b></li>
+        <li><span>bar 2 · close</span><b>120.00 &nbsp;→&nbsp; +$2,000</b></li>
+      </ul>
+      <p style="margin:18px 0 0"><span class="verdict" id="trapVerdict"></span></p>
+    </div>
+    <div class="card pad">
+      <svg id="trapChart" viewBox="0 0 620 300" width="100%" height="300"
+           role="img" aria-label="Equity path of the example trade against the drawdown floor"></svg>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">02</span>
+    <h2>Run it yourself</h2></div>
+  <p class="lede">
+    Every control re-runs the full Monte Carlo in your browser. The two rows marked
+    <em>rule reading</em> are genuinely ambiguous in the challenge terms, and between
+    them they are worth more than any strategy choice on this page.
+  </p>
+  <div class="sim">
+    <div class="card pad">
+      <div class="lab">
+        <label class="field" style="grid-column:1/-1"><span>Strategy</span>
+          <select id="cStrat">
+            <option value="buy_and_hold">Buy and hold</option>
+            <option value="fixed_tp_sl" selected>Fixed TP/SL, random entries</option>
+            <option value="momentum">Momentum breakout</option>
+          </select></label>
+        <label class="field" style="grid-column:1/-1"><span>Drawdown rule · rule reading</span>
+          <select id="cDD">
+            <option value="trailing_equity" selected>Trailing — peak equity − $300</option>
+            <option value="static">Static — fixed at $19,700</option>
+            <option value="trailing_balance">Trailing closed balance − $300</option>
+          </select></label>
+        <label class="field" style="grid-column:1/-1"><span>“75% in one symbol” · rule reading</span>
+          <select id="cExp">
+            <option value="margin" selected>75% of equity as margin</option>
+            <option value="notional">75% of equity as notional</option>
+          </select></label>
+        <label class="field" style="grid-column:1/-1">
+          <span>Position size <em id="vSize">45% of cap</em></span>
+          <input type="range" id="cSize" min="5" max="75" step="5" value="45"></label>
+        <label class="field"><span>Stop loss <em id="vSL">$150</em></span>
+          <input type="range" id="cSL" min="25" max="300" step="25" value="150"></label>
+        <label class="field"><span>Take profit <em id="vTP">$900</em></span>
+          <input type="range" id="cTP" min="150" max="1500" step="150" value="900"></label>
+        <label class="field"><span>Attempts <em id="vN">10,000</em></span>
+          <input type="range" id="cN" min="1" max="4" step="1" value="4"></label>
+        <label class="toggle" style="align-self:end"><input type="checkbox" id="cCosts" checked>
+          Spread &amp; commission</label>
+      </div>
+      <button class="run" id="runBtn" style="margin-top:20px; width:100%">Run simulation</button>
+      <div class="prog"><i id="prog"></i></div>
+    </div>
+
+    <div>
+      <div class="headline">
+        <div class="big" id="bigRate">—</div>
+        <div class="big-sub" id="bigSub">pass rate</div>
+      </div>
+      <div class="meter">
+        <div class="meter-track">
+          <div class="meter-fill" id="meterFill" style="width:0"></div>
+          <div class="meter-be" id="meterBE" style="left:0"></div>
+        </div>
+        <div class="meter-scale"><span>0%</span><span id="meterMax">20%</span></div>
+      </div>
+      <div class="stack" id="stack" role="img" aria-label="Outcome breakdown"></div>
+      <div class="legend">
+        <span><i class="swatch" style="background:var(--pass)"></i> Pass</span>
+        <span><i class="swatch" style="background:var(--dd)"></i> Fail — drawdown breached</span>
+        <span><i class="swatch" style="background:var(--timeout)"></i> Fail — 24 h expired</span>
+      </div>
+      <dl class="grid4" id="stats"></dl>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">03</span>
+    <h2>The rulebook is worth more than the strategy</h2></div>
+  <p class="lede">
+    The same three strategies, the same market, the same costs — read the $300 limit
+    as trailing behind your equity high-water mark, or as a fixed floor at $19,700.
+    That single reading moves the pass rate by an order of magnitude.
+  </p>
+  <div class="card scroll">
+    <table id="ruleTable"><thead><tr>
+      <th>Strategy</th><th>Drawdown rule</th><th>Pass rate</th>
+      <th>95% interval</th><th>Drawdown fail</th><th>Timeout</th><th>EV / attempt</th>
+    </tr></thead><tbody id="ruleBody"></tbody></table>
+  </div>
+  <p class="lede" style="margin-top:14px; font-size:13.5px; color:var(--muted)">
+    Intervals are a day-cluster bootstrap, not a plain binomial one: overlapping
+    24-hour windows drawn from the same few months are nowhere near independent
+    samples, and a binomial interval computed as if they were is several times too
+    narrow — in the flattering direction.
+  </p>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">04</span>
+    <h2>Does any corner of the parameter space clear it?</h2></div>
+  <p class="lede">
+    Thirty-six take-profit / stop-loss combinations at your current settings, each a
+    full Monte Carlo. Exits are in dollars rather than percentages because dollars are
+    directly comparable to the limits: a $300 stop is the <em>entire</em> drawdown
+    allowance, so it can never fill — the account dies first.
+  </p>
+  <div class="card pad">
+    <div class="hm-wrap">
+      <div class="axis-title" style="writing-mode:vertical-rl; transform:rotate(180deg);
+        justify-self:center; align-self:center">Stop loss</div>
+      <div>
+        <div id="heat"></div>
+        <div class="axis-title" style="text-align:center; margin-top:10px">Take profit</div>
+      </div>
+    </div>
+    <div class="ramp" id="ramp"><span>0%</span></div>
+    <p style="margin:16px 0 0; font-size:13px; color:var(--muted)">
+      Cells that reach the 10% breakeven are outlined in red. In-sample only — the
+      Python sweep re-runs its leaders on a held-out segment, where the best cell
+      typically halves.
+    </p>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">05</span>
+    <h2>What the simulation says</h2></div>
+  <div class="cols" style="margin-top:26px">
+    <div class="find"><h3>Under a trailing floor, nothing survives</h3>
+      <p>Every zero-edge strategy lands near half a percent, and around 99% of failures
+      are drawdown breaches rather than timeouts. The 5:1 ratio between target and limit
+      is not the binding constraint — the ratchet is. Get $500 ahead and you have $300
+      of room from <em>there</em>, not $800.</p></div>
+    <div class="find"><h3>Under a static floor it is priced near fair</h3>
+      <p>Buy-and-hold lands around 10%, straddling breakeven. That is not a strategy: it
+      is the gambler's ruin bound, 300/1800 = 16.7%, less what the 24-hour clock and the
+      costs take out. The fee looks set close to the fair value of pure variance.</p></div>
+    <div class="find"><h3>Trading more makes it worse</h3>
+      <p>Fixed TP/SL takes the most entries and does worst under both readings — it pays
+      round-turn friction repeatedly into a $300 allowance. At 45% size roughly 23 round
+      turns is the whole account, before the market has moved at all.</p></div>
+  </div>
+  <div class="warn">
+    <h3>This is a synthetic market</h3>
+    <p>The price series is generated on load: driftless — a martingale, so no edge is
+    baked in — with volatility clustering, jumps, session-shaped intraday volatility and
+    a spread that widens when liquidity thins. Bars are aggregated from simulated
+    sub-bar steps, never decorated onto a close, because the intrabar extremes
+    <em>are</em> the answer here.</p>
+    <p>It characterises the machinery and the rulebook. It is not a claim about EURUSD.
+    The repository ships a Dukascopy tick fetcher — real bid/ask, back to 2003 — and the
+    same engine reads it unchanged.</p>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">06</span>
+    <h2>Point it at real prices</h2></div>
+  <p class="lede">
+    The Python engine this is ported from carries 99 tests, needs no third-party
+    packages to run them, and is validated end to end against gambler's ruin.
+  </p>
+  <pre><b>python run_tests.py</b>                    <span style="color:var(--muted)"># 99 tests, no installs, ~4s</span>
+<b>python -m propsim fetch</b> --symbol EURUSD --start 2023-01-01 --end 2025-01-01
+<b>python -m propsim mc</b>    --symbol EURUSD --attempts 10000 --workers 8
+<b>python -m propsim sweep</b> --symbol EURUSD --out out/EURUSD.png</pre>
+  <p class="lede" style="margin-top:20px">
+    Two years gives roughly 500 independent 24-hour windows instead of the few dozen a
+    month of data provides — which is what the interval above is really reporting, and
+    what decides whether any of this means anything.
+  </p>
+</section>
+
+<footer>
+  <span>Engine ported from <span class="num">propsim/engine.py</span>; verified against the Python suite's invariants.</span>
+  <span>Costs: 0.8 pip spread, $5 round turn, session widening.</span>
+</footer>
+</div>
+<div class="tip" id="tip"></div>
+
+<script>
+/*__ENGINE__*/
+
+/* ==================================================================== UI == */
+const $ = (id) => document.getElementById(id);
+const pct = (x, d = 2) => (x * 100).toFixed(d) + '%';
+const money = (x) => (x < 0 ? '−$' : '$') + Math.abs(x).toLocaleString('en-US',
+  { maximumFractionDigits: 0 });
+
+const SEQ = ['--seq0','--seq1','--seq2','--seq3','--seq4','--seq5','--seq6','--seq7']
+  .map(v => `var(${v})`);
+
+let BARS = null;
+const cache = new Map();
+
+/* -- cooperative chunking: never block the frame ------------------------- */
+function chunked(total, step, work, done, onProgress) {
+  let i = 0;
+  function tick() {
+    const end = Math.min(total, i + step);
+    work(i, end);
+    i = end;
+    if (onProgress) onProgress(i / total);
+    if (i < total) requestAnimationFrame(tick); else done();
+  }
+  requestAnimationFrame(tick);
+}
+
+/* -- section 01: the trap ------------------------------------------------ */
+const TRAP = {
+  floor: 19700, target: 21500,
+  nodes: [
+    { label: 'bar 0 close', eq: 20000, intrabar: false },
+    { label: 'bar 1 low',   eq: 19600, intrabar: true  },
+    { label: 'bar 1 close', eq: 20100, intrabar: false },
+    { label: 'bar 2 close', eq: 22000, intrabar: false },
+  ],
+};
+let trapMode = 'path';
+
+function drawTrap() {
+  const W = 620, H = 300, L = 58, R = 104, T = 22, B = 36;
+  const PW = W - R;
+  const path = trapMode === 'path';
+  const pts = path ? TRAP.nodes : TRAP.nodes.filter(p => !p.intrabar);
+  const lo = 19450, hi = 22250;
+  const x = (i) => L + (PW - L) * (i / (pts.length - 1));
+  const y = (v) => T + (H - T - B) * (1 - (v - lo) / (hi - lo));
+  const css = getComputedStyle(document.documentElement);
+  const c = (n) => css.getPropertyValue(n).trim();
+  const mono = 'font-family="IBM Plex Mono,ui-monospace,monospace"';
+
+  let g = '';
+  for (const v of [19500, 20000, 20500, 21000, 21500, 22000]) {
+    g += `<line x1="${L}" y1="${y(v)}" x2="${PW}" y2="${y(v)}" stroke="${c('--rule')}" stroke-width="1"/>`
+       + `<text x="${L - 9}" y="${y(v) + 4}" text-anchor="end" ${mono} font-size="10" fill="${c('--faint')}">${(v / 1000).toFixed(1)}k</text>`;
+  }
+  const band = (v, col, label) =>
+    `<line x1="${L}" y1="${y(v)}" x2="${PW}" y2="${y(v)}" stroke="${col}" stroke-width="1.5" stroke-dasharray="5 4"/>`
+    + `<text x="${PW + 8}" y="${y(v) + 4}" ${mono} font-size="10.5" fill="${col}">${label}</text>`;
+  g += band(TRAP.target, c('--pass'), 'target 21,500');
+  g += band(TRAP.floor, c('--dd'), 'floor 19,700');
+
+  if (path) {
+    // Equity crosses 19,700 three-quarters of the way into bar 1's decline.
+    const t = (TRAP.nodes[0].eq - TRAP.floor) / (TRAP.nodes[0].eq - TRAP.nodes[1].eq);
+    const xL = x(0) + t * (x(1) - x(0)), yL = y(TRAP.floor);
+    const ghost = [[xL, yL], ...TRAP.nodes.slice(1).map((p, k) => [x(k + 1), y(p.eq)])];
+    g += `<polyline points="${ghost.map(p => p.join(',')).join(' ')}" fill="none" `
+       + `stroke="${c('--faint')}" stroke-width="2" stroke-dasharray="3 5" opacity=".7"/>`;
+    g += `<text x="${x(3)}" y="${y(22000) - 11}" text-anchor="end" ${mono} font-size="10.5" fill="${c('--faint')}">never happens</text>`;
+    g += `<polyline points="${x(0)},${y(20000)} ${xL},${yL}" fill="none" stroke="${c('--ink')}" stroke-width="2.5" stroke-linecap="round"/>`;
+    g += `<circle cx="${x(0)}" cy="${y(20000)}" r="4.5" fill="${c('--ink')}" stroke="${c('--surface')}" stroke-width="2"/>`;
+    g += `<circle cx="${xL}" cy="${yL}" r="6" fill="${c('--dd')}" stroke="${c('--surface')}" stroke-width="2"/>`;
+    g += `<text x="${xL + 12}" y="${yL - 10}" ${mono} font-size="10.5" font-weight="600" fill="${c('--dd')}">liquidated · 97.00</text>`;
+    for (let k = 1; k < 4; k++)
+      g += `<circle cx="${x(k)}" cy="${y(TRAP.nodes[k].eq)}" r="3.5" fill="none" stroke="${c('--faint')}" stroke-width="1.5"/>`;
+  } else {
+    g += `<polyline points="${pts.map((p, i) => `${x(i)},${y(p.eq)}`).join(' ')}" fill="none" `
+       + `stroke="${c('--ink')}" stroke-width="2.5" stroke-linejoin="round"/>`;
+    pts.forEach((p, i) => {
+      const won = p.eq >= TRAP.target;
+      g += `<circle cx="${x(i)}" cy="${y(p.eq)}" r="${won ? 6 : 4.5}" fill="${won ? c('--pass') : c('--ink')}" stroke="${c('--surface')}" stroke-width="2"/>`;
+    });
+    g += `<text x="${x(pts.length - 1)}" y="${y(22000) - 13}" text-anchor="end" ${mono} font-size="10.5" font-weight="600" fill="${c('--pass')}">target cleared</text>`;
+  }
+
+  pts.forEach((p, i) => {
+    const anchor = i === 0 ? 'start' : (i === pts.length - 1 ? 'end' : 'middle');
+    g += `<text x="${x(i)}" y="${H - 12}" text-anchor="${anchor}" ${mono} font-size="10" fill="${c('--faint')}">${p.label}</text>`;
+  });
+  $('trapChart').innerHTML = g;
+
+  $('trapVerdict').className = 'verdict ' + (path ? 'fail' : 'pass');
+  $('trapVerdict').innerHTML = `<i class="dot"></i>${path ? 'FAIL — DRAWDOWN' : 'PASS'}`;
+  $('trapNote').textContent = path
+    ? 'Equity crosses 19,700 while bar 1 is still open, so the position is closed at a mid of 97.00 and the attempt is over. The dotted line is what the account would have done had it survived — the green close and the +$2,000 second bar are never reached.'
+    : 'Sampling only the closes, equity never dips below 20,000 and bar 2 clears the target. This is the answer a close-only backtest gives, and it is wrong.';
+  $('mPath').setAttribute('aria-pressed', String(path));
+  $('mClose').setAttribute('aria-pressed', String(!path));
+}
+$('mPath').onclick = () => { trapMode = 'path'; drawTrap(); };
+$('mClose').onclick = () => { trapMode = 'close'; drawTrap(); };
+
+/* -- reading the controls ------------------------------------------------ */
+const ATTEMPTS = [1000, 2500, 5000, 10000];
+function controls() {
+  return {
+    strat: $('cStrat').value,
+    dd: $('cDD').value,
+    exposure: $('cExp').value,
+    size: +$('cSize').value / 100,
+    sl: +$('cSL').value,
+    tp: +$('cTP').value,
+    n: ATTEMPTS[+$('cN').value - 1],
+    costs: $('cCosts').checked,
+  };
+}
+function syncLabels() {
+  const c = controls();
+  $('vSize').textContent = Math.round(c.size * 100) + '% of cap';
+  $('vSL').textContent = '$' + c.sl + (c.sl >= 300 ? ' — unreachable' : '');
+  $('vTP').textContent = '$' + c.tp;
+  $('vN').textContent = c.n.toLocaleString('en-US');
+}
+for (const id of ['cSize','cSL','cTP','cN']) $(id).oninput = syncLabels;
+
+const costModel = (on) => on
+  ? Object.assign({}, DEFAULT_COSTS.EURUSD)
+  : { spread: 0, commissionPerSide: 0, slippage: 0, useMeasuredSpread: false };
+
+const paramsFor = (c) => ({
+  size: c.size, tpDollars: c.tp, slDollars: c.sl,
+  entriesPerDay: 8, lookback: 30,
+});
+
+/* -- one Monte Carlo, chunked so the page stays alive -------------------- */
+function monteCarlo(cfg, stratName, params, cm, n, seed, onProgress, done,
+                    bootstrapSamples = 800) {
+  const { starts, rejected } = sampleStarts(BARS, cfg, n, seed, 240);
+  const hs = halfSpreadSeries(BARS, cm);
+  const strategy = STRATEGIES[stratName](params);
+  const attempts = [];
+  chunked(starts.length, 400, (a, b) => {
+    for (let k = a; k < b; k++) {
+      const r = runChallenge(BARS, strategy, INSTRUMENTS.EURUSD, cm, cfg,
+                             rng(seed * 1000003 + k), starts[k], hs, false);
+      attempts.push({ outcome: r.outcome, startTs: r.startTs,
+                      maxDrawdown: r.maxDrawdownReached,
+                      totalCosts: r.totalCosts, nTrades: r.trades.length });
+    }
+  }, () => done(summarise(attempts, cfg, rejected, independentWindows(BARS, cfg),
+                          bootstrapSamples)),
+     onProgress);
+}
+
+/* -- rendering the results ----------------------------------------------- */
+function renderSummary(s) {
+  const be = s.breakeven;
+  const top = Math.max(0.2, s.passRate * 1.35, be * 1.6);
+  $('bigRate').textContent = pct(s.passRate);
+  $('bigRate').style.color = s.passRate >= be ? 'var(--pass)' : 'var(--ink)';
+  $('bigSub').innerHTML = s.passRate >= be
+    ? `pass rate — <b style="color:var(--pass)">above</b> the 10% breakeven`
+    : `pass rate — you need <b>10%</b> to break even on the $500 fee`;
+  $('meterFill').style.width = Math.min(100, s.passRate / top * 100) + '%';
+  $('meterFill').style.background = s.passRate >= be ? 'var(--pass)' : 'var(--dd)';
+  $('meterBE').style.left = (be / top * 100) + '%';
+  $('meterMax').textContent = pct(top, 0);
+
+  const parts = [['nPass','--pass','Pass'], ['nDD','--dd','Drawdown'], ['nTO','--timeout','Timeout']];
+  $('stack').innerHTML = parts.map(([k, col]) => {
+    const share = s.n ? s[k] / s.n : 0;
+    return `<div style="flex:${Math.max(share, 0.001)} 1 0; background:var(${col})">` +
+           `${share > 0.09 ? pct(share, 1) : ''}</div>`;
+  }).join('');
+
+  $('stats').innerHTML = [
+    ['EV per $500 attempt', money(s.ev), s.ev >= 0 ? 'var(--pass)' : 'var(--dd)'],
+    ['95% interval', `${pct(s.cluster[0], 1)} – ${pct(s.cluster[1], 1)}`, ''],
+    ['Failed on drawdown', pct(s.n ? s.nDD / s.n : 0, 1), ''],
+    ['Ran out of time', pct(s.n ? s.nTO / s.n : 0, 1), ''],
+    ['Median max drawdown', money(s.medianDD), ''],
+    ['Mean costs paid', '$' + s.meanCosts.toFixed(2), ''],
+    ['Mean trades', s.meanTrades.toFixed(1), ''],
+    ['Independent windows', s.indepWindows.toLocaleString('en-US'), ''],
+  ].map(([k, v, col]) =>
+    `<div><dt>${k}</dt><dd${col ? ` style="color:${col}"` : ''}>${v}</dd></div>`).join('');
+}
+
+/* -- section 03: rulebook table ------------------------------------------ */
+const RULE_ROWS = [
+  ['Buy and hold', 'buy_and_hold', { size: 0.45, tpDollars: null, slDollars: null }],
+  ['Fixed TP/SL', 'fixed_tp_sl', { size: 0.45, tpDollars: 900, slDollars: 150, entriesPerDay: 8 }],
+  ['Momentum', 'momentum', { size: 0.45, tpDollars: 900, slDollars: 150, lookback: 30 }],
+];
+const RULE_MODES = [['trailing_equity', 'Trailing equity'], ['static', 'Static $19,700']];
+
+function buildRuleTable(done) {
+  const jobs = [];
+  for (const [label, name, p] of RULE_ROWS)
+    for (const [mode, modeLabel] of RULE_MODES) jobs.push({ label, name, p, mode, modeLabel });
+  const cm = costModel(true);
+  const rows = [];
+  let k = 0;
+  const step = () => {
+    if (k >= jobs.length) {
+      $('ruleBody').innerHTML = rows.join('');
+      return done();
+    }
+    const j = jobs[k++];
+    const cfg = defaultConfig({ drawdownMode: j.mode });
+    monteCarlo(cfg, j.name, j.p, cm, 2500, 2024, null, (s) => {
+      const hot = s.passRate >= s.breakeven;
+      rows.push(
+        `<tr class="${hot ? 'hot' : ''}"><td>${j.label}</td><td>${j.modeLabel}</td>` +
+        `<td style="font-weight:600;color:${hot ? 'var(--pass)' : 'var(--ink)'}">${pct(s.passRate)}</td>` +
+        `<td style="color:var(--muted)">${pct(s.cluster[0], 1)} – ${pct(s.cluster[1], 1)}</td>` +
+        `<td>${pct(s.nDD / s.n, 1)}</td><td>${pct(s.nTO / s.n, 1)}</td>` +
+        `<td style="color:${s.ev >= 0 ? 'var(--pass)' : 'var(--dd)'}">${money(s.ev)}</td></tr>`);
+      $('ruleBody').innerHTML = rows.join('');
+      step();
+    });
+  };
+  step();
+}
+
+/* -- section 04: heatmap -------------------------------------------------- */
+const TP_GRID = [150, 300, 600, 900, 1200, 1500];
+const SL_GRID = [25, 50, 100, 150, 200, 300];
+
+function buildHeatmap(done) {
+  const c = controls();
+  const cm = costModel(c.costs);
+  const cells = [];
+  for (const sl of SL_GRID) for (const tp of TP_GRID) cells.push({ tp, sl });
+  const cfg = defaultConfig({ drawdownMode: c.dd, exposureBasis: c.exposure });
+  let k = 0;
+  const results = [];
+  const step = () => {
+    if (k >= cells.length) { paintHeatmap(results, cfg); return done(); }
+    const cell = cells[k++];
+    const params = Object.assign(paramsFor(c), { tpDollars: cell.tp, slDollars: cell.sl });
+    monteCarlo(cfg, c.strat, params, cm, 250, 808 + k, null, (s) => {
+      results.push({ tp: cell.tp, sl: cell.sl, rate: s.passRate,
+                     dd: s.nDD / s.n, to: s.nTO / s.n, ev: s.ev });
+      step();
+    }, 0);
+  };
+  step();
+}
+
+function paintHeatmap(results, cfg) {
+  const be = breakevenRate(cfg);
+  const dataMax = Math.max(...results.map(r => r.rate));
+  const max = Math.max(dataMax, 0.004);
+  const cols = TP_GRID.length;
+  let html = `<div class="hm" style="grid-template-columns:56px repeat(${cols},minmax(0,1fr))">`;
+  for (let ri = SL_GRID.length - 1; ri >= 0; ri--) {
+    const sl = SL_GRID[ri];
+    html += `<div class="hm-ylab">$${sl}${sl >= 300 ? '†' : ''}</div>`;
+    for (const tp of TP_GRID) {
+      const r = results.find(x => x.tp === tp && x.sl === sl);
+      const t = max ? Math.min(1, r.rate / max) : 0;
+      const idx = Math.min(SEQ.length - 1, Math.round(t * (SEQ.length - 1)));
+      const light = idx <= 3;
+      html += `<div class="hm-cell${r.rate >= be ? ' hot' : ''}" ` +
+        `style="background:${SEQ[idx]};color:${light ? 'var(--ink)' : '#fff'}" ` +
+        `data-tip="take profit  $${tp}\nstop loss    $${sl}\npass rate    ${pct(r.rate)}\n` +
+        `drawdown     ${pct(r.dd, 1)}\ntimeout      ${pct(r.to, 1)}\nEV           ${money(r.ev)}">` +
+        `${pct(r.rate, 1)}</div>`;
+    }
+  }
+  html += `<div></div>`;
+  for (const tp of TP_GRID) html += `<div class="hm-xlab">$${tp}</div>`;
+  html += `</div>`;
+  $('heat').innerHTML = html;
+
+  $('ramp').innerHTML = '<span>0%</span>' +
+    SEQ.map(v => `<i style="background:${v}"></i>`).join('') +
+    `<span>${pct(max, 1)} pass rate</span>` +
+    (be > max
+      ? `<span style="margin-left:14px; color:var(--dd)">the ${pct(be, 0)} breakeven is off this scale entirely — the best cell reaches ${pct(dataMax, 1)}</span>`
+      : `<span style="margin-left:14px">breakeven ${pct(be, 0)} is on this scale</span>`) +
+    `<span style="margin-left:14px">&dagger; a $300 stop is the whole allowance — it can never fill</span>`;
+
+  const tip = $('tip');
+  $('heat').querySelectorAll('.hm-cell').forEach(el => {
+    el.onmouseenter = () => { tip.textContent = el.dataset.tip; tip.style.opacity = '1'; };
+    el.onmousemove = (e) => {
+      tip.style.left = Math.min(window.innerWidth - tip.offsetWidth - 12, e.clientX + 14) + 'px';
+      tip.style.top = Math.max(8, e.clientY - tip.offsetHeight - 12) + 'px';
+    };
+    el.onmouseleave = () => { tip.style.opacity = '0'; };
+  });
+}
+
+/* -- orchestration -------------------------------------------------------- */
+function setProgress(f) { $('prog').style.width = (f * 100) + '%'; }
+function busy(on, label) {
+  $('runBtn').disabled = on;
+  $('runBtn').textContent = on ? (label || 'Simulating…') : 'Run simulation';
+  $('prog').parentElement.classList.toggle('on', on);
+  if (!on) setProgress(0);
+}
+
+function runSimulation(then) {
+  const c = controls();
+  const cfg = defaultConfig({ drawdownMode: c.dd, exposureBasis: c.exposure });
+  busy(true);
+  monteCarlo(cfg, c.strat, paramsFor(c), costModel(c.costs), c.n, 12345,
+    setProgress, (s) => { renderSummary(s); busy(false); if (then) then(); });
+}
+
+$('runBtn').onclick = () => {
+  busy(true);
+  runSimulation(() => { busy(true, 'Sweeping grid…'); buildHeatmap(() => busy(false)); });
+};
+
+function boot() {
+  syncLabels();
+  drawTrap();
+  busy(true, 'Generating market…');
+  requestAnimationFrame(() => {
+    const t0 = performance.now();
+    BARS = generateSynthetic('EURUSD', 120, 0);
+    const days = (BARS.ts[BARS.ts.length - 1] - BARS.ts[0]) / 86400000;
+    $('dataChip').textContent =
+      `${BARS.ts.length.toLocaleString('en-US')} synthetic 1-minute bars · ` +
+      `${days.toFixed(0)} days · generated in ${(performance.now() - t0).toFixed(0)} ms`;
+    runSimulation(() => {
+      busy(true, 'Building table…');
+      buildRuleTable(() => {
+        busy(true, 'Sweeping grid…');
+        buildHeatmap(() => busy(false));
+      });
+    });
+  });
+}
+boot();
+window.addEventListener('resize', () => drawTrap());
+matchMedia('(prefers-color-scheme:dark)').addEventListener('change', () => drawTrap());
+</script>
