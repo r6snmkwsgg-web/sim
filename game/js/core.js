@@ -7,7 +7,7 @@ const P = 92;                // one segment: 40 bookcases (80 m) + a rest area (
 const CASES = 40, CW = 2, ROWS = 7, PER = 40, BT = 0.0475, RH = 0.46, RY = 0.12;
 const RA0 = 80;              // rest area starts here within a segment
 const SHELF_Z = -3.0, CHASM = 16;
-const CX = 86, CZ = -8.5, SR = 1.85, SCOL = 0.55, TH0 = Math.PI / 2; // spiral stair in each rest area
+const CX = 86, CZ = -8.5, SR = 1.6, SCOL = 0.55, TH0 = Math.PI / 2; // spiral stair in each rest area
 const PAGES = 410, LINES = 40, COLS = 80, PAGE_CH = LINES * COLS;
 const FWIN = 22;             // floors drawn above and below
 const HOUR_SEC = 24;         // real seconds per game hour
@@ -121,7 +121,7 @@ function freshState() {
     stats: { dist: 0, books: 0, pages: 0, deaths: 0, fallen: 0, climbed: 0, searches: 0, maxFall: 0, thrown: 0, daysFalling: 0 },
     journal: [], frags: [], npc: {}, flags: {}, done: {},
     fall: null, dead: null, landing: null,
-    settings: { sens: 1, vol: 0.8, q: 1, fx: 1 }
+    settings: { sens: 1, vol: 0.8, q: 1, gfx: 2, hints: 1 }
   };
 }
 function save() { if (!S) return; try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) {} }

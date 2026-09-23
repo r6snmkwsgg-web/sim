@@ -19,16 +19,20 @@ camera.rotation.order = 'YXZ';
 scene.add(camera);
 
 let AQ = 1; // automatic resolution scale, lowered if frames run long
-let RT = null, BD = [], BU = [], RW = 1, RHh = 1;
+let RT = null, BD = [], BU = [], RW = 1, RHh = 1, FXA = null, FXB = null, SRA = null, SRB = null;
 function rtOpts(depth) { return { type: HALF ? THREE.HalfFloatType : THREE.UnsignedByteType, format: THREE.RGBAFormat, depthBuffer: depth, stencilBuffer: false, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter }; }
 function makeTargets() {
   const pr = Math.min(window.devicePixelRatio || 1, 1.5) * (S ? S.settings.q : 1) * AQ;
   const w = Math.max(2, Math.floor(innerWidth * pr)), h = Math.max(2, Math.floor(innerHeight * pr));
   if (RT && RW === w && RHh === h) return;
   RW = w; RHh = h;
-  [RT, ...BD, ...BU].forEach(t => t && t.dispose());
+  [RT, ...BD, ...BU, FXA, FXB, SRA, SRB].forEach(t => t && t.dispose());
   if (GL2 && THREE.WebGLMultisampleRenderTarget) { RT = new THREE.WebGLMultisampleRenderTarget(w, h, rtOpts(true)); RT.samples = 4; }
   else RT = new THREE.WebGLRenderTarget(w, h, rtOpts(true));
+  if (GL2) { RT.depthTexture = new THREE.DepthTexture(w, h, THREE.UnsignedIntType); RT.depthTexture.format = THREE.DepthFormat; }
+  const hw = Math.max(1, w >> 1), hh = Math.max(1, h >> 1);
+  FXA = new THREE.WebGLRenderTarget(hw, hh, rtOpts(false)); FXB = new THREE.WebGLRenderTarget(hw, hh, rtOpts(false));
+  SRA = new THREE.WebGLRenderTarget(hw, hh, rtOpts(false)); SRB = new THREE.WebGLRenderTarget(hw, hh, rtOpts(false));
   BD = []; BU = [];
   let bw = w >> 1, bh = h >> 1;
   for (let i = 0; i < 5; i++) { BD.push(new THREE.WebGLRenderTarget(Math.max(1, bw), Math.max(1, bh), rtOpts(false))); BU.push(new THREE.WebGLRenderTarget(Math.max(1, bw), Math.max(1, bh), rtOpts(false))); bw >>= 1; bh >>= 1; }
@@ -64,7 +68,7 @@ const PM = {
       s += texture2D(tSrc, vUv + vec2(-o.x * 2.0, 0.0)).rgb + texture2D(tSrc, vUv + vec2(o.x * 2.0, 0.0)).rgb + texture2D(tSrc, vUv + vec2(0.0, o.y * 2.0)).rgb + texture2D(tSrc, vUv + vec2(0.0, -o.y * 2.0)).rgb;
       s += (texture2D(tSrc, vUv + vec2(-o.x, o.y)).rgb + texture2D(tSrc, vUv + vec2(o.x, o.y)).rgb + texture2D(tSrc, vUv + vec2(o.x, -o.y)).rgb + texture2D(tSrc, vUv + vec2(-o.x, -o.y)).rgb) * 2.0;
       gl_FragColor = vec4(s / 12.0 + texture2D(tAdd, vUv).rgb * uAdd, 1.0); }`, { tSrc: { value: null }, tAdd: { value: null }, uTexel: { value: new THREE.Vector2() }, uAdd: { value: 1 } }),
-  comp: passMat(`uniform sampler2D tScene; uniform sampler2D tBloom; uniform float uBloom; uniform float uExposure; uniform float uTime; uniform float uVig; uniform float uGrain; uniform float uCA; uniform float uDrunk; uniform float uHurt; uniform float uSpeed; varying vec2 vUv;
+  comp: passMat(`uniform sampler2D tScene; uniform sampler2D tBloom; uniform float uBloom; uniform sampler2D tFX; uniform sampler2D tSSR; uniform float uFXOn; uniform float uSSROn; uniform float uExposure; uniform float uTime; uniform float uVig; uniform float uGrain; uniform float uCA; uniform float uDrunk; uniform float uHurt; uniform float uSpeed; varying vec2 vUv;
     vec3 aces(vec3 x){ return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0); }
     void main(){
       vec2 uv = vUv;
@@ -73,6 +77,8 @@ const PM = {
       float ca = uCA * r2 * (1.0 + uDrunk * 4.0 + uSpeed * 2.0);
       vec3 col = vec3(texture2D(tScene, uv - dc * ca).r, texture2D(tScene, uv).g, texture2D(tScene, uv + dc * ca).b);
       if (uSpeed > 0.01) { vec3 acc = col; for (int i = 1; i <= 5; i++) { acc += texture2D(tScene, uv - dc * float(i) * 0.012 * uSpeed).rgb; } col = acc / 6.0; }
+      if (uFXOn > 0.5) { vec4 fx = texture2D(tFX, uv); col = col * mix(1.0, fx.a, 0.9) + fx.rgb; }
+      if (uSSROn > 0.5) { vec4 rf = texture2D(tSSR, uv); col = col * (1.0 - rf.a * 0.45) + rf.rgb; }
       col += texture2D(tBloom, uv).rgb * uBloom;
       #if __VERSION__ >= 300
         if (any(isnan(col)) || any(isinf(col))) col = vec3(0.0);
@@ -88,13 +94,19 @@ const PM = {
       col *= 1.0 - uVig * smoothstep(0.25, 0.95, sqrt(r2) * 1.38);
       float n = fract(sin(dot(gl_FragCoord.xy + fract(uTime) * 91.0, vec2(12.9898, 78.233))) * 43758.5453);
       col += (n - 0.5) * uGrain;
-      gl_FragColor = vec4(col, 1.0); }`, { tScene: { value: null }, tBloom: { value: null }, uBloom: { value: 0.9 }, uExposure: { value: 1 }, uTime: { value: 0 }, uVig: { value: 0.55 }, uGrain: { value: 0.035 }, uCA: { value: 0.012 }, uDrunk: { value: 0 }, uHurt: { value: 0 }, uSpeed: { value: 0 } }),
+      gl_FragColor = vec4(col, 1.0); }`, { tScene: { value: null }, tBloom: { value: null }, uBloom: { value: 0.9 }, uExposure: { value: 1 }, uTime: { value: 0 }, uVig: { value: 0.55 }, uGrain: { value: 0.035 }, uCA: { value: 0.012 }, uDrunk: { value: 0 }, uHurt: { value: 0 }, uSpeed: { value: 0 }, tFX: { value: null }, tSSR: { value: null }, uFXOn: { value: 0 }, uSSROn: { value: 0 } }),
 };
 function pass(mat, target) { fsMesh.material = mat; renderer.setRenderTarget(target); renderer.render(fsScene, fsCam); }
 function renderFrame() {
   makeTargets();
   renderer.setRenderTarget(RT); renderer.clear(); renderer.render(scene, camera);
-  const bloom = !S || S.settings.fx !== 0;
+  const gfx = S ? (S.settings.gfx !== undefined ? S.settings.gfx : 2) : 2, deep = !!RT.depthTexture;
+  const fxOn = deep && gfx >= 1, ssrOn = deep && gfx >= 2;
+  if (fxOn) { setVP(PM.fx.uniforms); PM.fx.uniforms.uVol.value = gfx >= 2 ? 1 : 0; pass(PM.fx, FXA); blurInto(FXA, FXB); }
+  if (ssrOn) { setVP(PM.ssr.uniforms); PM.ssr.uniforms.tColor.value = RT.texture; pass(PM.ssr, SRA); blurInto(SRA, SRB); }
+  PM.comp.uniforms.tFX.value = FXB.texture; PM.comp.uniforms.uFXOn.value = fxOn ? 1 : 0;
+  PM.comp.uniforms.tSSR.value = SRB.texture; PM.comp.uniforms.uSSROn.value = ssrOn ? 1 : 0;
+  const bloom = true;
   if (bloom) {
     PM.pre.uniforms.tSrc.value = RT.texture; PM.pre.uniforms.uTexel.value.set(1 / RW, 1 / RHh); pass(PM.pre, BD[0]);
     for (let i = 1; i < BD.length; i++) { PM.down.uniforms.tSrc.value = BD[i - 1].texture; PM.down.uniforms.uTexel.value.set(1 / BD[i - 1].width, 1 / BD[i - 1].height); pass(PM.down, BD[i]); }
@@ -115,6 +127,115 @@ const U = {
   uFog: { value: FOG_LIN }, uFogDeep: { value: FOG_DEEP }, uFogD: { value: 0.02 },
   uLampCol: { value: new THREE.Color(1.0, 0.62, 0.3) }, uTime: { value: 0 }, uCellOff: { value: new THREE.Vector2() },
 };
+/* Screen-space passes that read the depth buffer: ambient occlusion + lamp haze (one pass), reflections, and a depth-aware blur */
+const VPOS_GLSL = `
+uniform sampler2D tDepth; uniform mat4 uProjInv; uniform mat4 uProj; uniform mat4 uCamWorld; uniform vec3 uCamPos; uniform vec2 uTexel;
+vec3 vpos(vec2 uv){ float d = texture2D(tDepth, uv).x; vec4 p = uProjInv * vec4(uv * 2.0 - 1.0, d * 2.0 - 1.0, 1.0); return p.xyz / p.w; }
+vec3 vnorm(vec2 uv, vec3 P){
+  vec3 px = vpos(uv + vec2(uTexel.x, 0.0)), nx = vpos(uv - vec2(uTexel.x, 0.0));
+  vec3 py = vpos(uv + vec2(0.0, uTexel.y)), ny = vpos(uv - vec2(0.0, uTexel.y));
+  vec3 dx = abs(px.z - P.z) < abs(nx.z - P.z) ? px - P : P - nx;
+  vec3 dy = abs(py.z - P.z) < abs(ny.z - P.z) ? py - P : P - ny;
+  return normalize(cross(dx, dy));
+}
+float hash12(vec2 p){ vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }`;
+const VP_U = () => ({ tDepth: { value: null }, uProjInv: { value: new THREE.Matrix4() }, uProj: { value: new THREE.Matrix4() }, uCamWorld: { value: new THREE.Matrix4() }, uCamPos: { value: new THREE.Vector3() }, uTexel: { value: new THREE.Vector2() } });
+PM.fx = passMat(`uniform float uAO; uniform float uVol; varying vec2 vUv;
+  uniform float uLamp; uniform vec3 uLampCol; uniform vec2 uCellOff; uniform float uTime;
+  float h11(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+  float lampScale(vec2 cell){ float h = h11(cell + uCellOff); float s = 0.72 + 0.56 * h; float fl = step(0.993, h) * (0.5 + 0.5 * sin(uTime * 19.0 + h * 90.0) * sin(uTime * 2.3 + h)); return s * (1.0 - fl); }
+  ${VPOS_GLSL}
+  float scatterAt(vec3 w){
+    float fl = floor((w.y + 0.02) / 4.0); float ly = fl * 4.0 + 3.1; float ix = floor(w.x / 4.0); float s = 0.0;
+    for (int i = -1; i <= 1; i++) {
+      float cx = ix + float(i); float x = cx * 4.0 + 2.0;
+      vec3 d1 = w - vec3(x, ly, -1.5); float r1 = dot(d1, d1); float dn1 = clamp(-d1.y * inversesqrt(r1 + 1e-4), 0.0, 1.0);
+      s += lampScale(vec2(cx, fl)) * (0.15 + 0.85 * dn1 * dn1) / (0.04 + r1);
+      vec3 d2 = w - vec3(x, ly, 17.5); float r2 = dot(d2, d2); float dn2 = clamp(-d2.y * inversesqrt(r2 + 1e-4), 0.0, 1.0);
+      s += lampScale(vec2(cx + 313.0, fl)) * (0.15 + 0.85 * dn2 * dn2) / (0.04 + r2);
+    }
+    return s;
+  }
+  void main(){
+    float d = texture2D(tDepth, vUv).x; vec3 P = vpos(vUv);
+    float ao = 1.0;
+    if (uAO > 0.5 && d < 1.0 && P.z > -35.0) {
+      vec3 N = vnorm(vUv, P);
+      float rnd = hash12(floor(gl_FragCoord.xy)) * 6.2831853;
+      vec3 rv = vec3(cos(rnd), sin(rnd), 0.37); vec3 T = normalize(rv - N * dot(rv, N)); vec3 B = cross(N, T);
+      float radius = mix(0.32, 0.9, clamp(-P.z / 20.0, 0.0, 1.0)), occ = 0.0;
+      for (int i = 0; i < 12; i++) {
+        float fi = float(i), z = (fi + 0.5) / 12.0, r = sqrt(1.0 - z * z), a = fi * 2.3999632 + rnd;
+        vec3 k = vec3(cos(a) * r, sin(a) * r, z) * mix(0.2, 1.0, (fi + 1.0) / 12.0);
+        vec3 S = P + (T * k.x + B * k.y + N * k.z) * radius;
+        vec4 c = uProj * vec4(S, 1.0); vec2 suv = c.xy / c.w * 0.5 + 0.5;
+        float sz = vpos(suv).z;
+        occ += step(S.z + 0.02, sz) * smoothstep(0.0, 1.0, radius / max(abs(P.z - sz), 1e-3));
+      }
+      ao = clamp(1.0 - occ / 12.0 * 1.4, 0.0, 1.0);
+    }
+    vec3 vol = vec3(0.0);
+    if (uVol > 0.5 && uLamp > 0.01) {
+      vec3 wEnd = (uCamWorld * vec4(P, 1.0)).xyz; vec3 rd = wEnd - uCamPos; float L = length(rd); rd /= max(L, 1e-4);
+      if (d >= 1.0) L = 40.0; L = min(L, 30.0);
+      float jit = hash12(floor(gl_FragCoord.xy) + 17.0), acc = 0.0, st = L / 16.0;
+      for (int i = 0; i < 16; i++) { float t = (float(i) + jit) * st; acc += scatterAt(uCamPos + rd * t) * exp(-t * 0.05); }
+      vol = uLampCol * acc * st * 0.0065 * uLamp;
+    }
+    gl_FragColor = vec4(vol, ao);
+  }`, Object.assign({ uAO: { value: 1 }, uVol: { value: 1 }, uLamp: U.uLamp, uLampCol: U.uLampCol, uCellOff: U.uCellOff, uTime: U.uTime }, VP_U()));
+PM.ssr = passMat(`uniform sampler2D tColor; varying vec2 vUv;
+  ${VPOS_GLSL}
+  void main(){
+    vec4 outc = vec4(0.0);
+    float d = texture2D(tDepth, vUv).x;
+    if (d < 1.0) {
+      vec3 P = vpos(vUv); vec3 W = (uCamWorld * vec4(P, 1.0)).xyz;
+      float ly = W.y - floor((W.y + 0.02) / 4.0) * 4.0;
+      bool carpet = (W.z > -2.37 && W.z < -0.83) || (W.z > 16.83 && W.z < 18.37);
+      if (ly < 0.012 && !carpet && -P.z < 45.0) {
+        vec3 N = vnorm(vUv, P); vec3 Nw = normalize(mat3(uCamWorld) * N);
+        if (Nw.y > 0.9) {
+          vec3 V = normalize(P); vec3 R = normalize(reflect(V, N));
+          float t = 0.08, tp = 0.0, hit = 0.0; vec2 huv = vec2(0.0);
+          for (int i = 0; i < 30; i++) {
+            vec3 Sx = P + R * t; vec4 c = uProj * vec4(Sx, 1.0); vec2 suv = c.xy / c.w * 0.5 + 0.5;
+            if (suv.x < 0.0 || suv.x > 1.0 || suv.y < 0.0 || suv.y > 1.0 || Sx.z > -0.05) break;
+            float dz = vpos(suv).z - Sx.z;
+            if (dz > 0.0 && dz < 0.25 + t * 0.08) {
+              float a = tp, b = t;
+              for (int j = 0; j < 5; j++) { float m = 0.5 * (a + b); vec3 M = P + R * m; vec4 cm = uProj * vec4(M, 1.0); vec2 muv = cm.xy / cm.w * 0.5 + 0.5; if (vpos(muv).z - M.z > 0.0) b = m; else a = m; }
+              vec4 ch = uProj * vec4(P + R * b, 1.0); huv = ch.xy / ch.w * 0.5 + 0.5; hit = 1.0; break;
+            }
+            tp = t; t = t * 1.22 + 0.04;
+          }
+          if (hit > 0.5) {
+            float fres = 0.04 + 0.96 * pow(1.0 - clamp(dot(-V, N), 0.0, 1.0), 5.0);
+            vec2 e = smoothstep(0.0, 0.1, huv) * smoothstep(1.0, 0.9, huv);
+            float w = e.x * e.y * mix(0.12, 0.85, fres);
+            outc = vec4(min(texture2D(tColor, huv).rgb, vec3(12.0)) * w, w);
+          }
+        }
+      }
+    }
+    gl_FragColor = outc;
+  }`, Object.assign({ tColor: { value: null } }, VP_U()));
+PM.blur = passMat(`uniform sampler2D tSrc; uniform sampler2D tDepth; uniform mat4 uProjInv; uniform vec2 uStep; varying vec2 vUv;
+  float lz(vec2 uv){ float d = texture2D(tDepth, uv).x; vec4 p = uProjInv * vec4(uv * 2.0 - 1.0, d * 2.0 - 1.0, 1.0); return p.z / p.w; }
+  void main(){
+    float z0 = lz(vUv); vec4 sum = vec4(0.0); float ws = 0.0;
+    for (int y = -1; y <= 2; y++) for (int x = -1; x <= 2; x++) {
+      vec2 uv = vUv + (vec2(float(x), float(y)) - 0.5) * uStep;
+      float w = exp(-abs(lz(uv) - z0) / max(-z0 * 0.04, 0.03));
+      sum += texture2D(tSrc, uv) * w; ws += w;
+    }
+    gl_FragColor = sum / max(ws, 1e-4);
+  }`, { tSrc: { value: null }, tDepth: { value: null }, uProjInv: { value: new THREE.Matrix4() }, uStep: { value: new THREE.Vector2() } });
+function setVP(u) {
+  u.tDepth.value = RT.depthTexture; u.uProjInv.value.copy(camera.projectionMatrixInverse); u.uProj.value.copy(camera.projectionMatrix);
+  u.uCamWorld.value.copy(camera.matrixWorld); camera.getWorldPosition(u.uCamPos.value); u.uTexel.value.set(1 / RW, 1 / RHh);
+}
+function blurInto(src, dst) { const u = PM.blur.uniforms; u.tSrc.value = src.texture; u.tDepth.value = RT.depthTexture; u.uProjInv.value.copy(camera.projectionMatrixInverse); u.uStep.value.set(1 / src.width, 1 / src.height); pass(PM.blur, dst); }
 const GLSL_COMMON = `
 uniform float uLamp; uniform vec3 uAmb; uniform vec3 uFog; uniform vec3 uFogDeep; uniform float uFogD; uniform vec3 uLampCol; uniform float uTime; uniform vec2 uCellOff;
 varying vec3 vW;
@@ -440,6 +561,28 @@ function merge(parts) {
   m.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); m.setAttribute('color', new THREE.BufferAttribute(col, 3));
   m.computeBoundingSphere(); return m;
 }
+/* A wedge of a circular stair: angles a0..a1 around (CX, CZ), radii r0..r1, heights y0..y1 */
+function wedge(r0, r1, a0, a1, y0, y1, segs) {
+  const pos = [], pt = (r, a, y) => [CX + Math.cos(a) * r, y, CZ + Math.sin(a) * r];
+  const tri = (a, b, c, o) => {
+    const ab = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], ac = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+    const n = [ab[1] * ac[2] - ab[2] * ac[1], ab[2] * ac[0] - ab[0] * ac[2], ab[0] * ac[1] - ab[1] * ac[0]];
+    if (n[0] * o[0] + n[1] * o[1] + n[2] * o[2] < 0) pos.push(...a, ...c, ...b); else pos.push(...a, ...b, ...c);
+  };
+  const quad = (a, b, c, d, o) => { tri(a, b, c, o); tri(a, c, d, o); };
+  for (let s = 0; s < segs; s++) {
+    const t0 = a0 + (a1 - a0) * s / segs, t1 = a0 + (a1 - a0) * (s + 1) / segs, tm = (t0 + t1) / 2;
+    quad(pt(r0, t0, y1), pt(r1, t0, y1), pt(r1, t1, y1), pt(r0, t1, y1), [0, 1, 0]);
+    quad(pt(r0, t0, y0), pt(r1, t0, y0), pt(r1, t1, y0), pt(r0, t1, y0), [0, -1, 0]);
+    quad(pt(r1, t0, y0), pt(r1, t1, y0), pt(r1, t1, y1), pt(r1, t0, y1), [Math.cos(tm), 0, Math.sin(tm)]);
+    quad(pt(r0, t0, y0), pt(r0, t1, y0), pt(r0, t1, y1), pt(r0, t0, y1), [-Math.cos(tm), 0, -Math.sin(tm)]);
+  }
+  quad(pt(r0, a0, y0), pt(r1, a0, y0), pt(r1, a0, y1), pt(r0, a0, y1), [Math.sin(a0), 0, -Math.cos(a0)]);
+  quad(pt(r0, a1, y0), pt(r1, a1, y0), pt(r1, a1, y1), pt(r0, a1, y1), [-Math.sin(a1), 0, Math.cos(a1)]);
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.computeVertexNormals(); g.setAttribute('uv', new THREE.Float32BufferAttribute(new Array(pos.length / 3 * 2).fill(0), 2));
+  return g;
+}
 class Parts {
   constructor() { this.m = {}; }
   add(mat, g, c) { (this.m[mat] || (this.m[mat] = [])).push({ g, c }); }
@@ -504,14 +647,17 @@ function moduleParts(detail) {
     p.box('stone', 83.8, 0, -6.5, 85.35, 3.7, -6.3, K.stone); p.box('stone', 86.65, 0, -6.5, 88.2, 3.7, -6.3, K.stone);
     p.box('stone', 85.35, 2.35, -6.5, 86.65, 3.7, -6.3, K.stone);
     p.box('wood', 85.25, 0, -6.55, 85.4, 2.45, -6.25, K.wood); p.box('wood', 86.6, 0, -6.55, 86.75, 2.45, -6.25, K.wood); p.box('wood', 85.25, 2.35, -6.55, 86.75, 2.5, -6.25, K.wood);
+    const D16 = Math.PI * 2 / 16;
     for (let i = 0; i < 16; i++) {
-      const th = TH0 + (i + 0.5) / 16 * Math.PI * 2, h = (i + 0.5) / 16 * H;
-      const g = new THREE.BoxGeometry(1.62, 0.1, 0.86); g.translate(0.3 + 0.81, 0, 0); g.rotateY(-th); g.translate(CX, h - 0.06, CZ); p.add('stone', g, K.stone);
-      const nose = new THREE.BoxGeometry(1.64, 0.035, 0.06); nose.translate(0.3 + 0.82, 0.0, 0); nose.rotateY(-(th - Math.PI / 16)); nose.translate(CX, h - 0.01, CZ); p.add('wood', nose, K.woodL);
+      const a0 = TH0 + i * D16, top = (i + 1) * H / 16;
+      p.add('stone', wedge(0.3, 1.96, a0, a0 + D16 + 0.012, top - 0.3, top, 4), K.stone);
+      p.add('wood', wedge(0.3, 1.97, a0 - 0.006, a0 + 0.055, top - 0.04, top + 0.006, 1), K.woodL);
+      const am = a0 + D16 * 0.5, bal = new THREE.CylinderGeometry(0.011, 0.014, 1.075, 6);
+      bal.translate(CX + Math.cos(am) * 1.86, top + 1.075 / 2, CZ + Math.sin(am) * 1.86); p.add('brass', bal, K.brass);
     }
-    const col = new THREE.CylinderGeometry(0.3, 0.3, H, 16, 1, true); col.translate(CX, H / 2, CZ); p.add('stone', col, K.stone);
-    const hel = []; for (let i = 0; i <= 48; i++) { const a = TH0 + i / 48 * Math.PI * 2; hel.push(new THREE.Vector3(CX + Math.cos(a) * 1.9, i / 48 * H + 0.92, CZ + Math.sin(a) * 1.9)); }
-    p.add('brass', new THREE.TubeGeometry(new THREE.CatmullRomCurve3(hel), 48, 0.028, 6, false), K.brass);
+    const col = new THREE.CylinderGeometry(0.3, 0.3, H, 20, 1, true); col.translate(CX, H / 2, CZ); p.add('stone', col, K.stone);
+    const hel = []; for (let i = 0; i <= 64; i++) { const a = TH0 + i / 64 * Math.PI * 2; hel.push(new THREE.Vector3(CX + Math.cos(a) * 1.86, i / 64 * H + 1.2, CZ + Math.sin(a) * 1.86)); }
+    p.add('brass', new THREE.TubeGeometry(new THREE.CatmullRomCurve3(hel), 64, 0.026, 7, false), K.brass);
     const bulb = new THREE.SphereGeometry(0.07, 8, 6); bulb.translate(CX - 0.4, 2.6, CZ); p.add('plain', bulb, K.globe);
     // beds: frames, mattresses, blankets, pillows
     [80.25, 81.55, 82.85].forEach((bx, i) => {
@@ -600,29 +746,6 @@ function instanced(geo, mat, list) {
   gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.25, 'rgba(255,255,255,.5)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = gr; x.fillRect(0, 0, 64, 64);
   var GLOW = new THREE.Points(g, new THREE.PointsMaterial({ size: 0.55, map: new THREE.CanvasTexture(gc), color: new THREE.Color(3.2, 2.0, 1.0), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: true }));
   GLOW.frustumCulled = false; scene.add(GLOW);
-}
-
-/* Light shafts under the lamps near you */
-const coneMat = new THREE.ShaderMaterial({
-  uniforms: Object.assign({}, U), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
-  vertexShader: `varying vec3 vW; varying vec3 vN; varying float vT; varying vec3 vApex;
-    void main(){ vec4 p = instanceMatrix * vec4(position, 1.0); vec4 w = modelMatrix * p; vW = w.xyz; vN = mat3(modelMatrix) * (mat3(instanceMatrix) * normal);
-      vT = clamp((position.y - 0.07) / 3.05, 0.0, 1.0); vApex = (modelMatrix * instanceMatrix * vec4(0.0, 3.12, 0.0, 1.0)).xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
-  fragmentShader: `${GLSL_COMMON} varying vec3 vN; varying float vT; varying vec3 vApex;
-    void main(){ vec3 V = normalize(cameraPosition - vW); float fr = abs(dot(normalize(vN), V));
-      float a = pow(vT, 1.8) * smoothstep(0.05, 0.75, fr) * 0.045 * uLamp;
-      a *= lampScale(vec2(floor(vApex.x / 4.0) + (vApex.z > 8.0 ? 313.0 : 0.0), floor((vApex.y + 0.02) / 4.0)));
-      float d = length(vW - cameraPosition); a *= exp(-pow(d * uFogD, 2.0)) * smoothstep(0.3, 1.5, d);
-      gl_FragColor = vec4(uLampCol * a, 1.0); }`
-});
-{
-  const cg = new THREE.ConeGeometry(1.55, 3.05, 20, 1, true); cg.translate(0, 3.12 - 1.525, 0);
-  const ms = [];
-  for (let f = -1; f <= 1; f++) for (let s = -1; s <= 1; s++) for (let x = 2; x < 92; x += 4) {
-    ms.push(new THREE.Matrix4().makeTranslation(s * P + x, f * H, -1.5));
-    ms.push(new THREE.Matrix4().makeTranslation(s * P + (P - x), f * H, CHASM + 1.5));
-  }
-  const cm = instanced(cg, coneMat, ms); cm.renderOrder = 2;
 }
 
 /* Dust drifting in the lamplight */

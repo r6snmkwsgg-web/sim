@@ -113,7 +113,7 @@ if (isTouch) {
 /* ==========================================================================
    The player
    ========================================================================== */
-const PL = { vy: 0, vx: 0, vz: 0, onGround: true, crouch: false, eye: 1.62, stepAcc: 0, bob: 0, railArm: 0, hurtT: 0, dead: false, falling: false, shake: 0 };
+const PL = { vy: 0, vx: 0, vz: 0, onGround: true, crouch: false, eye: 1.62, stepAcc: 0, bob: 0, railArm: 0, hurtT: 0, dead: false, falling: false, shake: 0, camY: null, lastT: 0 };
 const WALLS = [
   [0, 80, -3.9, -2.94], [79.8, 80.0, -13.4, -2.9], [91.8, 92.0, -13.4, -2.9], [79.65, 80.25, -3.25, -2.85], [91.75, 92.35, -3.25, -2.85],
   [79.8, 92, -13.4, -13.2], [0, 92, 0.05, 0.3],
@@ -141,7 +141,7 @@ function inStair(x, z) { const lx = mod(x, P); return lx > 84.0 && lx < 88.0 && 
 function helixH(x, z, near) {
   const lx = mod(x, P), th = Math.atan2(z - CZ, lx - CX);
   let t = (th - TH0) / (Math.PI * 2); t -= Math.floor(t);
-  const h0 = t * H; let best = h0, bd = Math.abs(h0 - near);
+  const h0 = (Math.min(15, Math.floor(t * 16)) + 1) * H / 16; let best = h0, bd = Math.abs(h0 - near);
   for (const c of [h0 - H, h0 + H]) { const d = Math.abs(c - near); if (d < bd) { bd = d; best = c; } }
   return best;
 }
@@ -161,6 +161,7 @@ function wrapPlayer() {
   while (S.lx < 0) { S.lx += P; S.seg--; segMoved = true; }
   while (S.ly >= H) { S.ly -= H; S.floor++; fm++; }
   while (S.ly < -1e-4) { S.ly += H; S.floor--; fm--; }
+  if (fm && PL.camY !== null) PL.camY -= fm * H;
   return { segMoved, fm };
 }
 function updatePlayer(dt) {
@@ -197,7 +198,10 @@ function updatePlayer(dt) {
 }
 function placeCamera() {
   const sh = PL.shake > 0 ? (Math.random() - 0.5) * PL.shake : 0;
-  camera.position.set(S.lx + sh * 0.3, S.ly + PL.eye + (PL.onGround && !S.fall ? Math.sin(PL.bob) * 0.028 : 0) + sh * 0.3, S.z);
+  const now = performance.now() / 1000, dt = Math.min(0.1, now - PL.lastT); PL.lastT = now;
+  const ty = S.ly + PL.eye;
+  if (PL.camY === null || S.fall || Math.abs(ty - PL.camY) > 1.2) PL.camY = ty; else PL.camY += (ty - PL.camY) * Math.min(1, dt * 13);
+  camera.position.set(S.lx + sh * 0.3, PL.camY + (PL.onGround && !S.fall ? Math.sin(PL.bob) * 0.028 : 0) + sh * 0.3, S.z);
   camera.rotation.set(S.pitch + sh * 0.05, S.yaw, S.drunk > 0.3 ? Math.sin(performance.now() / 1400) * 0.05 * S.drunk : 0);
   const fovT = 72 + (S.fall ? clamp(-PL.vy / TERMINAL, 0, 1) * 14 : 0);
   if (Math.abs(camera.fov - fovT) > 0.05) { camera.fov += (fovT - camera.fov) * 0.1; camera.updateProjectionMatrix(); }
@@ -787,17 +791,17 @@ document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => { close
 document.querySelectorAll('.overlay').forEach(o => o.addEventListener('mousedown', e => { if (e.target === o && o.id !== 'moment') closeOverlays(); }));
 function openPause() {
   if (MODE !== 'play') return;
-  $('#s-sens').value = S.settings.sens; $('#s-vol').value = S.settings.vol; $('#s-q').value = S.settings.q; $('#s-fx').checked = S.settings.fx !== 0; $('#s-hints').checked = S.settings.hints !== 0; syncOut();
+  $('#s-sens').value = S.settings.sens; $('#s-vol').value = S.settings.vol; $('#s-q').value = S.settings.q; $('#s-gfx').value = S.settings.gfx; $('#s-hints').checked = S.settings.hints !== 0; syncOut();
   $('#confirm-reset').hidden = true;
   document.querySelectorAll('.overlay').forEach(o => o.hidden = true);
   $('#pause').hidden = false; MODE = 'pause'; $('#touch').hidden = true;
 }
 function resume() { $('#pause').hidden = true; MODE = 'play'; $('#touch').hidden = !isTouch; requestLock(); showClickHint(); }
-function syncOut() { $('#o-sens').textContent = (+S.settings.sens).toFixed(1); $('#o-vol').textContent = Math.round(S.settings.vol * 100); $('#o-q').textContent = Math.round(S.settings.q * 100) + '%'; }
+function syncOut() { $('#o-sens').textContent = (+S.settings.sens).toFixed(1); $('#o-vol').textContent = Math.round(S.settings.vol * 100); $('#o-q').textContent = Math.round(S.settings.q * 100) + '%'; $('#o-gfx').textContent = ['Low', 'Medium', 'High'][S.settings.gfx]; }
 $('#s-sens').oninput = e => { S.settings.sens = +e.target.value; syncOut(); save(); };
 $('#s-vol').oninput = e => { S.settings.vol = +e.target.value; if (AU.master) AU.master.gain.value = S.settings.vol; syncOut(); save(); };
 $('#s-q').oninput = e => { S.settings.q = +e.target.value; applyQuality(); syncOut(); save(); };
-$('#s-fx').onchange = e => { S.settings.fx = e.target.checked ? 1 : 0; save(); };
+$('#s-gfx').oninput = e => { S.settings.gfx = +e.target.value; syncOut(); save(); };
 $('#s-hints').onchange = e => { S.settings.hints = e.target.checked ? 1 : 0; updateThreadsHUD(); save(); };
 $('#p-resume').onclick = resume;
 $('#p-journal').onclick = () => { $('#pause').hidden = true; MODE = 'play'; openJournal(); };
@@ -834,7 +838,7 @@ $('#b-pro').onclick = () => {
   save(); startPlay(true);
 };
 function startPlay(first) {
-  S.settings = Object.assign({ sens: 1, vol: 0.8, q: 1, fx: 1, hints: 1 }, S.settings);
+  S.settings = Object.assign({ sens: 1, vol: 0.8, q: 1, gfx: 2, hints: 1 }, S.settings); PL.camY = null;
   recountOver(); applyQuality();
   PL.dead = false; PL.vy = 0; PL.vx = 0; PL.vz = 0; $('#hurt').style.opacity = 0; nightBusy = false; dark = S.time >= LIGHTS_OFF;
   PL.falling = !!S.fall; $('#fallhud').hidden = !S.fall; if (S.fall) PL.vy = -TERMINAL;
@@ -858,7 +862,12 @@ function frame(now) {
   const t = now / 1000;
   if (MODE === 'play' && !document.hidden && raw < 0.5) {
     perfSum += raw; perfN++; perfT += raw;
-    if (perfT > 2.5) { const avg = perfSum / perfN; if (avg > 0.021 && AQ > 0.5) { AQ = Math.max(0.5, AQ - 0.12); applyQuality(); } perfT = perfSum = perfN = 0; }
+    if (perfT > 2.5) {
+      const avg = perfSum / perfN;
+      if (avg > 0.021 && AQ > 0.6) { AQ = Math.max(0.6, AQ - 0.1); applyQuality(); }
+      else if (avg > 0.024 && S && S.settings.gfx > 0 && !S.flags.autoGfx) { S.flags.autoGfx = 1; S.settings.gfx--; toast('Lowered the graphics level to keep things smooth. You can change it in Pause.'); }
+      perfT = perfSum = perfN = 0;
+    }
   }
   const live = S && MODE !== 'title' && MODE !== 'prologue';
   const Sv = live ? S : TITLE_S;
