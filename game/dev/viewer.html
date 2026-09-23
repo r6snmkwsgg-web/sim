@@ -1,0 +1,37 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Room viewer</title>
+<style>html,body{margin:0;height:100%;background:#000;overflow:hidden}#game{position:fixed;inset:0}</style></head>
+<body><div id="game"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const $ = s => document.querySelector(s);
+</script>
+<script src="../js/post.js"></script>
+<script src="../js/world.js"></script>
+<script>
+const q = new URLSearchParams(location.search); let S_AO_OFF = false;
+const ROOM = q.get('room') || 'crossing';
+window.VIEW = { ready: false };
+(async () => {
+  const pf = await loadPrefab('../rooms/' + ROOM);
+  const inst = roomInstance(pf);
+  scene.add(inst.grp); waterScene.add(inst.water);
+  if (pf.meta.repeat) for (const dy of [-24, -16, -8, 8, 16, 24]) { const c = roomInstance(pf); c.grp.position.y = dy; c.water.position.y = dy; scene.add(c.grp); waterScene.add(c.water); }
+  const pal = [[0.35,0.08,0.07],[0.1,0.2,0.12],[0.06,0.1,0.22],[0.55,0.38,0.1],[0.22,0.13,0.08],[0.16,0.19,0.22],[0.2,0.1,0.18],[0.07,0.2,0.2],[0.45,0.38,0.26],[0.05,0.05,0.05]];
+  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  fillShelves(inst, () => { const c = pal[Math.floor(rnd() * pal.length)], j = 0.75 + rnd() * 0.45; const L = { col: [c[0]*j, c[1]*j, c[2]*j], h: 0.25 + rnd() * 0.1, d: 0.19 + rnd() * 0.08, band: Math.floor(rnd() * 3), label: rnd() < 0.3 ? 1 : 0, wear: rnd(), out: rnd() * 0.012 }; return { w: 0.03 + rnd() * 0.03, L }; });
+  captureProbe(pf);
+  // the water and light-shaft pass is hooked up by world.js
+  const avg = pf.meta.avg.day || 1;
+  PM.comp.uniforms.uExposure.value = 1;
+  WU.uFogCol.value.setRGB(avg * 0.42, avg * 0.44, avg * 0.47); WU.uFogD.value = 0.004;
+  const cam = (q.get('cam') || '8,1.65,2,0,0').split(',').map(Number);
+  camera.position.set(cam[0], cam[1], cam[2]); camera.rotation.set(cam[4] || 0, cam[3] || 0, 0);
+  if (q.get('bloom') !== null) PM.comp.uniforms.uBloom.value = +q.get('bloom');
+  if (q.get('fog') !== null) WU.uFogD.value = +q.get('fog');
+  if (q.get('ao') === '0') S_AO_OFF = true;
+  window.VIEW = { ready: true, pf, inst };
+  let t0 = performance.now();
+  function loop(){ WU.uTime.value = (performance.now() - t0) / 1000; renderFrame(); requestAnimationFrame(loop); }
+  loop();
+})().catch(e => { console.error('VIEWER', e && e.stack || e); window.VIEW.err = String(e); });
+</script></body></html>

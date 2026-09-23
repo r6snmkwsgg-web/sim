@@ -1,6 +1,6 @@
 'use strict';
 /* ==========================================================================
-   Audio — a procedural drone, echoing footsteps, pages, wind, the stillness at night
+   Audio — a procedural drone, echoing footsteps, water, pages, wind
    ========================================================================== */
 const AU = { ctx: null };
 function noiseBuf(ctx, sec) { const b = ctx.createBuffer(1, Math.floor(ctx.sampleRate * sec), ctx.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; return b; }
@@ -8,17 +8,24 @@ function audioInit() {
   if (AU.ctx) { if (AU.ctx.state === 'suspended') AU.ctx.resume(); return; }
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)(); AU.ctx = ctx;
-    AU.master = ctx.createGain(); AU.master.gain.value = S ? S.settings.vol : 0.8; AU.master.connect(ctx.destination);
-    const rev = ctx.createConvolver(), len = ctx.sampleRate * 4, ir = ctx.createBuffer(2, len, ctx.sampleRate);
-    for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.6); }
-    rev.buffer = ir; AU.rev = ctx.createGain(); AU.rev.gain.value = 0.55; AU.rev.connect(rev); rev.connect(AU.master);
+    AU.out = ctx.createGain(); AU.out.gain.value = S ? S.settings.vol : 0.8; AU.out.connect(ctx.destination);
+    AU.under = ctx.createBiquadFilter(); AU.under.type = 'lowpass'; AU.under.frequency.value = 20000; AU.under.connect(AU.out);
+    AU.master = ctx.createGain(); AU.master.gain.value = 1; AU.master.connect(AU.under);
+    const rev = ctx.createConvolver(), len = ctx.sampleRate * 5, ir = ctx.createBuffer(2, len, ctx.sampleRate);
+    for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.2); }
+    rev.buffer = ir; AU.rev = ctx.createGain(); AU.rev.gain.value = 0.7; AU.rev.connect(rev); rev.connect(AU.master);
     AU.noise = noiseBuf(ctx, 2);
-    const dg = ctx.createGain(); dg.gain.value = 0.045; const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 260; lp.Q.value = 0.6;
+    // the room tone: a soft chord that breathes, like a big tiled room with the water running somewhere
+    const dg = ctx.createGain(); dg.gain.value = 0.03; const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 420; lp.Q.value = 0.5;
     lp.connect(dg); dg.connect(AU.master); dg.connect(AU.rev); AU.drone = dg;
-    [[55, 'sawtooth', 0.5], [82.6, 'sine', 0.9], [110.3, 'triangle', 0.35], [164.4, 'sine', 0.12]].forEach(([f, t, g]) => { const o = ctx.createOscillator(); o.type = t; o.frequency.value = f; const og = ctx.createGain(); og.gain.value = g; o.connect(og); og.connect(lp); o.start(); });
-    const lfo = ctx.createOscillator(); lfo.frequency.value = 0.04; const lg = ctx.createGain(); lg.gain.value = 90; lfo.connect(lg); lg.connect(lp.frequency); lfo.start();
-    const air = ctx.createBufferSource(); air.buffer = AU.noise; air.loop = true; const af = ctx.createBiquadFilter(); af.type = 'bandpass'; af.frequency.value = 500; af.Q.value = 0.4;
-    AU.air = ctx.createGain(); AU.air.gain.value = 0.012; air.connect(af); af.connect(AU.air); AU.air.connect(AU.master); air.start();
+    [[65.4, 'sine', 0.6], [98.0, 'sine', 0.45], [130.8, 'triangle', 0.18], [196.0, 'sine', 0.08], [246.9, 'sine', 0.05]].forEach(([f, t, g]) => { const o = ctx.createOscillator(); o.type = t; o.frequency.value = f; const og = ctx.createGain(); og.gain.value = g; o.connect(og); og.connect(lp); o.start(); });
+    const lfo = ctx.createOscillator(); lfo.frequency.value = 0.03; const lg = ctx.createGain(); lg.gain.value = 140; lfo.connect(lg); lg.connect(lp.frequency); lfo.start();
+    // water: filtered noise, louder near pools
+    const wat = ctx.createBufferSource(); wat.buffer = AU.noise; wat.loop = true; const wf = ctx.createBiquadFilter(); wf.type = 'bandpass'; wf.frequency.value = 900; wf.Q.value = 0.35;
+    AU.water = ctx.createGain(); AU.water.gain.value = 0; wat.connect(wf); wf.connect(AU.water); AU.water.connect(AU.master); AU.water.connect(AU.rev); wat.start();
+    // fluorescent hum for the backrooms
+    const hum = ctx.createOscillator(); hum.type = 'sawtooth'; hum.frequency.value = 120; const hf = ctx.createBiquadFilter(); hf.type = 'bandpass'; hf.frequency.value = 240; hf.Q.value = 6;
+    AU.hum = ctx.createGain(); AU.hum.gain.value = 0; hum.connect(hf); hf.connect(AU.hum); AU.hum.connect(AU.master); hum.start();
     const w = ctx.createBufferSource(); w.buffer = AU.noise; w.loop = true; AU.windF = ctx.createBiquadFilter(); AU.windF.type = 'lowpass'; AU.windF.frequency.value = 300;
     AU.wind = ctx.createGain(); AU.wind.gain.value = 0; w.connect(AU.windF); AU.windF.connect(AU.wind); AU.wind.connect(AU.master); w.start();
   } catch (e) { AU.ctx = null; }
@@ -38,14 +45,16 @@ function tone(f0, f1, dur, gain, type = 'sine', rev = 0.4) {
   o.connect(g); g.connect(AU.master); const rs = ctx.createGain(); rs.gain.value = rev; g.connect(rs); rs.connect(AU.rev); o.start(t); o.stop(t + dur + 0.05);
 }
 const SFX = {
-  step: soft => burst({ dur: 0.07, f: 600 + Math.random() * 500, q: 1.4, gain: soft ? 0.07 : 0.15, rev: 0.7 }),
+  step: (soft, carpet) => burst({ dur: carpet ? 0.05 : 0.07, f: carpet ? 300 : 700 + Math.random() * 600, q: 1.4, gain: carpet ? 0.05 : soft ? 0.07 : 0.14, rev: carpet ? 0.2 : 0.9 }),
+  splash: () => { burst({ dur: 0.25, type: 'bandpass', f: 1400 + Math.random() * 800, q: 0.8, gain: 0.12, rev: 0.8, att: 0.01 }); },
+  plunge: () => { burst({ dur: 0.7, type: 'lowpass', f: 900, gain: 0.35, rev: 1.0, att: 0.01 }); tone(300, 90, 0.5, 0.08, 'sine', 0.8); },
   page: () => { burst({ dur: 0.22, type: 'highpass', f: 2600, q: 0.5, gain: 0.07, rev: 0.2, att: 0.03 }); setTimeout(() => burst({ dur: 0.12, type: 'highpass', f: 3400, q: 0.5, gain: 0.05, rev: 0.2 }), 90); },
-  book: () => burst({ dur: 0.06, f: 380, q: 2, gain: 0.2, rev: 0.4 }),
+  book: () => burst({ dur: 0.06, f: 380, q: 2, gain: 0.2, rev: 0.6 }),
   chime: () => { tone(660, 660, 1.2, 0.07); setTimeout(() => tone(990, 990, 1.4, 0.05), 140); },
   thunk: () => { tone(80, 32, 1.6, 0.35, 'sine', 0.9); burst({ dur: 0.5, type: 'lowpass', f: 200, gain: 0.3, rev: 0.9 }); },
   hit: () => { burst({ dur: 0.18, type: 'lowpass', f: 420, gain: 0.5, rev: 0.4 }); tone(120, 50, 0.25, 0.3); },
   impact: () => { burst({ dur: 0.6, type: 'lowpass', f: 300, gain: 0.9, rev: 1.0 }); tone(70, 25, 0.8, 0.6); },
-  jump: () => burst({ dur: 0.1, f: 500, q: 1, gain: 0.07, rev: 0.4 }),
+  jump: () => burst({ dur: 0.1, f: 500, q: 1, gain: 0.07, rev: 0.5 }),
   drink: () => { burst({ dur: 0.3, type: 'bandpass', f: 1800, q: 3, gain: 0.08, rev: 0.3 }); tone(900, 1300, 0.15, 0.03, 'sine', 0.3); },
   scream: () => { tone(820, 380, 2.4, 0.05, 'sawtooth', 1.0); },
   chant: () => { tone(98, 96, 3.5, 0.06, 'sawtooth', 1.0); setTimeout(() => tone(110, 108, 3.0, 0.05, 'sawtooth', 1.0), 900); },
@@ -78,7 +87,7 @@ addEventListener('keydown', e => {
   if (MODE === 'play') {
     if (['Space', 'ArrowUp', 'ArrowDown', 'Tab'].includes(k)) e.preventDefault();
     if (k === 'KeyE') act('use'); else if (k === 'KeyR') act('read'); else if (k === 'KeyG') act('drop');
-    else if (k === 'KeyF') act('shove'); else if (k === 'KeyJ') openJournal(); else if (k === 'KeyC') PL.crouch = !PL.crouch;
+    else if (k === 'KeyF') act('shove'); else if (k === 'KeyJ') openJournal(); else if (k === 'KeyC') { if (!PL.swim) PL.crouch = !PL.crouch; }
     else if (k === 'KeyZ') act('sleep'); else if (k === 'KeyQ') act('consume');
     else if (k === 'Space' && S.fall) act('sleep');
     else if (k === 'Escape' && !locked) openPause();
@@ -106,46 +115,17 @@ if (isTouch) {
   canvas.addEventListener('pointerup', e => { if (look && e.pointerId === look.id) look = null; });
   const tb = (id, fn) => $(id).addEventListener('pointerdown', e => { e.preventDefault(); audioInit(); if (MODE === 'play') fn(); });
   tb('#t-e', () => act('use')); tb('#t-r', () => act('read')); tb('#t-g', () => act('drop')); tb('#t-f', () => act('shove'));
-  tb('#t-c', () => PL.crouch = !PL.crouch); tb('#t-sp', () => { if (S.fall) act('sleep'); else keys.TouchJump = true; }); tb('#t-z', () => act('sleep'));
+  tb('#t-c', () => { if (PL.swim) keys.TouchDive = !keys.TouchDive; else PL.crouch = !PL.crouch; }); tb('#t-sp', () => { if (S.fall) act('sleep'); else keys.TouchJump = true; }); tb('#t-z', () => act('sleep'));
   tb('#t-j', openJournal); tb('#t-p', openPause);
 }
 
 /* ==========================================================================
-   The player
+   The player. Position is (S.x, S.y, S.z) metres inside cell (S.cx, S.cz) on
+   floor S.floor; that cell's corner is the origin of everything drawn.
    ========================================================================== */
-const PL = { vy: 0, vx: 0, vz: 0, onGround: true, crouch: false, eye: 1.62, stepAcc: 0, bob: 0, railArm: 0, hurtT: 0, dead: false, falling: false, shake: 0, camY: null, lastT: 0 };
-const WALLS = [
-  [0, 80, -3.9, -2.94], [79.8, 80.0, -13.4, -2.9], [91.8, 92.0, -13.4, -2.9], [79.65, 80.25, -3.25, -2.85], [91.75, 92.35, -3.25, -2.85],
-  [79.8, 92, -13.4, -13.2], [0, 92, 0.05, 0.3],
-  [83.8, 88.2, -10.7, -10.5], [83.8, 84.0, -10.7, -6.3], [88.0, 88.2, -10.7, -6.3], [83.8, 85.4, -6.55, -6.25], [86.6, 88.2, -6.55, -6.25],
-  [80.2, 83.8, -13.1, -10.95], [91.2, 91.85, -9.95, -8.05], [88.9, 91.1, -5.45, -4.35],
-];
-function pushCircle(pos, r) {
-  const b0 = Math.floor(pos.x / P);
-  for (let pass = 0; pass < 2; pass++) for (let k = b0 - 1; k <= b0 + 1; k++) for (const w of WALLS) {
-    const x0 = w[0] + k * P, x1 = w[1] + k * P;
-    const cx = clamp(pos.x, x0, x1), cz = clamp(pos.z, w[2], w[3]);
-    const dx = pos.x - cx, dz = pos.z - cz, d2 = dx * dx + dz * dz;
-    if (d2 >= r * r) continue;
-    if (d2 > 1e-9) { const d = Math.sqrt(d2), s = (r - d) / d; pos.x += dx * s; pos.z += dz * s; }
-    else { const pen = [pos.x - x0 + r, x1 - pos.x + r, pos.z - w[2] + r, w[3] - pos.z + r], m = Math.min(...pen), i = pen.indexOf(m); if (i === 0) pos.x = x0 - r; else if (i === 1) pos.x = x1 + r; else if (i === 2) pos.z = w[2] - r; else pos.z = w[3] + r; }
-  }
-  const lx = mod(pos.x, P);
-  if (lx > 84.0 && lx < 88.0 && pos.z > -10.5 && pos.z < -6.5) {
-    const ox = pos.x - lx + CX, dx = pos.x - ox, dz = pos.z - CZ, d = Math.hypot(dx, dz);
-    if (d < SCOL) { const s = SCOL / Math.max(d, 1e-4); pos.x = ox + dx * s; pos.z = CZ + dz * s; }
-    else if (d > SR && !(Math.abs(dx) < 0.58 && dz > 1.5)) { const s = SR / d; pos.x = ox + dx * s; pos.z = CZ + dz * s; }
-  }
-}
-function inStair(x, z) { const lx = mod(x, P); return lx > 84.0 && lx < 88.0 && z > -10.5 && z < -6.5 && !(Math.abs(lx - CX) < 0.6 && z > -6.9); }
-function helixH(x, z, near) {
-  const lx = mod(x, P), th = Math.atan2(z - CZ, lx - CX);
-  let t = (th - TH0) / (Math.PI * 2); t -= Math.floor(t);
-  const h0 = (Math.min(15, Math.floor(t * 16)) + 1) * H / 16; let best = h0, bd = Math.abs(h0 - near);
-  for (const c of [h0 - H, h0 + H]) { const d = Math.abs(c - near); if (d < bd) { bd = d; best = c; } }
-  return best;
-}
-function groundAt(x, z, ly) { if (z > 0.3) return -Infinity; return inStair(x, z) ? helixH(x, z, ly) : 0; }
+const PL = { vy: 0, vx: 0, vz: 0, onGround: true, crouch: false, eye: 1.62, stepAcc: 0, bob: 0, edgeArm: 0, hurtT: 0, dead: false, falling: false, shake: 0, camY: null, lastT: 0, peak: 0, swim: false, wade: 0, under: false, room: null, wasWet: false };
+const _pp = new THREE.Vector3(), _sp = new THREE.Vector3();
+const absX = () => S.cx * RC + S.x, absY = () => S.floor * RLH + S.y, absZ = () => S.cz * RC + S.z;
 function moveInput() {
   const w = { x: 0, z: 0 };
   if (keys.KeyW || keys.ArrowUp) w.z -= 1; if (keys.KeyS || keys.ArrowDown) w.z += 1;
@@ -155,107 +135,187 @@ function moveInput() {
   const sy = Math.sin(S.yaw), cy = Math.cos(S.yaw);
   return { x: w.x * cy + w.z * sy, z: -w.x * sy + w.z * cy, m: Math.min(ml, 1) };
 }
-function wrapPlayer() {
-  let segMoved = false, fm = 0;
-  while (S.lx >= P) { S.lx -= P; S.seg++; segMoved = true; }
-  while (S.lx < 0) { S.lx += P; S.seg--; segMoved = true; }
-  while (S.ly >= H) { S.ly -= H; S.floor++; fm++; }
-  while (S.ly < -1e-4) { S.ly += H; S.floor--; fm--; }
-  if (fm && PL.camY !== null) PL.camY -= fm * H;
-  return { segMoved, fm };
+let lastShift = new THREE.Vector3();
+function wrapPlayer(fast) {
+  let dcx = 0, dcz = 0, fm = 0;
+  while (S.x >= RC) { S.x -= RC; S.cx++; dcx++; } while (S.x < 0) { S.x += RC; S.cx--; dcx--; }
+  while (S.z >= RC) { S.z -= RC; S.cz++; dcz++; } while (S.z < 0) { S.z += RC; S.cz--; dcz--; }
+  while (S.y >= RLH - 2) { S.y -= RLH; S.floor++; fm++; } while (S.y < -2) { S.y += RLH; S.floor--; fm--; }
+  if (dcx || dcz || fm) {
+    if (PL.camY !== null) PL.camY -= fm * RLH;
+    PL.peak -= fm * RLH;
+    lastShift.set(dcx * RC, fm * RLH, dcz * RC);
+    worldOrigin(S.cx, S.cz, S.floor);
+    updateWorld(S.x, S.y, S.z, fast);
+    updateThrown(0, lastShift);
+    if (!fast) { updateGroundBooks(); refreshBooks(); }
+  }
+  return { moved: !!(dcx || dcz), fm };
+}
+/* the body is three spheres: the lower two only push sideways (so steps and slopes stay walkable), the head pushes every way */
+function collideBody(pos, height) {
+  for (let it = 0; it < 2; it++) {
+    for (const h of [0.82, Math.min(1.2, height - 0.36)]) { _sp.set(pos.x, pos.y + h, pos.z); pushSphere(_sp, 0.3, true); pos.x = _sp.x; pos.z = _sp.z; }
+    const hy = pos.y + height - 0.3; _sp.set(pos.x, hy, pos.z); pushSphere(_sp, 0.3, false);
+    pos.x = _sp.x; pos.z = _sp.z;
+    if (_sp.y < hy - 1e-4) { pos.y += _sp.y - hy; if (PL.vy > 0) PL.vy = 0; }
+  }
 }
 function updatePlayer(dt) {
-  if (!S.fall && S.z > 0.32) startFall(false);
-  if (S.fall || PL.falling) { updateFalling(dt); return; }
+  if (S.fall) { updateFalling(dt); return; }
   const mi = moveInput();
+  const wat = waterAt(S.x, S.y + 0.3, S.z), depth = wat ? wat.top - S.y : 0;
+  const swim = !!wat && depth > 1.3, wade = !!wat && depth > 0.1 && !swim;
+  if (swim && !PL.swim) { SFX.plunge(); PL.crouch = false; if (!S.flags.swam) { S.flags.swam = 1; logJ('Swam in one of the pools. The water is exactly the temperature of nothing.'); } }
+  PL.swim = swim; PL.wade = wade ? depth : 0;
   const weak = S.hunger > 0.85 || S.thirst > 0.8;
   const sprint = (keys.ShiftLeft || keys.ShiftRight || (isTouch && mi.m > 0.97)) && !PL.crouch && !weak;
-  const spd = PL.crouch ? 1.3 : sprint ? 6.4 : 2.7;
-  let vx = mi.x * spd, vz = mi.z * spd;
-  if (S.drunk > 0.4) { const t = performance.now() / 1000; vx += Math.sin(t * 1.3) * S.drunk * 0.8; vz += Math.cos(t * 0.9) * S.drunk * 0.5; }
-  const pos = { x: S.lx + vx * dt, z: S.z + vz * dt };
-  pushCircle(pos, 0.3); pushNPCs(pos);
-  const moved = Math.hypot(pos.x - S.lx, pos.z - S.z);
-  S.lx = pos.x; S.z = pos.z;
+  let spd = PL.crouch ? 1.3 : sprint ? 6.2 : 2.8;
+  if (wade) spd *= clamp(1.05 - depth * 0.55, 0.45, 1);
+  if (swim) spd = sprint ? 2.5 : 1.7;
+  let tvx = mi.x * spd, tvz = mi.z * spd;
+  if (S.drunk > 0.4) { const t = performance.now() / 1000; tvx += Math.sin(t * 1.3) * S.drunk * 0.8; tvz += Math.cos(t * 0.9) * S.drunk * 0.5; }
+  const k = PL.onGround || swim ? 1 - Math.exp(-dt * (swim ? 3 : 14)) : 1 - Math.exp(-dt * 1.4);
+  PL.vx += (tvx - PL.vx) * k; PL.vz += (tvz - PL.vz) * k;
   const jumpKey = keys.Space || keys.TouchJump; keys.TouchJump = false;
-  if (PL.onGround && jumpKey && !PL.crouch) { PL.vy = 4.3; PL.onGround = false; SFX.jump(); }
-  PL.vy = Math.max(PL.vy - 12 * dt, -30);
-  let ny = S.ly + PL.vy * dt;
-  const g = groundAt(S.lx, S.z, S.ly);
-  if (ny <= g + 0.001) { ny = g; if (PL.vy < -9) hurt(Math.round((-PL.vy - 9) * 8), 'the fall'); PL.vy = 0; PL.onGround = true; }
-  else if (PL.onGround && ny - g < 0.45 && PL.vy <= 0) { ny = g; PL.vy = 0; }
+  if (swim) {
+    const float = wat.top - 1.45, dive = keys.KeyC || keys.ControlLeft || keys.TouchDive;
+    const ty = dive ? Math.max(wat.bot + 0.1, S.y - 1.5) : jumpKey ? float + 0.5 : float;
+    PL.vy += ((ty - S.y) * 3.5 - PL.vy) * Math.min(1, dt * 3.5);
+    PL.onGround = false;
+  } else {
+    if (PL.onGround && jumpKey && !PL.crouch) { PL.vy = wade ? 3.3 : 4.7; PL.onGround = false; SFX.jump(); }
+    PL.vy = Math.max(PL.vy - 12.5 * dt, -TERMINAL);
+  }
+  // at the edge of a pool, pull yourself out
+  if ((swim || wade) && mi.m > 0.3) {
+    const fx = S.x + mi.x / mi.m * 0.6, fz = S.z + mi.z / mi.m * 0.6;
+    const g = groundAt(fx, wat.top + 0.7, fz, 0.1, 1.1);
+    if (g > -Infinity && g >= wat.top - 0.15 && g < wat.top + 0.9 && g > S.y + 0.45) {
+      _sp.set(fx, g + 0.9, fz); pushSphere(_sp, 0.25, true);
+      if (Math.hypot(_sp.x - fx, _sp.z - fz) < 0.05) { S.x = fx; S.z = fz; S.y = g; PL.vy = 0; PL.onGround = true; PL.swim = false; SFX.splash(); placeCamera(dt); return; }
+    }
+  }
+  const ox = S.x, oz = S.z, wasGround = PL.onGround, vyIn = PL.vy;
+  const pos = _pp.set(S.x + PL.vx * dt, S.y + PL.vy * dt, S.z + PL.vz * dt);
+  collideBody(pos, PL.crouch ? 1.15 : 1.78);
+  pushNPCs(pos);
+  const g = groundAt(pos.x, pos.y, pos.z, 0.5, PL.onGround ? 0.45 : Math.max(0.06, -PL.vy * dt + 0.06));
+  if (g > -Infinity && pos.y <= g + 0.02 && !(swim && PL.vy > 0.2)) {
+    if (!wasGround && vyIn < -9.5 && !wat) hurt(Math.round((-vyIn - 9.5) * 8), 'the fall');
+    if (!wasGround && vyIn < -3 && !wat) SFX.step(false);
+    pos.y = g; PL.vy = 0; PL.onGround = !swim;
+  } else if (wasGround && g > -Infinity && pos.y - g < 0.45 && PL.vy <= 0 && !swim) { pos.y = g; PL.vy = 0; PL.onGround = true; }
   else PL.onGround = false;
-  if (g > S.ly && g - S.ly < 0.5) { ny = Math.max(ny, g); PL.onGround = true; PL.vy = Math.max(PL.vy, 0); }
-  S.ly = ny;
+  S.x = pos.x; S.y = pos.y; S.z = pos.z;
+  if (PL.onGround || swim) PL.peak = S.y; else PL.peak = Math.max(PL.peak, S.y);
+  if (PL.onGround && PL.room) PL.safe = { cx: S.cx, cz: S.cz, floor: S.floor, x: S.x, y: S.y, z: S.z };
+  if (!PL.onGround && !swim && PL.peak - S.y > 4.2) { startFall(false); return; }
+  const moved = Math.hypot(S.x - ox, S.z - oz);
   const w = wrapPlayer();
   if (w.fm > 0) S.stats.climbed += w.fm;
-  if (PL.onGround && moved > 0) {
-    S.stats.dist += moved; PL.stepAcc += moved; PL.bob += moved * 2.3;
-    if (PL.stepAcc > (sprint ? 1.6 : 0.85)) { PL.stepAcc = 0; SFX.step(PL.crouch); }
+  if ((PL.onGround || swim) && moved > 0) {
+    S.stats.dist += moved; if (swim) S.stats.swum += moved; PL.stepAcc += moved; PL.bob += moved * 2.3;
+    if (PL.stepAcc > (swim ? 1.2 : sprint ? 1.6 : 0.85)) { PL.stepAcc = 0; if (wade || swim) SFX.splash(); else SFX.step(PL.crouch, PL.room && PL.room.pf.name === 'backrooms'); }
   }
   PL.eye += ((PL.crouch ? 1.0 : 1.62) - PL.eye) * Math.min(1, dt * 10);
-  placeCamera();
+  placeCamera(dt);
 }
-function placeCamera() {
+function placeCamera(dt) {
   const sh = PL.shake > 0 ? (Math.random() - 0.5) * PL.shake : 0;
-  const now = performance.now() / 1000, dt = Math.min(0.1, now - PL.lastT); PL.lastT = now;
-  const ty = S.ly + PL.eye;
+  dt = dt || 0.016;
+  const ty = S.y + PL.eye + (PL.swim ? Math.sin(performance.now() / 700) * 0.04 : 0);
   if (PL.camY === null || S.fall || Math.abs(ty - PL.camY) > 1.2) PL.camY = ty; else PL.camY += (ty - PL.camY) * Math.min(1, dt * 13);
-  camera.position.set(S.lx + sh * 0.3, PL.camY + (PL.onGround && !S.fall ? Math.sin(PL.bob) * 0.028 : 0) + sh * 0.3, S.z);
+  camera.position.set(S.x + sh * 0.3, PL.camY + (PL.onGround && !S.fall ? Math.sin(PL.bob) * 0.026 : 0) + sh * 0.3, S.z);
   camera.rotation.set(S.pitch + sh * 0.05, S.yaw, S.drunk > 0.3 ? Math.sin(performance.now() / 1400) * 0.05 * S.drunk : 0);
   const fovT = 72 + (S.fall ? clamp(-PL.vy / TERMINAL, 0, 1) * 14 : 0);
   if (Math.abs(camera.fov - fovT) > 0.05) { camera.fov += (fovT - camera.fov) * 0.1; camera.updateProjectionMatrix(); }
+  // under the surface?
+  const w = PL.swim || PL.wade ? waterAt(camera.position.x, camera.position.y, camera.position.z) : null;
+  PL.under = !!w && camera.position.y < w.top - 0.02;
 }
-function startFall(tackled) {
+/* A shaft beside you: the well's square, or the tower's open core, in world space */
+function shaftNear() {
+  const r = PL.room; if (!r) return null;
+  const m = r.pf.meta.meta;
+  _v.set(S.x, S.y, S.z).applyMatrix4(r.inv);
+  if (m.shaft) {
+    const [x0, z0, x1, z1] = m.shaft, lx = clamp(_v.x, x0, x1), lz = clamp(_v.z, z0, z1), d = Math.hypot(_v.x - lx, _v.z - lz);
+    const inside = _v.x > x0 && _v.x < x1 && _v.z > z0 && _v.z < z1;
+    return { inside, d, cx: (x0 + x1) / 2, cz: (z0 + z1) / 2, edge: [lx, lz], room: r };
+  }
+  if (m.core) {
+    const [cx, cz, rr] = m.core, d = Math.hypot(_v.x - cx, _v.z - cz);
+    const a = Math.atan2(_v.z - cz, _v.x - cx);
+    return { inside: d < rr, d: Math.abs(d - rr), cx, cz, edge: [cx + Math.cos(a) * rr, cz + Math.sin(a) * rr], room: r };
+  }
+  return null;
+}
+function startFall(tackled, pushIn) {
   if (S.fall) return;
   S.fall = { startFloor: S.floor, days: 0, t: 0 };
-  PL.falling = true; PL.onGround = false; PL.vy = tackled ? -1 : 0.5; PL.vz = 1.8; PL.vx = 0; PL.railArm = 0;
-  S.z = Math.max(S.z, 0.7); S.ly = clamp(S.ly + 0.6, 0.5, 1.4);
+  PL.falling = true; PL.onGround = false; PL.swim = false; PL.edgeArm = 0;
+  if (pushIn) {
+    const sh = shaftNear();
+    if (sh) {
+      const r = sh.room, dx = sh.cx - sh.edge[0], dz = sh.cz - sh.edge[1], dl = Math.hypot(dx, dz) || 1;
+      _v.set(sh.edge[0] + dx / dl * 0.6, 0, sh.edge[1] + dz / dl * 0.6).applyMatrix4(r.m);
+      S.x = _v.x; S.z = _v.z; S.y += 1.0;
+      _w.set(dx / dl, 0, dz / dl).transformDirection(r.m);
+      PL.vx = _w.x * 1.6; PL.vz = _w.z * 1.6;
+    }
+    PL.vy = tackled ? -1 : 0.6;
+  }
   $('#fallhud').hidden = false;
-  if (!tackled) logJ('Climbed over the railing and let go.');
+  if (!tackled) logJ(pushIn ? 'Climbed over the parapet and let go.' : 'Went over the edge.');
   const rr = npcRec('rachel');
-  if (rr.following) { rr.following = false; const r = NPC_BY.rachel; r.mode = 'idle'; r.t = 0; r.special = false; r.home = UNI; toast('Rachel stays at the rail. You watch her get smaller.'); }
+  if (rr.following) { rr.following = false; const r = NPC_BY.rachel; r.mode = 'idle'; r.t = 0; r.special = false; r.home = UNI; toast('Rachel stays at the parapet. You watch her get smaller.'); }
   save();
 }
 function updateFalling(dt) {
   S.fall.t += dt;
   const mi = moveInput();
   const k = 1 - Math.exp(-dt * 2.2);
-  PL.vx += (mi.x * 5.5 - PL.vx) * k;
-  PL.vz += (mi.z * 5.5 - PL.vz) * (mi.m > 0.05 ? k : k * 0.4);
+  PL.vx += (mi.x * 5.5 - PL.vx) * k; PL.vz += (mi.z * 5.5 - PL.vz) * (mi.m > 0.05 ? k : k * 0.4);
   PL.vy = Math.max(PL.vy - 9.8 * dt, -TERMINAL);
-  S.lx += PL.vx * dt; S.z += PL.vz * dt; S.ly += PL.vy * dt;
-  // the galleries: hit one and you land there — dead, and awake tomorrow on that floor
-  if (S.z < 0.35 || S.z > CHASM - 0.35) {
-    const opp = S.z > CHASM / 2, speed = -PL.vy;
-    if (speed < 11) { landAlive(opp); return; }
-    impact(opp); return;
+  const n = Math.max(1, Math.ceil(Math.abs(PL.vy * dt) / 0.3));
+  for (let i = 0; i < n; i++) {
+    const h = dt / n, y0 = S.y;
+    const pos = _pp.set(S.x + PL.vx * h, S.y + PL.vy * h, S.z + PL.vz * h);
+    collideBody(pos, 1.7);
+    S.x = pos.x; S.z = pos.z;
+    const g = groundAt(S.x, y0 + 0.05, S.z, 0.05, Math.max(0, y0 - pos.y) + 0.12);
+    if (g > -Infinity && pos.y <= g + 0.01) {
+      S.y = g;
+      const wat = waterAt(S.x, S.y + 0.3, S.z);
+      if (-PL.vy < 11 || (wat && wat.top - S.y > 1.2 && -PL.vy < 25)) { landAlive(!!wat); return; }
+      impact(); return;
+    }
+    S.y = pos.y;
+    const w = wrapPlayer(-PL.vy > 20);
+    if (w.fm < 0) S.stats.fallen -= w.fm;
   }
-  const w = wrapPlayer();
-  if (w.fm < 0) S.stats.fallen -= w.fm;
-  if (w.segMoved || w.fm) updateGroundBooks();
+  // a safety net: falling somewhere that is not a well or a tower means we slipped out of the world
+  if (!instAt(S.x, S.y + 0.5, S.z)) { PL.voidT = (PL.voidT || 0) + dt; if (PL.voidT > 0.6 && PL.safe) { const s0 = PL.safe; S.cx = s0.cx; S.cz = s0.cz; S.floor = s0.floor; S.x = s0.x; S.y = s0.y; S.z = s0.z; S.fall = null; PL.falling = false; PL.vy = 0; PL.onGround = true; PL.voidT = 0; $('#fallhud').hidden = true; worldOrigin(S.cx, S.cz, S.floor); updateWorld(S.x, S.y, S.z, false); refreshBooks(true); return; } } else PL.voidT = 0;
   const sp = clamp(-PL.vy / TERMINAL, 0, 1);
   if (AU.ctx) { AU.wind.gain.value = sp * 0.35; AU.windF.frequency.value = 200 + sp * 1700; }
   PL.shake = sp * 0.06;
-  placeCamera();
+  placeCamera(dt);
 }
-function toOppositeSide() { S.side = 1 - S.side; S.lx = P - S.lx; S.yaw += Math.PI; }
-function landAlive(opp) {
-  if (opp) toOppositeSide();
-  S.z = -0.8; S.ly = 0; PL.vy = 0; PL.vx = 0; PL.vz = 0; PL.falling = false; PL.onGround = true;
+function landAlive(wet) {
+  PL.vy = 0; PL.vx *= 0.3; PL.vz *= 0.3; PL.falling = false; PL.onGround = true; PL.peak = S.y;
   const fl = S.fall ? S.fall.startFloor - S.floor : 0; S.fall = null; $('#fallhud').hidden = true;
   if (AU.wind) AU.wind.gain.value = 0;
-  toast(opp ? 'You catch the far railing and haul yourself over — onto the other gallery.' : 'You catch the railing and haul yourself back over.');
-  logJ(opp ? `Caught the railing of the far gallery, floor ${fmt(S.floor)}.` : `Caught a railing on floor ${fmt(S.floor)} and climbed back over.`);
-  updateWindow(true); updateGroundBooks(); void fl;
+  if (wet) SFX.plunge(); else SFX.step(false);
+  if (fl > 0) { toast(wet ? 'You hit the water hard, and come up gasping — alive.' : 'You land hard, and roll, and are somehow still alive.'); logJ(`Fell ${fmt(fl)} floor${fl === 1 ? '' : 's'} and lived, on floor ${fmt(S.floor)}.`); }
+  wrapPlayer(); updateWorld(S.x, S.y, S.z, false); refreshBooks();
 }
-function impact(opp) {
+function impact() {
   const fallen = S.fall.startFloor - S.floor;
   S.stats.maxFall = Math.max(S.stats.maxFall, fallen);
-  const floor = S.ly > 2.7 ? S.floor + 1 : S.floor;
-  S.landing = { side: opp ? 1 - S.side : S.side, seg: S.seg, lx: opp ? P - S.lx : S.lx, floor, fallen, flip: opp };
+  S.landing = { cx: S.cx, cz: S.cz, floor: S.floor, x: S.x, y: S.y, z: S.z, fallen };
   SFX.impact(); PL.shake = 0.5;
-  logJ(`Steered into the edge of floor ${fmt(floor)} at ${Math.round(-PL.vy)} m/s, after falling ${fmt(fallen)} floors.`);
+  logJ(`Hit the floor of level ${fmt(S.floor)} at ${Math.round(-PL.vy)} m/s, after falling ${fmt(fallen)} floors.`);
   die('impact');
 }
 function hurt(n, by) {
@@ -270,7 +330,7 @@ function die(cause) {
   S.dead = { cause, falling };
   if (cause === 'impact') { S.fall = null; PL.falling = false; }
   if (S.carried) { S.carried = null; showHeld(null); updateCarry(); }
-  if (cause !== 'impact') logJ({ thirst: 'Died of thirst.', drink: 'Drank myself to death, like Jed.', 'the Direites': 'The Direites caught me. It took them a long time.', 'Dire Dan': 'Dire Dan kept his promise. He killed me as we fell.', 'the fall': 'Died of a fall.' }[cause] || `Died (${cause}).`);
+  if (cause !== 'impact') logJ({ thirst: 'Died of thirst.', drink: 'Drank myself to death, like Jed.', 'the Direites': 'The Direites caught me. It took them a long time.', 'Dire Dan': 'Dire Dan kept his promise. He killed me as we fell.', 'the fall': 'Died of a fall.', drowned: 'Drowned. It was quieter than I expected.' }[cause] || `Died (${cause}).`);
   save();
   setTimeout(() => sleepNow('dead'), 900);
 }
@@ -278,14 +338,14 @@ function die(cause) {
 /* ==========================================================================
    Day and night, and dawn — when everything resets
    ========================================================================== */
-let nightBusy = false, dark = false, momentAfter = null, exposure = 1;
+let nightBusy = false, dark = false, momentAfter = null, dayK = 1;
 function fadeMsg(t, s) { $('#fade-t').textContent = t; $('#fade-s').textContent = s || ''; $('#fade').classList.add('on'); }
 function sleepNow(reason) {
   if (nightBusy) return; nightBusy = true;
   const lines = {
-    bed: ['You lie down on the narrow bed.', 'Somewhere, far above or below, someone is still talking. Then there is nothing.'],
-    floor: ['You lie down where you are.', 'The stone is cool. Sleep comes the way it always does here: all at once.'],
-    dark: ['The lamps are out. You feel your way to the floor.', 'You sleep where you lie. Everyone does.'],
+    bed: ['You lie down on the narrow bed.', 'The pool lights make slow shapes on the ceiling. Then there is nothing.'],
+    floor: ['You lie down where you are.', 'The tiles are cool. Sleep comes the way it always does here: all at once.'],
+    dark: ['The lights are out. Only the water still glows.', 'You sleep where you lie. Everyone does.'],
     fall: ['You close your eyes. The wind keeps its one long note.', 'You sleep, somehow, still falling.'],
     dead: ['It is dark for a long time.', 'If you are killed, you will be restored the following day.'],
   }[reason] || ['You sleep.', ''];
@@ -298,36 +358,36 @@ function dawn() {
   const hours = mod(LIGHTS_ON - S.time, 24) || 24;
   const deadInFall = S.dead && S.dead.falling;
   if (S.fall && (!S.dead || deadInFall)) {
-    const fl = Math.round(hours * 3600 * TERMINAL / H);
+    const fl = Math.round(hours * 3600 * TERMINAL / RLH);
     S.floor -= fl; S.stats.fallen += fl; S.fall.days++; S.stats.daysFalling++;
     S.stats.maxFall = Math.max(S.stats.maxFall, S.fall.startFloor - S.floor);
   }
   if (!S.dead) { S.thirst = clamp(S.thirst + hours / 60, 0, 0.97); S.hunger = clamp(S.hunger + hours / 120, 0, 0.97); }
   S.day++; S.time = LIGHTS_ON + 0.02;
-  // dawn: every book that is not being held goes back to its shelf; wounds heal; the dead wake
   const moved = Object.keys(S.over).length + S.ground.length;
   S.over = {}; S.ground = []; recountOver();
   S.hp = 100; S.drunk = 0;
-  let sub = 'The lamps come on. The shelves have not moved.'; const wasDead = !!S.dead;
-  if (moved) { sub = 'Every book you moved is back on its shelf.'; if (!S.flags.sawReset) { S.flags.sawReset = 1; logJ('At dawn every book we had moved — even the ones we threw into the chasm — was back on its shelf, exactly where it had been.'); } }
+  let sub = 'The lights come on. The shelves have not moved.'; const wasDead = !!S.dead;
+  if (moved) { sub = 'Every book you moved is back on its shelf.'; if (!S.flags.sawReset) { S.flags.sawReset = 1; logJ('At dawn every book we had moved — even the ones we dropped down the well — was back on its shelf, exactly where it had been.'); } }
   if (S.dead) {
     S.hunger = 0.08; S.thirst = 0.08;
     if (S.dead.cause === 'impact' && S.landing) {
       const L = S.landing;
-      S.side = L.side; S.seg = L.seg; S.lx = clamp(L.lx, 0.5, P - 0.5); S.floor = L.floor; S.z = -0.8; S.ly = 0; if (L.flip) S.yaw += Math.PI;
+      S.cx = L.cx; S.cz = L.cz; S.floor = L.floor; S.x = L.x; S.y = L.y; S.z = L.z;
       S.fall = null; PL.falling = false; $('#fallhud').hidden = true;
-      sub = `You wake on floor ${fmt(S.floor)}, whole, on the walkway where you hit.`;
-      logJ(`Woke on floor ${fmt(S.floor)}${L.flip ? ', on the far gallery' : ''}. ${fmt(L.fallen)} floors below where I jumped.`);
+      sub = `You wake on floor ${fmt(S.floor)}, whole, where you hit.`;
+      logJ(`Woke on floor ${fmt(S.floor)}, ${fmt(L.fallen)} floors below where I jumped.`);
       storyEvent('landed', { fallen: L.fallen });
     } else if (deadInFall) { PL.falling = true; PL.vy = -TERMINAL; sub = 'You wake whole, and still falling.'; logJ('Woke whole — still falling.'); }
     else { sub = 'You wake whole, where you died.'; logJ('Woke whole, where I died.'); }
     S.dead = null; S.landing = null; PL.dead = false;
   }
-  if (!S.fall) { PL.vy = 0; PL.vx = 0; PL.vz = 0; PL.onGround = true; PL.falling = false; }
-  if (S.fall) { PL.falling = true; PL.vy = -TERMINAL; $('#fallhud').hidden = false; if (!S.flags.abyss) { S.flags.abyss = 1; momentAfter = 'abyss'; } if (!wasDead) sub = 'The lamps come on. You are still falling.'; }
+  if (!S.fall) { PL.vy = 0; PL.vx = 0; PL.vz = 0; PL.onGround = true; PL.falling = false; PL.peak = S.y; }
+  if (S.fall) { PL.falling = true; PL.vy = -TERMINAL; $('#fallhud').hidden = false; if (!S.flags.abyss) { S.flags.abyss = 1; momentAfter = 'abyss'; } if (!wasDead) sub = 'The lights come on. You are still falling.'; }
   dark = false;
+  worldOrigin(S.cx, S.cz, S.floor); updateWorld(S.x, S.y, S.z, !!S.fall); refreshBooks(true);
   storyDawn();
-  updateWindow(true); updateGroundBooks(); updateCarry(); showHeld(S.carried ? parseKey(S.carried) : null);
+  updateGroundBooks(); updateCarry(); showHeld(S.carried ? parseKey(S.carried) : null);
   save();
   $('#fade-t').textContent = dateLine(); $('#fade-s').textContent = sub;
   setTimeout(() => {
@@ -346,62 +406,105 @@ function updateTime(dt) {
   if (S.drunk >= 1.6) { die('drink'); return; }
   if (S.hp < 100) S.hp = Math.min(100, S.hp + dt * 1.2);
   let lampT = 1;
-  if (S.time >= LIGHTS_OFF - 0.25 && S.time < LIGHTS_OFF) { lampT = 0.75 + 0.25 * Math.sin(performance.now() * 0.03) * Math.sin(performance.now() * 0.011); if (S.flags.dimWarn !== S.day) { S.flags.dimWarn = S.day; toast('The lamps are dimming. The dark is a few minutes away.'); } }
+  if (S.time >= LIGHTS_OFF - 0.25 && S.time < LIGHTS_OFF) { lampT = 0.8 + 0.2 * Math.sin(performance.now() * 0.03) * Math.sin(performance.now() * 0.011); if (S.flags.dimWarn !== S.day) { S.flags.dimWarn = S.day; toast('The lights are flickering. The dark is a few minutes away.'); } }
   if (S.time >= LIGHTS_OFF) {
     lampT = 0;
-    if (!dark) { dark = true; SFX.thunk(); toast(S.fall ? 'The lamps go out. You fall in total darkness.' : 'The lamps go out, all of them, all at once. Utter stillness. Find a bed (E) or lie down (Z).', true); if (S.fall) setTimeout(() => sleepNow('fall'), 2500); }
+    if (!dark) { dark = true; SFX.thunk(); toast(S.fall ? 'The lights go out. You fall in total darkness.' : 'The lights go out, all of them, all at once. Only the pools still glow. Find a bed (E) or lie down (Z).', true); if (S.fall) setTimeout(() => sleepNow('fall'), 2500); }
     if (S.time >= LIGHTS_OFF + 1) sleepNow('dark');
   }
-  U.uLamp.value += (lampT - U.uLamp.value) * Math.min(1, dt * (lampT < U.uLamp.value ? 3 : 1));
-  if (GLOW) GLOW.material.opacity = U.uLamp.value;
-  if (AU.drone) AU.drone.gain.value = 0.045 * (0.15 + 0.85 * U.uLamp.value);
+  dayK += (lampT - dayK) * Math.min(1, dt * (lampT < dayK ? 4 : 1));
+}
+
+/* ==========================================================================
+   Books on the shelves around you: filled from their addresses
+   ========================================================================== */
+function instAddr(inst) { return { f: inst.lv, x: inst.pl.cx, z: inst.pl.cz }; }
+function fillRoomBooks(inst, near) {
+  const a = instAddr(inst), over = roomHasOver(a.f, a.x, a.z);
+  fillShelves(inst, (si, p) => {
+    const home = { f: a.f, x: a.x, z: a.z, k: si, p }, L = bookLook(home);
+    let show = L;
+    if (over) { const c = slotContent(home); show = c ? (sameId(c, home) ? L : bookLook(c)) : null; }
+    return { w: L.w, L: show };
+  }, near);
+  inst.booksFor = a.f + ':' + a.x + ':' + a.z;
+}
+/* real books on the shelves within reach (re-filled as you walk); painted spines beyond */
+function refreshBooks(force) {
+  const R = WORLD.bookR;
+  for (const inst of WORLD.inst.values()) {
+    const b = inst.box, dx = Math.max(b[0] - S.x, 0, S.x - b[3]), dz = Math.max(b[2] - S.z, 0, S.z - b[5]);
+    const sameLevel = S.y + 1 > b[1] + 1.5 && S.y + 1 < b[4];
+    const near = Math.hypot(dx, dz) < R && sameLevel && !(S.fall && -PL.vy > 15);
+    const a = instAddr(inst), key = a.f + ':' + a.x + ':' + a.z;
+    if (!near) { if (inst.books) clearShelves(inst); continue; }
+    _v.set(S.x, S.y, S.z).applyMatrix4(inst.inv);
+    const moved = !inst.fillAt || Math.hypot(_v.x - inst.fillAt.x, _v.z - inst.fillAt.z) > 2.5 || Math.abs(_v.y - inst.fillAt.y) > 2;
+    if (!inst.books || inst.booksFor !== key || force || moved) {
+      clearShelves(inst);
+      inst.fillAt = { x: _v.x, y: _v.y, z: _v.z, r: R };
+      fillRoomBooks(inst, inst.fillAt);
+    }
+  }
+}
+function refreshSlot(id) {
+  for (const inst of WORLD.inst.values()) {
+    if (!inst.books) continue;
+    const a = instAddr(inst);
+    if (a.f !== id.f || a.x !== id.x || a.z !== id.z) continue;
+    const c = slotContent(id);
+    setBook(inst, id.k, id.p, c ? bookLook(c) : null);
+  }
 }
 
 /* ==========================================================================
    What's under the crosshair
    ========================================================================== */
 let TARGET = null;
-const _o = new THREE.Vector3(), _d = new THREE.Vector3();
+const _o = new THREE.Vector3(), _d = new THREE.Vector3(), _sv = new THREE.Vector3();
 function raySphere(cx, cy, cz, r) { const ox = _o.x - cx, oy = _o.y - cy, oz = _o.z - cz, b = ox * _d.x + oy * _d.y + oz * _d.z, c = ox * ox + oy * oy + oz * oz - r * r, h = b * b - c; if (h < 0) return Infinity; const t = -b - Math.sqrt(h); return t > 0 ? t : Infinity; }
+const SPOT_R = { kiosk: [1.1, 0.75], bed: [0.35, 0.8], bath: [1.1, 0.7], plaque: [1.6, 0.8] };
 function findTarget() {
   if (PL.dead) return null;
   camera.getWorldPosition(_o); camera.getWorldDirection(_d);
   const st = storyTargets(); if (st) return st;
   if (S.fall) return null;
-  let best = null, bt = 3.2;
-  if (_d.z < -1e-3 && S.ly < 0.5) {
-    const t = (SHELF_Z - _o.z) / _d.z;
-    if (t > 0 && t < 2.8) {
-      const x = _o.x + _d.x * t, y = _o.y + _d.y * t, k = Math.floor(x / P), lxs = x - k * P;
-      if (lxs < RA0 && y > RY && y < RY + ROWS * RH) {
-        const i = Math.floor(lxs / CW), u = lxs - i * CW;
-        if (u > 0.06 && u < 1.94) {
-          const p = clamp(Math.floor((u - 0.05) / BT), 0, PER - 1), r = clamp(Math.floor((y - RY) / RH), 0, ROWS - 1);
-          const slot = { s: S.side, f: S.floor, c: (S.seg + k) * CASES + i, r, p };
-          if (t < bt) { bt = t; best = { kind: 'slot', slot, book: slotContent(slot) }; }
-        }
-      }
-    }
+  const wall = rayHit(_o, _d, 3.4);
+  let best = null, bt = Math.min(3.0, wall + 0.1);
+  const b = bookRay(_o, _d, bt);
+  if (b) {
+    bt = b.t; const a = instAddr(b.inst), slot = { f: a.f, x: a.x, z: a.z, k: b.si, p: b.p };
+    best = { kind: 'slot', slot, book: slotContent(slot), inst: b.inst };
   }
   for (const n of NPCS) {
-    if (n.gone || !n.mesh.visible || n.floor !== S.floor || n.side !== S.side) continue;
-    const lying = n.mode === 'lie' || n.mode === 'dead';
-    const t = raySphere(n.mesh.position.x, n.mesh.position.y + (lying ? 0.2 : 1.3), n.mesh.position.z + (lying && n.z < -10 ? -0.8 : 0), lying ? 0.75 : 0.5);
+    if (n.gone || !n.mesh.visible) continue;
+    const p = n.mesh.position, lying = n.mode === 'lie' || n.mode === 'dead';
+    const t = raySphere(p.x, p.y + (lying ? 0.2 : 1.3), p.z, lying ? 0.75 : 0.5);
     if (t < bt && t < 3.2) { bt = t; best = { kind: 'npc', n }; }
   }
   for (const gb of S.ground) { if (!gb._m || !gb._m.visible) continue; const p = gb._m.position, t = raySphere(p.x, p.y, p.z, 0.28); if (t < bt) { bt = t; best = { kind: 'ground', gb }; } }
-  if (S.ly < 0.5) for (const ox of [0, -P]) {
-    const probes = [['kiosk', 91.4, 1.0, -9.0, 0.8], ['bed', 80.7, 0.45, -12.0, 0.85], ['bed', 82.0, 0.45, -12.0, 0.85], ['bed', 83.3, 0.45, -12.0, 0.85], ['bath', 80.15, 1.1, -8.5, 0.7], ['sign', 90.0, 1.4, -13.1, 0.95]];
-    for (const [kind, x, y, z, r] of probes) { const t = raySphere(ox + x, y, z, r); if (t < bt) { bt = t; best = { kind }; } }
+  for (const inst of WORLD.inst.values()) {
+    const bx = inst.box; if (S.x < bx[0] - 3 || S.x > bx[3] + 3 || S.z < bx[2] - 3 || S.z > bx[5] + 3 || S.y < bx[1] - 3 || S.y > bx[4]) continue;
+    for (const sp of inst.pf.meta.spots) {
+      const R = SPOT_R[sp.k]; if (!R) continue;
+      instPoint(inst, sp.p, _sv);
+      const t = raySphere(_sv.x, _sv.y + R[0], _sv.z, R[1]);
+      if (t < bt && t < 3.0) { bt = t; best = { kind: sp.k, inst, spot: sp }; }
+    }
   }
-  if (S.z > -0.85 && _d.z > 0.15 && _d.y < 0.5 && S.ly < 0.5) { const t = (0.12 - _o.z) / _d.z; if (t < bt) { bt = t; best = { kind: 'rail' }; } }
+  const sh = shaftNear();
+  if (sh && !sh.inside && sh.d < 1.5) {
+    _v.set(S.x, S.y, S.z).applyMatrix4(sh.room.inv);
+    const ld = _w.copy(_d).transformDirection(sh.room.inv), tx = sh.edge[0] - _v.x, tz = sh.edge[1] - _v.z, tl = Math.hypot(tx, tz) || 1;
+    if ((ld.x * tx + ld.z * tz) / tl > 0.45 && ld.y < 0.35) best = { kind: 'edge' };
+  }
   return best;
 }
 function npcName(n) { const rec = npcRec(n.d.key); if (n.d.generic) return n.gname || 'A stranger'; if (n.d.role === 'direite') return 'A Direite'; return rec.met || n.d.key === 'dan' ? n.d.name : 'A stranger'; }
 function describeTarget(t) {
   const P_ = $('#prompt'), ch = $('#crosshair');
   ch.classList.toggle('hot', !!t);
-  if (!t) { P_.innerHTML = PL.railArm > 0 ? '<div class="k">[E] again to let go · step back to stay</div>' : dark && !S.fall ? '<div class="k">[Z] Lie down and sleep</div>' : ''; return; }
+  if (!t) { P_.innerHTML = PL.edgeArm > 0 ? '<div class="k">[E] again to let go · step back to stay</div>' : dark && !S.fall ? '<div class="k">[Z] Lie down and sleep</div>' : PL.swim ? '<div class="k">Space: rise · C: dive</div>' : ''; return; }
   let a = '', b = '';
   if (t.kind === 'slot') {
     if (t.book) {
@@ -414,12 +517,12 @@ function describeTarget(t) {
     a = `<span class="n">${esc(npcName(n))}</span>`;
     b = n.mode === 'dead' ? '[E] Look' : lying && S.time >= 21.5 ? 'Asleep' : '[E] Talk' + (n.mode === 'chase' ? ' · [F] Shove' : '');
   } else if (t.kind === 'ground') { a = esc(addrLine(parseKey(t.gb.id))) + '<br>lying on the floor'; b = S.carried ? 'Your hands are full' : '[E] Pick it up'; }
-  else if (t.kind === 'kiosk') { a = 'A kiosk'; b = '[E] Ask for food or drink'; }
-  else if (t.kind === 'bed') { a = 'A narrow bed'; b = S.time >= 17 || dark ? '[E] Sleep until the lamps come on' : 'Beds are for the evening (after 17:00).'; }
-  else if (t.kind === 'bath') { a = 'The bathroom'; b = '[E] Go in'; }
-  else if (t.kind === 'sign') { a = 'A brass plaque, and a slot beneath it'; b = S.carried ? '[E] Post the book you hold through the slot' : '[E] Read the plaque'; }
-  else if (t.kind === 'rail') { a = 'The railing. Below it, nothing — for as far as anyone has fallen.'; b = PL.railArm > 0 ? '[E] again to let go · step back to stay' : '[E] Climb over' + (S.carried ? ' · [G] Throw the book over' : ''); }
-  else if (t.kind === 'tackle') { a = '<span class="n">Dire Dan</span>'; b = '[E] Tackle him over the railing'; }
+  else if (t.kind === 'kiosk') { a = 'A kiosk, glowing softly'; b = '[E] Ask for food or drink'; }
+  else if (t.kind === 'bed') { a = 'A narrow bed in a tiled alcove'; b = S.time >= 17 || dark ? '[E] Sleep until the lights come on' : 'Beds are for the evening (after 17:00).'; }
+  else if (t.kind === 'bath') { a = 'The washroom'; b = '[E] Go in'; }
+  else if (t.kind === 'plaque') { a = 'A brass plaque, and a slot beneath it'; b = S.carried ? '[E] Post the book you hold through the slot' : '[E] Read the plaque'; }
+  else if (t.kind === 'edge') { a = 'The parapet. Below it, the shaft goes down past every floor anyone has counted.'; b = PL.edgeArm > 0 ? '[E] again to let go · step back to stay' : '[E] Climb over' + (S.carried ? ' · [G] Drop the book in' : ''); }
+  else if (t.kind === 'tackle') { a = '<span class="n">Dire Dan</span>'; b = '[E] Tackle him over the parapet'; }
   else if (t.kind === 'catch') { a = `<span class="n">${esc(t.n.d.key === 'wand' ? 'A falling woman' : 'Someone falling')}</span>`; b = '[E] Catch hold'; }
   P_.innerHTML = `<div class="t">${a}</div><div class="k">${b}</div>`;
 }
@@ -434,23 +537,27 @@ function act(kind) {
   if (kind === 'consume') { if (S.item) consumeItem(S.item); return; }
   if (kind === 'sleep') {
     if (S.fall) { sleepNow('fall'); return; }
+    if (PL.swim) { toast('Not in the water.'); return; }
     if (dark || S.time >= 21) { sleepNow('floor'); return; }
-    toast('You aren’t tired. Nobody sleeps before the lamps go out here — there is too much day to get through.'); return;
+    toast('You aren’t tired. Nobody sleeps before the lights go out here — there is too much day to get through.'); return;
   }
   if (kind === 'drop') {
     if (!S.carried) return;
     const id = parseKey(S.carried);
     if (S.fall) { toast('It tumbles away from you and is gone. At dawn it will be back on its shelf.'); S.carried = null; showHeld(null); updateCarry(); return; }
-    if (S.z > -0.95 && _d.z > 0.1) {
-      throwBookVisual(id, S.lx - Math.sin(S.yaw) * 0.4, S.ly + 1.3, 0.35);
+    if (t && t.kind === 'edge') {
+      const sh = shaftNear(); const dir = new THREE.Vector3();
+      if (sh) { dir.set(sh.cx - sh.edge[0], 0, sh.cz - sh.edge[1]).normalize().transformDirection(sh.room.m); }
+      throwBookVisual(id, S.x - Math.sin(S.yaw) * 0.5, S.y + 1.3, S.z - Math.cos(S.yaw) * 0.5, dir.x * 2.5, dir.z * 2.5);
       S.carried = null; S.stats.thrown++; showHeld(null); updateCarry(); SFX.book();
-      if (S.stats.thrown === 1) { logJ('Threw a searched book over the railing, as Elliott said. It fell until the dark had it.'); toast('It falls end over end until the dark takes it. Dawn will put it back on its shelf.'); }
+      if (S.stats.thrown === 1) { logJ('Dropped a searched book down the well, as Elliott said. It fell until the dark had it.'); toast('It falls end over end until the dark takes it. Dawn will put it back on its shelf.'); }
       save(); return;
     }
-    const fx = -Math.sin(S.yaw) * 0.6, fz = -Math.cos(S.yaw) * 0.6;
-    const pos = { x: S.lx + fx, z: clamp(S.z + fz, -12.8, -0.35) }; pushCircle(pos, 0.12);
-    const gy = groundAt(pos.x, pos.z, S.ly);
-    S.ground.push({ id: S.carried, seg: S.seg, lx: pos.x, z: pos.z, floor: S.floor, side: S.side, ly: gy === -Infinity ? 0 : gy, yaw: Math.random() * 6 });
+    const fx = -Math.sin(S.yaw) * 0.55, fz = -Math.cos(S.yaw) * 0.55;
+    const p = _pp.set(S.x + fx, S.y + 0.4, S.z + fz); pushSphere(p, 0.15, true);
+    const gy = groundAt(p.x, S.y + 0.4, p.z, 0.2, 2.0);
+    if (gy === -Infinity) { toast('There is nowhere to put it down there.'); return; }
+    S.ground.push({ id: S.carried, cx: S.cx, cz: S.cz, floor: S.floor, x: p.x, y: gy, z: p.z, yaw: Math.random() * 6 });
     if (S.ground.length > 120) S.ground.shift();
     S.carried = null; SFX.book(); showHeld(null); updateCarry(); updateGroundBooks(); save(); return;
   }
@@ -459,13 +566,13 @@ function act(kind) {
       const n = t.n;
       if (n.mode === 'fallWith' || S.fall) { shoveInFall(n); return; }
       n.stun = 2.4; n.hitCd = 2.4; SFX.hit();
-      const x = gx(n.seg, n.lx), dx = x - S.lx, dz = n.z - S.z, d = Math.hypot(dx, dz) || 1, pos = { x: x + dx / d * 0.9, z: n.z + dz / d * 0.9 };
-      pushCircle(pos, 0.28); n.lx = pos.x - (n.seg - S.seg) * P; n.z = pos.z;
+      const p = n.mesh.position, dx = p.x - S.x, dz = p.z - S.z, d = Math.hypot(dx, dz) || 1;
+      n.ax += dx / d * 0.9; n.az += dz / d * 0.9;
       if (n.mode !== 'chase') toast(`${npcName(n)} stumbles and stares at you.`);
     } else if (S.flags.danWith) shoveInFall(NPC_BY.dan);
     return;
   }
-  if (!t) { if (PL.railArm > 0) goOver(); return; }
+  if (!t) { if (PL.edgeArm > 0) goOver(); return; }
   if (t.kind === 'tackle') { tackleDan(); return; }
   if (t.kind === 'catch') { catchFaller(); return; }
   if (t.kind === 'slot') {
@@ -489,8 +596,8 @@ function act(kind) {
   if (t.kind === 'npc') { openDialogue(t.n); return; }
   if (t.kind === 'kiosk') { openKiosk(); return; }
   if (t.kind === 'bed') { if (S.time < 17 && !dark) { toast('You aren’t tired yet.'); return; } sleepNow('bed'); return; }
-  if (t.kind === 'bath') { S.flags.bath = (S.flags.bath || 0) + 1; toast(['A clean white room. The water is cold and perfect. There is no mirror.', 'You wash your face. The towel is fresh. It is always fresh.', 'Somebody has written on the wall in pencil: “still here.” By morning it will be gone.'][S.flags.bath % 3]); return; }
-  if (t.kind === 'sign') {
+  if (t.kind === 'bath') { S.flags.bath = (S.flags.bath || 0) + 1; toast(['A clean white room, tiled to the ceiling. The water is cold and perfect. There is no mirror.', 'You wash your face. The towel is fresh. It is always fresh.', 'Somebody has written on the tiles in pencil: “still here.” By morning it will be gone.'][S.flags.bath % 3]); return; }
+  if (t.kind === 'plaque') {
     if (S.carried) {
       const id = parseKey(S.carried); S.carried = null; showHeld(null); updateCarry(); SFX.book();
       S.flags.slotted = (S.flags.slotted || 0) + 1;
@@ -499,12 +606,12 @@ function act(kind) {
     }
     openSign(); return;
   }
-  if (t.kind === 'rail') {
-    if (PL.railArm > 0) { goOver(); return; }
-    PL.railArm = 3; toast('You swing a leg over the rail. The air below is cool. [E] again to let go.'); return;
+  if (t.kind === 'edge') {
+    if (PL.edgeArm > 0) { goOver(); return; }
+    PL.edgeArm = 3; toast('You swing a leg over the parapet. The air below is cool. [E] again to let go.'); return;
   }
 }
-function goOver() { PL.railArm = 0; startFall(false); }
+function goOver() { PL.edgeArm = 0; startFall(false, true); }
 
 /* ==========================================================================
    HUD
@@ -514,32 +621,32 @@ function updateCarry() {
   const el = $('#carry');
   if (!S.carried && !S.item) { el.hidden = true; return; }
   el.hidden = false; let h = '';
-  if (S.carried) { const id = parseKey(S.carried), L = bookLook(id); h += `<div class="spine" style="background:${cssCol(L.col)}"></div><div class="ct">Holding a book<br><span>${esc(addrLine(id))}</span><br><span>R read · G drop (at the rail: throw) · E into an empty slot</span></div>`; }
+  if (S.carried) { const id = parseKey(S.carried), L = bookLook(id); h += `<div class="spine" style="background:${cssCol(L.col)}"></div><div class="ct">Holding a book<br><span>${esc(addrLine(id))}</span><br><span>R read · G drop (at a parapet: let it fall) · E into an empty slot</span></div>`; }
   if (S.item) h += `<div class="ct"${S.carried ? ' style="border-left:1px solid var(--edge);padding-left:10px"' : ''}>${esc(S.item.name)}<br><span>Q ${S.item.drink ? 'drink' : 'eat'} it</span></div>`;
   el.innerHTML = h;
 }
 let hudT = 0;
 function updateHUD(dt) {
   hudT -= dt; if (hudT > 0) return; hudT = 0.1;
-  $('#h-floor').textContent = fmt(S.floor) + (S.side ? ' (far side)' : '');
-  const lxs = S.lx;
+  $('#h-floor').textContent = fmt(S.floor);
+  const r = PL.room;
   let where;
-  if (S.fall) where = 'In the chasm';
-  else if (lxs < RA0 && S.z > -3.5) where = `Case <b>${fmt(S.seg * CASES + clamp(Math.floor(lxs / CW), 0, CASES - 1))}</b>`;
-  else where = (inStair(S.lx, S.z) ? 'On the spiral stair' : 'Rest area') + ` · after case <b>${fmt(S.seg * CASES + CASES - 1)}</b>`;
-  if (TARGET && TARGET.kind === 'slot') where += ` · Shelf <b>${TARGET.slot.r + 1}</b> · Book <b>${TARGET.slot.p + 1}</b>`;
+  if (S.fall) where = r ? `Falling through ${esc(r.pf.meta.meta.label)}` : 'Falling';
+  else if (r) where = `${esc(r.pf.meta.meta.label)} · Room <b>${esc(roomName(r.pl.cx, r.pl.cz))}</b>`;
+  else where = 'Between rooms';
+  if (TARGET && TARGET.kind === 'slot') where += ` · Shelf <b>${TARGET.slot.k + 1}</b> · Book <b>${TARGET.slot.p + 1}</b>`;
   $('#h-case').innerHTML = where;
-  $('#h-walk').innerHTML = `Walked <b>${S.stats.dist < 1000 ? fmt(S.stats.dist) + ' m' : (S.stats.dist / 1000).toFixed(2) + ' km'}</b>`;
+  $('#h-walk').innerHTML = `Walked <b>${S.stats.dist < 1000 ? fmt(S.stats.dist) + ' m' : (S.stats.dist / 1000).toFixed(2) + ' km'}</b>` + (S.stats.rooms ? ` · <b>${fmt(S.stats.rooms)}</b> rooms` : '');
   $('#h-day').textContent = dateLine();
   $('#h-clock').textContent = clock();
-  $('#h-lamps').textContent = dark ? 'Lamps out' : S.time > LIGHTS_OFF - 0.25 ? 'Lamps dimming' : 'Lamps out at 22:00';
+  $('#h-lamps').textContent = dark ? 'Lights out' : S.time > LIGHTS_OFF - 0.25 ? 'Lights flickering' : 'Lights out at 22:00';
   const bar = (id, v, label) => { const e = $(id); e.querySelector('i').style.width = (v * 100) + '%'; e.querySelector('i').style.background = v > 0.8 ? 'var(--oxide)' : 'var(--lamp)'; e.title = label; };
   bar('#h-hunger', S.hunger, S.hunger > 0.85 ? 'Starving' : S.hunger > 0.5 ? 'Hungry' : 'Fed');
   bar('#h-thirst', S.thirst, S.thirst > 0.8 ? 'Parched — you will die of thirst' : S.thirst > 0.5 ? 'Thirsty' : 'Not thirsty');
   if (S.fall) {
     const fl = S.fall.startFloor - S.floor;
     $('#f-floors').textContent = fmt(fl) + (fl === 1 ? ' floor' : ' floors');
-    $('#f-sub').textContent = `${Math.round(-PL.vy)} m/s · day ${S.fall.days + 1} of the fall · WASD steer — hit a gallery to land · ${isTouch ? 'Jump' : 'Space'}: sleep till the lamps come on`;
+    $('#f-sub').textContent = `${Math.round(-PL.vy)} m/s · day ${S.fall.days + 1} of the fall · WASD steer — hit a floor to stop · ${isTouch ? 'Jump' : 'Space'}: sleep till the lights come on`;
   }
   describeTarget(TARGET);
 }
@@ -548,22 +655,22 @@ function showClickHint() { $('#clickhint').hidden = isTouch || locked || MODE !=
 /* ==========================================================================
    Reader
    ========================================================================== */
-const R = { id: null, pg: 0, hl: null };
+const RD = { id: null, pg: 0, hl: null };
 function openReader(id) {
-  R.id = id; R.hl = null; R.pg = 0;
+  RD.id = id; RD.hl = null; RD.pg = 0;
   const k = keyOf(id);
   if (!S.seen[k]) { S.seen[k] = 1; S.stats.books++; const ks = Object.keys(S.seen); if (ks.length > 3000) delete S.seen[ks[0]]; }
-  $('#r-title').textContent = `Floor ${fmt(id.f)}, case ${fmt(id.c)}`;
-  $('#r-addr').innerHTML = `Shelf <b>${id.r + 1}</b> · Book <b>${id.p + 1}</b>${id.s ? ' · far gallery' : ''}<br>410 pages · 40 lines · 80 characters<br>One of 10<sup>${fmt(LOG10_BOOKS)}</sup> books.`;
+  $('#r-title').textContent = `Floor ${fmt(id.f)}, room ${roomName(id.x, id.z)}`;
+  $('#r-addr').innerHTML = `Shelf <b>${id.k + 1}</b> · Book <b>${id.p + 1}</b><br>410 pages · 40 lines · 80 characters<br>One of 10<sup>${fmt(LOG10_BOOKS)}</sup> books.`;
   $('#r-results').innerHTML = ''; $('#r-qnote').textContent = ''; $('#r-q').value = '';
-  if (sameId(id, SACK)) { R.pg = 188; }
+  if (sameId(id, SACK)) { RD.pg = 188; }
   openOverlay('#reader'); renderPage(); SFX.page();
 }
 function renderPage() {
-  const id = R.id, s = pageText(id, R.pg), fr = fragOf(id), frHere = fr && fr.page === R.pg;
+  const id = RD.id, s = pageText(id, RD.pg), fr = fragOf(id), frHere = fr && fr.page === RD.pg;
   const marks = [];
   if (frHere) marks.push([fr.at, fr.at + fr.text.length, 'frag']);
-  if (R.hl && R.hl.pg === R.pg) marks.push([R.hl.at, R.hl.at + R.hl.len, '']);
+  if (RD.hl && RD.hl.pg === RD.pg) marks.push([RD.hl.at, RD.hl.at + RD.hl.len, '']);
   marks.sort((a, b) => a[0] - b[0]);
   let out = '';
   for (let line = 0; line < LINES; line++) {
@@ -572,9 +679,9 @@ function renderPage() {
     row += esc(s.slice(pos, b)); out += row + (line < LINES - 1 ? '\n' : '');
   }
   $('#page').innerHTML = out;
-  $('#r-pg').value = R.pg + 1;
-  $('#r-ph-l').textContent = `Floor ${fmt(id.f)} · case ${fmt(id.c)} · shelf ${id.r + 1} · book ${id.p + 1}`;
-  $('#r-ph-r').textContent = `${R.pg + 1}`;
+  $('#r-pg').value = RD.pg + 1;
+  $('#r-ph-l').textContent = `Floor ${fmt(id.f)} · room ${roomName(id.x, id.z)} · shelf ${id.k + 1} · book ${id.p + 1}`;
+  $('#r-ph-r').textContent = `${RD.pg + 1}`;
   const fbox = $('#r-frag');
   if (frHere) {
     const have = S.frags.some(f => f.addr === keyOf(id));
@@ -585,24 +692,24 @@ function renderPage() {
   } else fbox.innerHTML = '';
   S.stats.pages++;
 }
-function turnPage(d) { R.pg = mod(R.pg + d, PAGES); renderPage(); SFX.page(); }
+function turnPage(d) { RD.pg = mod(RD.pg + d, PAGES); renderPage(); SFX.page(); }
 $('#r-prev').onclick = () => turnPage(-1); $('#r-next').onclick = () => turnPage(1);
-$('#r-pg').addEventListener('change', () => { const v = parseInt($('#r-pg').value, 10); if (v >= 1 && v <= PAGES) { R.pg = v - 1; renderPage(); SFX.page(); } else $('#r-pg').value = R.pg + 1; });
+$('#r-pg').addEventListener('change', () => { const v = parseInt($('#r-pg').value, 10); if (v >= 1 && v <= PAGES) { RD.pg = v - 1; renderPage(); SFX.page(); } else $('#r-pg').value = RD.pg + 1; });
 $('#r-pg').addEventListener('keydown', e => { if (e.key === 'Enter') e.target.blur(); });
 function runSearch() {
   const q = $('#r-q').value; if (!q) return;
   S.stats.searches++;
   const res = []; let total = 0;
-  for (let pg = 0; pg < PAGES; pg++) { const s = pageText(R.id, pg); let i = s.indexOf(q); while (i !== -1) { total++; if (res.length < 200) res.push({ pg, at: i }); i = s.indexOf(q, i + 1); } }
+  for (let pg = 0; pg < PAGES; pg++) { const s = pageText(RD.id, pg); let i = s.indexOf(q); while (i !== -1) { total++; if (res.length < 200) res.push({ pg, at: i }); i = s.indexOf(q, i + 1); } }
   const expect = 1312000 / Math.pow(95, q.length);
   $('#r-qnote').textContent = `${fmt(total)} match${total === 1 ? '' : 'es'} in 410 pages. By chance alone you'd expect ${expect >= 0.01 ? 'about ' + expect.toFixed(expect < 1 ? 2 : 1) : 'one in ' + fmt(1 / expect) + ' books'}.`;
   $('#r-results').innerHTML = res.slice(0, 60).map((r, i) => `<button data-i="${i}">page ${r.pg + 1}, line ${Math.floor(r.at / COLS) + 1}</button>`).join('');
-  [...$('#r-results').children].forEach(b => b.onclick = () => { const r = res[+b.dataset.i]; R.pg = r.pg; R.hl = { pg: r.pg, at: r.at, len: q.length }; renderPage(); SFX.page(); });
+  [...$('#r-results').children].forEach(b => b.onclick = () => { const r = res[+b.dataset.i]; RD.pg = r.pg; RD.hl = { pg: r.pg, at: r.at, len: q.length }; renderPage(); SFX.page(); });
 }
 $('#r-go').onclick = runSearch; $('#r-q').addEventListener('keydown', e => { if (e.key === 'Enter') runSearch(); });
 
 /* ==========================================================================
-   Kiosk — "any food or drink you name"; the bathroom; the plaque
+   Kiosk — "any food or drink you name"; the washroom; the plaque
    ========================================================================== */
 let kioskItem = null;
 const SUGG = ['Water', 'Coffee', 'Bread and butter', 'Hot soup', 'Whiskey', 'Milk', 'Pancakes', 'My mother’s pot roast'];
@@ -667,7 +774,7 @@ function gotoNode(name, greet) {
 function renderNode(node, noChat) {
   const n = D.n;
   $('#d-name').textContent = npcName(n);
-  const role = n.d.generic ? (n.assign ? { searchers: 'Searcher', drinkers: 'Drinker', still: 'One of the Still', scholars: 'The University', preacher: n.assign.i === 0 ? 'Shelf-preacher' : 'Listener' }[n.assign.role] : 'Falling') : { rachel: 'The University', master: 'The University', scholar: 'The University', dan: 'The Direites', direite: 'The Direites', companion: 'Arrived with you', drinker: 'Next rest area east', faller: 'Falling', took: 'Mathematician' }[n.d.role];
+  const role = n.d.generic ? (n.assign ? { searchers: 'Searcher', drinkers: 'Drinker', still: 'One of the Still', scholars: 'The University', preacher: n.assign.i === 0 ? 'Shelf-preacher' : 'Listener', swimmers: 'Swimmer' }[n.assign.role] : 'Falling') : { rachel: 'The University', master: 'The University', scholar: 'The University', dan: 'The Direites', direite: 'The Direites', companion: 'Arrived with you', drinker: 'The rest area east', faller: 'Falling', took: 'Mathematician' }[n.d.role];
   const fc = $('#d-fac'); fc.hidden = !role; fc.textContent = role || ''; fc.className = 'chip' + (n.d.role === 'dan' || n.d.role === 'direite' ? ' hostile' : '');
   $('#d-text').textContent = node.text;
   const opts = (node.opts || []).filter(o => !('if' in o) || o.if);
@@ -704,10 +811,7 @@ $('#d-back').onclick = () => { if (D.ctl) D.ctl.abort(); $('#d-chat').hidden = t
    Captions (for things that happen around you) and moments (chapter cards)
    ========================================================================== */
 let CAP = null;
-function showCaptions(lines, done) {
-  CAP = { lines, i: -1, t: 0, done };
-  nextCaption();
-}
+function showCaptions(lines, done) { CAP = { lines, i: -1, t: 0, done }; nextCaption(); }
 function nextCaption() {
   if (!CAP) return;
   CAP.i++;
@@ -747,17 +851,18 @@ function renderJournal() {
     const met = NPC_DEFS.filter(d => !d.generic && !d.minor && npcRec(d.key).met);
     h = `<div class="souls">${met.map(d => `<div class="soul"><div class="p" style="background-image:url(assets/${d.por}.jpg)"></div><div><div class="nm">${esc(d.name)}</div><div class="ds">${esc(soulNote(d.key))}</div></div><div class="ds">${npcRec(d.key).talks || 0} talks</div></div>`).join('') || '<p class="note">You haven’t introduced yourself to anyone yet.</p>'}</div>`;
   } else if (jTab === 'nums') {
-    const st = S.stats, items = [['Days', S.day], ['Books opened', st.books], ['Pages read', st.pages], ['Books thrown over', st.thrown], ['Fragments found', S.frags.length], ['Walked', st.dist < 1000 ? fmt(st.dist) + ' m' : (st.dist / 1000).toFixed(2) + ' km'], ['Floors climbed', st.climbed], ['Floors fallen', st.fallen], ['Longest fall', fmt(st.maxFall) + ' fl.'], ['Days spent falling', st.daysFalling], ['Deaths', st.deaths]];
+    const st = S.stats, items = [['Days', S.day], ['Books opened', st.books], ['Pages read', st.pages], ['Books dropped down a well', st.thrown], ['Fragments found', S.frags.length], ['Walked', st.dist < 1000 ? fmt(st.dist) + ' m' : (st.dist / 1000).toFixed(2) + ' km'], ['Rooms seen', st.rooms || 0], ['Swum', fmt(st.swum || 0) + ' m'], ['Floors climbed', st.climbed], ['Floors fallen', st.fallen], ['Longest fall', fmt(st.maxFall) + ' fl.'], ['Days spent falling', st.daysFalling], ['Deaths', st.deaths]];
     h = `<div class="stats">${items.map(([k, v]) => `<div class="stat"><div class="v">${typeof v === 'number' ? fmt(v) : v}</div><div class="k">${k}</div></div>`).join('')}</div>`;
   } else if (jTab === 'odds') {
     const n = Math.max(S.stats.books, 1), frac = LOG10_BOOKS - Math.log10(n), lb = lifeBook(), sent = 20 * Math.log10(95) - Math.log10(1312000);
     h = `<div class="odds">
       <p>Books in the library: <span class="num">95<sup>1,312,000</sup></span> — about <span class="num">10<sup>${fmt(LOG10_BOOKS)}</sup></span>. Written out, that number has <span class="num">${fmt(DIGITS)}</span> digits.</p>
       <p>You have opened <span class="num">${fmt(S.stats.books)}</span>. That is roughly one book in <span class="num">10<sup>${fmt(frac)}</sup></span> — the same as none, to every decimal place anyone could print.</p>
-      <p>Master Took puts the library at about <span class="num">7.16 × 10<sup>1,297,369</sup></span> light-years, wide and deep.</p>
+      <p>Master Took puts the library at about <span class="num">7.16 × 10<sup>1,297,369</sup></span> light-years, wide and deep. Every room you have walked through is a rounding error on a rounding error.</p>
       <p>The chance that the next book you open is yours: <span class="num">1 in 10<sup>${fmt(LOG10_BOOKS)}</sup></span>. Opening one book a second since the Big Bang would change that exponent by about 17.</p>
       <h3>Where this game lies to you</h3>
       <p>In a truly random library, a particular twenty-character sentence turns up about once in <span class="num">10<sup>${Math.round(sent)}</sup></span> books. Here, one book in ${FRAG_RATE} carries a readable fragment. That is the game’s one mercy, and you should know it is one. Short strings are honest: search any book for a three-letter word and you will usually find one or two, just as chance predicts.</p>
+      <p>The book’s library is one gallery, repeated forever. This one dreams: pools, towers, wells and yellow rooms, rearranging themselves as you walk. The books are the same books.</p>
       <p class="note">For the record, your own book is on a floor whose number begins ${lb.lead}… and runs to about ${fmt(lb.digits)} digits. Nobody here could tell you that; the game can.</p>
     </div>`;
   }
@@ -765,10 +870,10 @@ function renderJournal() {
 }
 function soulNote(k) {
   const r = npcRec(k);
-  if (k === 'rachel') return S.flags.rachelGone ? 'Went over the railing to escape the Direites.' : r.following ? 'Walking with you.' : 'The University.';
-  if (k === 'jed') return S.flags.jedBack ? 'Drank himself to death. Came back.' : 'Drinks at the next rest area east.';
-  if (k === 'dan') return S.flags.danFallen ? 'You took him over the railing with you.' : 'Leads the Direites.';
-  if (k === 'wand') return S.flags.wandLanded ? 'Let go, and steered for the stacks.' : 'Met falling.';
+  if (k === 'rachel') return S.flags.rachelGone ? 'Went over the parapet to escape the Direites.' : r.following ? 'Walking with you.' : 'The University.';
+  if (k === 'jed') return S.flags.jedBack ? 'Drank himself to death. Came back.' : 'Drinks at the rest area two rooms east.';
+  if (k === 'dan') return S.flags.danFallen ? 'You took him over the parapet with you.' : 'Leads the Direites.';
+  if (k === 'wand') return S.flags.wandLanded ? 'Let go, and steered for a floor.' : 'Met falling.';
   return { biscuit: 'Arrived with you. Found “sack it.”', elliott: 'Arrived with you. Has a system.', larisa: 'Arrived with you.', betty: 'Arrived with you.', treacle: 'Presides over the University.', pruitt: 'Department of Coherent Text.', took: 'Has done the arithmetic.' }[k] || '';
 }
 
@@ -799,9 +904,9 @@ function openPause() {
 function resume() { $('#pause').hidden = true; MODE = 'play'; $('#touch').hidden = !isTouch; requestLock(); showClickHint(); }
 function syncOut() { $('#o-sens').textContent = (+S.settings.sens).toFixed(1); $('#o-vol').textContent = Math.round(S.settings.vol * 100); $('#o-q').textContent = Math.round(S.settings.q * 100) + '%'; $('#o-gfx').textContent = ['Low', 'Medium', 'High'][S.settings.gfx]; }
 $('#s-sens').oninput = e => { S.settings.sens = +e.target.value; syncOut(); save(); };
-$('#s-vol').oninput = e => { S.settings.vol = +e.target.value; if (AU.master) AU.master.gain.value = S.settings.vol; syncOut(); save(); };
+$('#s-vol').oninput = e => { S.settings.vol = +e.target.value; if (AU.out) AU.out.gain.value = S.settings.vol; syncOut(); save(); };
 $('#s-q').oninput = e => { S.settings.q = +e.target.value; applyQuality(); syncOut(); save(); };
-$('#s-gfx').oninput = e => { S.settings.gfx = +e.target.value; syncOut(); save(); };
+$('#s-gfx').oninput = e => { S.settings.gfx = +e.target.value; applyGfx(); syncOut(); save(); };
 $('#s-hints').onchange = e => { S.settings.hints = e.target.checked ? 1 : 0; updateThreadsHUD(); save(); };
 $('#p-resume').onclick = resume;
 $('#p-journal').onclick = () => { $('#pause').hidden = true; MODE = 'play'; openJournal(); };
@@ -809,10 +914,17 @@ $('#p-title').onclick = () => { save(); $('#pause').hidden = true; showTitle(); 
 $('#p-reset').onclick = () => { $('#confirm-reset').hidden = false; };
 $('#p-reset-no').onclick = () => { $('#confirm-reset').hidden = true; };
 $('#p-reset-yes').onclick = () => { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} S = null; $('#pause').hidden = true; showTitle(); };
+function applyGfx() {
+  const g = gfxSettings().gfx;
+  WU.uProbeOn.value = g >= 1 ? 1 : 0;
+  for (const pf of PREFABS.values()) if (pf && pf.waterMat) pf.waterMat.uniforms.uSSR.value = g >= 2 ? 1 : 0;
+  WORLD.radius = g >= 2 ? 3 : 2; WORLD.bookR = g >= 2 ? 9 : g >= 1 ? 7 : 5;
+}
 function showTitle() {
-  MODE = 'title'; NPCS.forEach(n => n.mesh.visible = false); UNIPROPS.visible = false; $('#captions').hidden = true; CAP = null; $('#title').hidden = false; $('#hud').hidden = true; $('#touch').hidden = true; $('#prologue').hidden = true;
+  MODE = 'title'; NPCS.forEach(n => n.mesh.visible = false); $('#captions').hidden = true; CAP = null; $('#title').hidden = false; $('#hud').hidden = true; $('#touch').hidden = true; $('#prologue').hidden = true;
   const sv = S || loadSave(); $('#b-continue').hidden = !sv;
   if (sv) $('#b-continue').textContent = `Continue — year ${fmt(sv.year)}, day ${fmt(sv.day)}`;
+  titleWorld();
 }
 const PRO = [
   { who: '', text: 'You died. The cancer did what the doctors said it would, more or less on schedule.' },
@@ -822,11 +934,11 @@ const PRO = [
   { who: '', text: 'He calls Lester first — a Christian, certain of everything — and sends him through a door you are glad you cannot see beyond. Then Julia, an atheist, who seems mostly annoyed to be wrong.' },
   { who: 'Xandern', text: 'You five are going somewhere else. Three things. One: if you die, you will be brought back. Two: your earthly covenants — marriage included — are dissolved.' },
   { who: 'Xandern', text: 'Three: find the book that tells your life, every word of it, without a single error, and post it through the slot. Then you may go. It is meant to teach you something. It is a punishment. It is not forever.' },
-  { who: '', text: 'Then you are standing at a railing, in a body that doesn’t hurt anymore.' },
+  { who: '', text: 'Then there is white tile, and still water, and a body that doesn’t hurt anymore.' },
 ];
 let proI = 0;
-$('#b-new').onclick = () => { audioInit(); $('#title').hidden = true; $('#prologue').hidden = false; MODE = 'prologue'; proI = 0; showPro(); };
-$('#b-continue').onclick = () => { audioInit(); S = S || loadSave(); startPlay(false); };
+$('#b-new').onclick = () => { if (!WORLD.ready) return; audioInit(); $('#title').hidden = true; $('#prologue').hidden = false; MODE = 'prologue'; proI = 0; showPro(); };
+$('#b-continue').onclick = () => { if (!WORLD.ready) return; audioInit(); S = S || loadSave(); startPlay(false); };
 function showPro() {
   const L = PRO[proI], t = $('#pro-t'); t.style.animation = 'none'; void t.offsetWidth; t.style.animation = '';
   t.textContent = L.text; $('#pro-who').textContent = L.who || ''; $('#pro-por').hidden = !L.who;
@@ -834,75 +946,127 @@ function showPro() {
 }
 $('#b-pro').onclick = () => {
   if (proI < PRO.length - 1) { proI++; showPro(); return; }
-  S = freshState(); logJ('Died of cancer. Was processed by a demon named Xandern. The true religion was Zoroastrianism.'); logJ('Woke at a railing in the library, with four others who arrived when I did. I can remember every day of my life, exactly. That should make my book easy to recognise. It does not make it easier to find.');
+  S = freshState(); logJ('Died of cancer. Was processed by a demon named Xandern. The true religion was Zoroastrianism.'); logJ('Woke beside a small round pool in a tiled room, with four others who arrived when I did. I can remember every day of my life, exactly. That should make my book easy to recognise. It does not make it easier to find.');
   save(); startPlay(true);
 };
 function startPlay(first) {
   S.settings = Object.assign({ sens: 1, vol: 0.8, q: 1, gfx: 2, hints: 1 }, S.settings); PL.camY = null;
-  recountOver(); applyQuality();
-  PL.dead = false; PL.vy = 0; PL.vx = 0; PL.vz = 0; $('#hurt').style.opacity = 0; nightBusy = false; dark = S.time >= LIGHTS_OFF;
+  recountOver(); applyQuality(); applyGfx();
+  PL.dead = false; PL.vy = 0; PL.vx = 0; PL.vz = 0; PL.swim = false; $('#hurt').style.opacity = 0; nightBusy = false; dark = S.time >= LIGHTS_OFF;
   PL.falling = !!S.fall; $('#fallhud').hidden = !S.fall; if (S.fall) PL.vy = -TERMINAL;
   if (S.dead) { S.dead = null; S.landing = null; }
-  if (!S.fall && S.ly !== 0 && !inStair(S.lx, S.z)) S.ly = 0;
-  placeNamed(); updateWindow(true); updateGroundBooks(); updateCarry(); showHeld(S.carried ? parseKey(S.carried) : null);
+  worldOrigin(S.cx, S.cz, S.floor); updateWorld(S.x, S.y, S.z, !!S.fall);
+  if (!S.fall) { const g = groundAt(S.x, S.y + 1, S.z, 1.2, 4); if (g > -Infinity) S.y = g; PL.onGround = true; PL.peak = S.y; }
+  refreshBooks(true);
+  placeNamed(); updateGroundBooks(); updateCarry(); showHeld(S.carried ? parseKey(S.carried) : null);
   $('#title').hidden = true; $('#prologue').hidden = true; $('#hud').hidden = false; $('#touch').hidden = !isTouch;
-  MODE = 'play'; if (AU.master) AU.master.gain.value = S.settings.vol;
-  U.uLamp.value = dark ? 0 : 1;
+  MODE = 'play'; if (AU.out) AU.out.gain.value = S.settings.vol;
+  dayK = dark ? 0 : 1; expoReset = true;
   if (first) showMoment('arrival'); else { requestLock(); showClickHint(); }
+}
+/* behind the title: the arrival room, a slow look round */
+const TITLE_S = freshState();
+function titleWorld() {
+  worldOrigin(TITLE_S.cx, TITLE_S.cz, TITLE_S.floor);
+  updateWorld(8, 1, 8, false);
+  const bk = S; S = TITLE_S; S.x = 8; S.y = 0; S.z = 8; recountOver(); refreshBooks(true); S = bk;
 }
 
 /* ==========================================================================
    Main loop
    ========================================================================== */
-let last = performance.now(), saveT = 0, perfT = 0, perfN = 0, perfSum = 0, lastClock = '';
-const TITLE_S = freshState();
+let last = performance.now(), saveT = 0, perfT = 0, perfN = 0, perfSum = 0, bookT = 0, roomKeyNow = '';
+function syncRoom() {
+  const r = instAt(S.x, S.y + 0.5, S.z);
+  PL.room = r;
+  const k = r ? placeKey(r.pl) + (r.slot !== undefined ? '@' + (S.floor) : '') : '';
+  if (k && k !== roomKeyNow) {
+    roomKeyNow = k;
+    if (!S.seen['room:' + k]) { S.seen['room:' + k] = 1; S.stats.rooms = (S.stats.rooms || 0) + 1; }
+    if (r && !S.flags['saw' + r.pf.name]) { S.flags['saw' + r.pf.name] = 1; roomFirst(r.pf.name); }
+  }
+  // light where you stand, for the people and loose books; a little haze tinted by the room
+  const av = r ? (dayK * (r.pf.meta.avg.day || 1) + (1 - dayK) * (r.pf.meta.avg.night || 0.05)) : 0.5;
+  AMB.top.set(av * 1.15, av * 1.13, av * 1.1); AMB.col.set(av * 0.7, av * 0.72, av * 0.75);
+  const fog = r && r.pf.name === 'backrooms' ? [0.5, 0.46, 0.3] : r && (r.pf.name === 'well' || r.pf.name === 'tower') ? [0.34, 0.36, 0.4] : [0.42, 0.46, 0.5];
+  WU.uFogCol.value.setRGB(fog[0] * av, fog[1] * av, fog[2] * av);
+  WU.uFogD.value = r && (r.pf.name === 'well' || r.pf.name === 'tower') ? 0.012 : r && r.pf.name === 'backrooms' ? 0.02 : 0.006;
+  if (AU.ctx) {
+    AU.hum.gain.value = r && r.pf.name === 'backrooms' ? 0.012 * (0.3 + 0.7 * dayK) : 0;
+    AU.water.gain.value = r && r.pf.meta.water.length ? 0.006 + (PL.wade || PL.swim ? 0.01 : 0) : 0;
+    AU.under.frequency.value = PL.under ? 600 : 20000;
+  }
+}
+function roomFirst(name) {
+  const t = {
+    poolhall: 'A long hall with a pool down the middle. The water is so still it looks like another room.',
+    stacks: 'Bookcases standing in water to the knee. The bottom shelves are drowned, and the books on them are perfectly dry when you take them out.',
+    backrooms: 'Yellow wallpaper. Damp carpet. The hum. You have been here before, somehow, in a dream.',
+    pillars: 'A forest of tiled columns in shallow water, and light falling in squares.',
+    well: 'A square shaft through the middle of everything. Look down: floors, and floors, and floors.',
+    tower: 'A white ramp winds up and down a round tower, one turn to a floor. The middle is open.',
+    grand: 'A great hall two floors tall, books from the floor to the vault.',
+    crossing: 'Four tiled vaults meet under a dome. Light comes through the eye of it.',
+    bath: 'A sunken bath, cobalt blue, with steps down on every side. The water is perfectly clear and perfectly still.',
+    reading: 'A reading room: oak, lamplight, green shades. It smells like a library you once loved.',
+  }[name];
+  if (t && MODE === 'play') toast(t);
+}
 function frame(now) {
   requestAnimationFrame(frame);
   const raw = (now - last) / 1000, dt = Math.min(0.05, raw); last = now;
   const t = now / 1000;
+  renderFrame.dt = dt;
   if (MODE === 'play' && !document.hidden && raw < 0.5) {
     perfSum += raw; perfN++; perfT += raw;
     if (perfT > 2.5) {
       const avg = perfSum / perfN;
       if (avg > 0.021 && AQ > 0.6) { AQ = Math.max(0.6, AQ - 0.1); applyQuality(); }
-      else if (avg > 0.024 && S && S.settings.gfx > 0 && !S.flags.autoGfx) { S.flags.autoGfx = 1; S.settings.gfx--; toast('Lowered the graphics level to keep things smooth. You can change it in Pause.'); }
+      else if (avg > 0.024 && S && S.settings.gfx > 0 && !S.flags.autoGfx) { S.flags.autoGfx = 1; S.settings.gfx--; applyGfx(); toast('Lowered the graphics level to keep things smooth. You can change it in Pause.'); }
       perfT = perfSum = perfN = 0;
     }
   }
-  const live = S && MODE !== 'title' && MODE !== 'prologue';
-  const Sv = live ? S : TITLE_S;
-  if (!live) { const k = t * 0.04; TITLE_S.lx = 30 + Math.sin(k) * 10; TITLE_S.time = 12; }
-  const bk = S; S = Sv; updateWorldUniforms(t); S = bk;
+  const live = S && MODE !== 'title' && MODE !== 'prologue' && WORLD.ready;
+  WU.uTime.value = t;
   if (live) {
     if (MODE === 'play' && !nightBusy && !PL.dead) {
-      updatePlayer(dt); updateTime(dt); storyTick(dt); updateNPCs(dt); updateCaptions(dt);
-      if (PL.railArm > 0) { PL.railArm -= dt; if (S.z < -0.95) PL.railArm = 0; }
+      updatePlayer(dt); updateTime(dt); syncRoom(); storyTick(dt); updateNPCs(dt); updateCaptions(dt);
+      if (PL.edgeArm > 0) { PL.edgeArm -= dt; const sh = shaftNear(); if (!sh || sh.d > 1.8) PL.edgeArm = 0; }
       TARGET = findTarget(); updateHUD(dt);
       if (TARGET && TARGET.kind === 'npc' && npcDist(TARGET.n) < 3) TARGET.n.attend = Math.max(TARGET.n.attend || 0, 1.5);
       PL.hurtT = Math.max(0, PL.hurtT - dt * 1.5);
       saveT += dt; if (saveT > 8) { saveT = 0; save(); }
+      bookT -= dt; if (bookT <= 0) { bookT = 0.5; if (!S.fall || -PL.vy < 15) { updateWorld(S.x, S.y, S.z, S.fall && -PL.vy > 20); refreshBooks(); } }
     } else if (MODE === 'play' && S.fall && (nightBusy || PL.dead)) {
-      // the body keeps falling in the dark
-      S.ly += PL.vy * dt; wrapPlayer(); placeCamera();
-    } else placeCamera();
-    updateWindow(); updateThrown(dt); updateStreaks(S.fall && PL.falling ? -PL.vy : 0);
-    const ck = clock(); if (ck !== lastClock) { lastClock = ck; drawClock(S.time); }
+      S.y += PL.vy * dt; wrapPlayer(true); placeCamera(dt);
+    } else placeCamera(dt);
+    updateThrown(dt); updateStreaks(S.fall && PL.falling ? -PL.vy : 0);
     PL.shake = Math.max(0, PL.shake - dt * 0.8);
-  } else {
-    const k = t * 0.04; camera.position.set(TITLE_S.lx, 1.6, 7.5); camera.rotation.set(0.04 + Math.sin(k * 1.3) * 0.05, Math.PI * 0.5 + Math.sin(k) * 0.4, 0);
-    S = TITLE_S; updateWindow(); S = bk;
+  } else if (WORLD.ready) {
+    const k = t * 0.05; camera.position.set(8 + Math.sin(k) * 2.6, 1.65, 8 + Math.cos(k * 0.8) * 2.2); camera.rotation.set(0.1 + Math.sin(k * 1.3) * 0.05, k * 0.6, 0);
+    dayK = 1;
   }
-  // exposure: the eye adapts to the dark
-  const target = live && dark ? 3.2 : 1.0;
-  exposure += (target - exposure) * (1 - Math.exp(-dt / (target > exposure ? 5 : 0.6)));
-  PM.comp.uniforms.uExposure.value = exposure;
+  WU.uDay.value = dayK;
+  for (const pf of PREFABS.values()) if (pf && pf.mats) for (const k in pf.mats) { const m = pf.mats[k]; if (m.uniforms.uOn) m.uniforms.uOn.value = m.userData.night ? 1 : dayK; }
   PM.comp.uniforms.uTime.value = t;
   PM.comp.uniforms.uDrunk.value = live ? clamp(S.drunk, 0, 1.3) : 0;
   PM.comp.uniforms.uHurt.value = live ? Math.max(PL.hurtT, 1 - S.hp / 100) * 0.8 : 0;
   PM.comp.uniforms.uSpeed.value = live && S.fall ? clamp((-PL.vy - 20) / 40, 0, 1) : 0;
+  PM.comp.uniforms.uWet.value = live && PL.under ? 1 : 0;
+  PM.comp.uniforms.uTint.value.set(live && PL.under ? 0.55 : 1, live && PL.under ? 0.95 : 1, live && PL.under ? 1.1 : 1);
+  renderer.setClearColor(WU.uFogCol.value, 1);   // beyond the rooms that are loaded: haze, not black
   renderFrame();
 }
+/* load every room before the doors open */
+(async () => {
+  const names = Object.keys(ROOM_SIZE); let done = 0;
+  const bar = $('#t-load'); if (bar) bar.textContent = `Building the library… 0 / ${names.length}`;
+  await Promise.all(names.map(n => loadPrefab(n).then(() => { done++; if (bar) bar.textContent = `Building the library… ${done} / ${names.length}`; })));
+  for (const n of names) { const pf = PREFABS.get(n); if (pf && !pf.probeDone) captureProbe(pf); }
+  WORLD.ready = true; if (bar) bar.hidden = true; $('#title').classList.add('live');
+  document.querySelectorAll('#b-new, #b-continue').forEach(b => b.disabled = false);
+  if (MODE === 'title') titleWorld();
+})().catch(e => { console.error(e); const bar = $('#t-load'); if (bar) bar.textContent = 'The library would not load. Check your connection and reload.'; });
 { const sv = loadSave(); if (sv) { $('#b-continue').hidden = false; $('#b-continue').textContent = `Continue — year ${fmt(sv.year)}, day ${fmt(sv.day)}`; } }
-{ const bk = S; S = TITLE_S; recountOver(); updateWindow(true); S = bk; }
 requestAnimationFrame(frame);
 addEventListener('beforeunload', save);

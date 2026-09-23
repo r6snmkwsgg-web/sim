@@ -8,7 +8,7 @@
   color-scheme:dark;
   --ink:#0b0d10; --panel:#14171c; --panel2:#1c2026; --edge:rgba(220,206,176,.14);
   --vellum:#ddd0b3; --dim:#9d9586; --faint:#6d685f; --lichen:#8e9c88;
-  --lamp:#e2a656; --lamp-soft:rgba(226,166,86,.16); --oxide:#c05a40;
+  --lamp:#8fd6cf; --lamp-soft:rgba(143,214,207,.14); --oxide:#d0735c;
   --display:'IM Fell English','Iowan Old Style','Palatino Linotype',Georgia,serif;
   --sc:'IM Fell English SC','Iowan Old Style',Georgia,serif;
   --body:'Spectral','Iowan Old Style',Georgia,serif;
@@ -70,7 +70,7 @@ button{cursor:pointer}
 .overlay{position:fixed;inset:0;z-index:15;display:grid;place-items:center;background:rgba(5,6,8,.66);padding:16px;overflow:auto}
 .card{background:var(--panel);border:1px solid var(--edge);box-shadow:0 30px 80px rgba(0,0,0,.6);width:min(760px,100%);max-height:calc(100dvh - 32px);overflow:auto}
 .btn{background:transparent;border:1px solid var(--edge);color:var(--vellum);padding:9px 16px;font-family:var(--sc);letter-spacing:.08em;font-size:15px;transition:background .15s,border-color .15s}
-.btn:hover{background:var(--lamp-soft);border-color:rgba(226,166,86,.5)}
+.btn:hover{background:var(--lamp-soft);border-color:rgba(143,214,207,.5)}
 .btn.primary{border-color:var(--lamp);color:var(--lamp)}
 .btn.danger{border-color:rgba(192,90,64,.6);color:#e09a86}
 .btn:disabled{opacity:.4;cursor:default}
@@ -80,8 +80,11 @@ h1,h2,h3{font-family:var(--display);font-weight:400;margin:0;text-wrap:balance}
 .note{font-size:13.5px;line-height:1.5;color:var(--dim);margin:0}
 
 #title{background:#07080a}
+#title.live{background:transparent}
+#title.live .art{background:none}
+#t-load{font-family:var(--mono);font-size:12px;color:var(--dim)}
 #title .art{position:absolute;inset:0;background:#0b0c0f url(assets/title.jpg) center/cover no-repeat}
-#title .art::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(7,8,10,.94) 0%,rgba(7,8,10,.7) 38%,rgba(7,8,10,.1) 75%),linear-gradient(0deg,rgba(7,8,10,.9),transparent 45%)}
+#title .art::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(7,8,10,.9) 0%,rgba(7,8,10,.6) 38%,rgba(7,8,10,0) 72%),linear-gradient(0deg,rgba(7,8,10,.85),transparent 45%)}
 #title .inner{position:relative;min-height:100%;display:flex;flex-direction:column;justify-content:flex-end;gap:22px;padding:40px clamp(16px,6vw,72px) max(40px,calc(24px + env(safe-area-inset-bottom,0px)));max-width:720px;box-sizing:border-box}
 #title h1{font-size:clamp(44px,8vw,96px);line-height:.92;letter-spacing:-.01em}
 #title h1 em{display:block;font-style:italic;color:var(--lamp);font-size:.5em;letter-spacing:0;margin-bottom:10px}
@@ -111,7 +114,7 @@ h1,h2,h3{font-family:var(--display);font-weight:400;margin:0;text-wrap:balance}
 .page-wrap{background:#cfc2a3 url(assets/paper.jpg) center/cover;color:#2a2620;padding:22px clamp(10px,2vw,26px);overflow:auto;min-height:0}
 .page-head{display:flex;justify-content:space-between;font-family:var(--sc);font-size:13px;letter-spacing:.08em;color:#6a5f4e;margin-bottom:10px;gap:8px}
 #page{font-family:var(--mono);font-size:clamp(8px,1.02vw,12.4px);line-height:1.34;white-space:pre;margin:0;color:#2c2822}
-#page mark{background:rgba(226,166,86,.55);color:#1d1a15;border-radius:1px}
+#page mark{background:rgba(143,214,207,.6);color:#1d1a15;border-radius:1px}
 #page mark.frag{background:#2c2822;color:#f1e6c8;padding:0 1px}
 .rside{padding:18px;display:grid;gap:16px;align-content:start;border-left:1px solid var(--edge)}
 .rside h3{font-size:21px;line-height:1.2}
@@ -124,7 +127,7 @@ h1,h2,h3{font-family:var(--display);font-weight:400;margin:0;text-wrap:balance}
 #r-results{max-height:180px;overflow:auto;display:grid;gap:2px;font-family:var(--mono);font-size:12px}
 #r-results button{background:none;border:0;text-align:left;color:var(--vellum);padding:3px 4px}
 #r-results button:hover{background:var(--lamp-soft)}
-.fragbox{border:1px solid rgba(226,166,86,.45);background:var(--lamp-soft);padding:10px 12px;display:grid;gap:8px}
+.fragbox{border:1px solid rgba(143,214,207,.45);background:var(--lamp-soft);padding:10px 12px;display:grid;gap:8px}
 .fragbox q{font-family:var(--display);font-size:18px;color:var(--vellum)}
 
 /* Dialogue */
@@ -234,7 +237,7 @@ h1,h2,h3{font-family:var(--display);font-weight:400;margin:0;text-wrap:balance}
   <div id="hud-time" class="hud-block">
     <span class="lbl" id="h-day">Year 1 · Day 1</span>
     <span class="big" id="h-clock">08:00</span>
-    <span class="sub" id="h-lamps">Lamps out at 22:00</span>
+    <span class="sub" id="h-lamps">Lights out at 22:00</span>
     <div class="bars"><span>Hunger</span><div class="bar" id="h-hunger"><i></i></div><span>Thirst</span><div class="bar" id="h-thirst"><i></i></div></div>
   </div>
   <div id="crosshair"></div>
@@ -258,16 +261,17 @@ h1,h2,h3{font-family:var(--display);font-weight:400;margin:0;text-wrap:balance}
     <h1><em>a walk through the library of</em>A Short Stay in Hell</h1>
     <p class="tag">Every book that can be written is shelved here. One of them is the story of your life, without a single error. Find it, post it through the slot, and you may leave.</p>
     <div class="row">
-      <button class="btn primary" id="b-continue" hidden>Continue</button>
-      <button class="btn" id="b-new">Begin</button>
+      <button class="btn primary" id="b-continue" hidden disabled>Continue</button>
+      <button class="btn" id="b-new" disabled>Begin</button>
     </div>
+    <p id="t-load">Building the library…</p>
     <div class="keys">
       <span><b>WASD</b>walk · steer when falling</span><span><b>Mouse</b>look</span><span><b>Shift</b>sprint</span>
-      <span><b>Space</b>jump</span><span><b>C</b>crouch</span><span><b>E</b>take · use · talk</span>
-      <span><b>R</b>read held book</span><span><b>G</b>drop · throw at rail</span><span><b>F</b>shove</span>
+      <span><b>Space</b>jump · swim up</span><span><b>C</b>crouch · dive</span><span><b>E</b>take · use · talk</span>
+      <span><b>R</b>read held book</span><span><b>G</b>drop · into a well</span><span><b>F</b>shove</span>
       <span><b>Q</b>eat · drink</span><span><b>Z</b>sleep</span><span><b>J</b>journal</span>
     </div>
-    <p class="credit">A fan-made game. Portraits, paintings and textures generated with Higgsfield; the library, its books, its people and its sounds are generated in your browser.</p>
+    <p class="credit">A fan-made game. The rooms were modelled and lit in Blender; portraits and paintings generated with Higgsfield; the books, the tiles, the water, the people and the sounds are generated in your browser.</p>
   </div>
 </section>
 
@@ -321,7 +325,7 @@ h1,h2,h3{font-family:var(--display);font-weight:400;margin:0;text-wrap:balance}
         <p class="note" id="r-qnote"></p>
         <div id="r-results"></div>
       </div>
-      <p class="note">← → turn pages · Esc to close. You are holding this book: put it in any empty slot with E, drop it with G, or throw it over the railing.</p>
+      <p class="note">← → turn pages · Esc to close. You are holding this book: put it in any empty slot with E, drop it with G, or let it fall down a well.</p>
     </div>
   </div>
 </section>
@@ -404,12 +408,12 @@ h1,h2,h3{font-family:var(--display);font-weight:400;margin:0;text-wrap:balance}
     <div class="set"><label for="s-vol">Sound</label><input type="range" id="s-vol" min="0" max="1" step="0.05"><output id="o-vol"></output></div>
     <div class="set"><label for="s-q">Render scale</label><input type="range" id="s-q" min="0.5" max="1" step="0.05"><output id="o-q"></output></div>
     <div class="set"><label for="s-gfx">Graphics</label><input type="range" id="s-gfx" min="0" max="2" step="1"><output id="o-gfx"></output></div>
-    <p class="note" style="margin-top:-8px">High adds lamp haze and floor reflections; Medium keeps soft shadows; Low is bloom only.</p>
+    <p class="note" style="margin-top:-8px">High adds traced reflections in the water and more rooms in view; Medium keeps soft shadows and tile reflections; Low is the fastest.</p>
     <div class="checks"><label><input type="checkbox" id="s-hints"> Show the current thread</label></div>
     <div class="keys">
       <span><b>WASD</b>walk · steer falling</span><span><b>Mouse</b>look</span><span><b>Shift</b>sprint</span>
-      <span><b>Space</b>jump · sleep falling</span><span><b>C</b>crouch</span><span><b>E</b>take · use · talk</span>
-      <span><b>R</b>read held book</span><span><b>G</b>drop · throw at rail</span><span><b>F</b>shove</span>
+      <span><b>Space</b>jump · swim up · sleep falling</span><span><b>C</b>crouch · dive</span><span><b>E</b>take · use · talk</span>
+      <span><b>R</b>read held book</span><span><b>G</b>drop · into a well</span><span><b>F</b>shove</span>
       <span><b>Q</b>eat · drink</span><span><b>Z</b>sleep</span><span><b>J</b>journal</span>
     </div>
     <div style="border-top:1px solid var(--edge);padding-top:14px;display:grid;gap:8px">
@@ -432,7 +436,7 @@ h1,h2,h3{font-family:var(--display);font-weight:400;margin:0;text-wrap:balance}
 /* Load three.js (with a second CDN as fallback), then the game's own scripts in order */
 (function () {
   const libs = ['https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js', 'https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js'];
-  const game = ['js/core.js', 'js/render.js', 'js/actors.js', 'js/story.js', 'js/game.js'];
+  const game = ['js/core.js', 'js/post.js', 'js/world.js', 'js/props.js', 'js/actors.js', 'js/story.js', 'js/game.js'];
   const fail = msg => { const el = document.createElement('div'); el.style.cssText = 'position:fixed;left:16px;right:16px;bottom:16px;z-index:99;background:#14171c;border:1px solid #c05a40;color:#ddd0b3;padding:12px 16px;font:15px Georgia,serif'; el.textContent = msg; document.body.appendChild(el); };
   const load = (src, ok, bad) => { const s = document.createElement('script'); s.src = src; s.async = false; s.onload = ok; s.onerror = bad; document.body.appendChild(s); };
   const lib = i => i >= libs.length ? fail('The 3D engine could not be downloaded. Check your connection and reload the page.') : load(libs[i], () => window.THREE ? run(0) : lib(i + 1), () => lib(i + 1));
