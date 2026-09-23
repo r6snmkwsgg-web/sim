@@ -1,5 +1,5 @@
 """The Great Hall: two floors tall. A colonnaded gallery runs round the upper level, two long
-stairs climb to it, a reflecting pool lies down the middle, and a coffered vault with a skylight
+stairs climb to it, a sunken marble court lies down the middle, and a coffered vault with a skylight
 spine closes it all. Books from the floor to the vault."""
 from lib import *
 
@@ -72,11 +72,11 @@ def make():
         for f in ((0, 3, 2, 1), (4, 5, 6, 7), (0, 1, 5, 4), (1, 2, 6, 5), (2, 3, 7, 6), (3, 0, 4, 7)):
             g.face([ids[i] for i in f], 'brass', [(0, 0)] * 4)
         R.parts.add(g.fix())
-    # reflecting pool down the middle of the ground floor
+    # a sunken marble court down the middle of the ground floor
     R.pool(9.0, 12.4, W - 9.0, W - 12.4, 0.45, m='cobalt')
     for x in (12.0, 16.0, 20.0):
-        R.light(box(x - 0.2, 12.41, -0.34, x + 0.2, 12.45, -0.2, 'e_pool'))
-        R.light(box(x - 0.2, W - 12.45, -0.34, x + 0.2, W - 12.41, -0.2, 'e_pool'))
+        R.light(box(x - 0.2, 12.41, -0.25, x + 0.2, 12.45, -0.12, 'e_pool'))
+        R.light(box(x - 0.2, W - 12.45, -0.25, x + 0.2, W - 12.41, -0.12, 'e_pool'))
     # lamps under the gallery
     for k in range(8):
         p = 2.2 + k * (W - 4.4) / 7

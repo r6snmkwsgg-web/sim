@@ -1,5 +1,5 @@
-"""The Backrooms: mono-yellow wallpaper, damp carpet, the hum of fluorescent panels, and a maze of
-walls that goes on a little too long. The books are here too."""
+"""The Labyrinth: low rooms of green damask and red carpet, lamps set into the ceiling, and a maze
+of walls that goes on a little too long. Bookcases on half the walls."""
 from lib import *
 import random
 
@@ -69,7 +69,7 @@ def make():
     for (a, b) in ((0.8, 6.2), (9.8, 22.2), (25.8, W - 0.8)):
         if rnd.random() < 0.6: R.shelf(a, T, 0, b - a, '+y', rows=5, frame='oak', row_h=0.4)
         if rnd.random() < 0.6: R.shelf(b, W - T, 0, b - a, '-y', rows=5, frame='oak', row_h=0.4)
-    # fluorescent panels on a 2.4 m grid, a few dead
+    # ceiling lamps on a 2.4 m grid, a few dead
     x = 1.6
     while x < W - 1:
         y = 1.6
@@ -84,7 +84,6 @@ def make():
         for b in nbrs((i, j)):
             if b > (i, j): R.link(ids[(i, j)], ids[b])
     R.spot('probe', 14, 14, 1.6)
-    R.meta['label'] = 'The Backrooms'
+    R.meta['label'] = 'The Labyrinth'
     R.meta['box'] = [[T, 0, T], [W - T, H, W - T]]
-    R.meta['hum'] = 1
     return R

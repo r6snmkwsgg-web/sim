@@ -35,6 +35,13 @@ const KINDS = {
   brass:    { k: 9, gloss: 1.0, f0: 1.0, rough: 0.12 },
   chrome:   { k: 9, gloss: 1.0, f0: 1.0, rough: 0.04 },
   books:    { k: 10, gloss: 0.0, f0: 0.0, rough: 1.0 },
+  // the library palette
+  stone:    { k: 11, gloss: 0.18, f0: 0.03, rough: 0.35 },
+  parquet:  { k: 12, gloss: 0.55, f0: 0.04, rough: 0.14 },
+  marble:   { k: 13, gloss: 1.0, f0: 0.045, rough: 0.04 },
+  green:    { k: 8, gloss: 0.35, f0: 0.04, rough: 0.2 },
+  oxblood:  { k: 8, gloss: 0.35, f0: 0.04, rough: 0.2 },
+  damask:   { k: 4, gloss: 0.0, f0: 0.02, rough: 0.6 },
 };
 
 const ROOM_VS = `
@@ -181,6 +188,7 @@ void main(){
     float n = vnoise(vUv * 40.0) * 0.4 + vnoise(vUv * 160.0) * 0.4 + vnoise(vUv * 3.0) * 0.4;
     A *= 0.72 + 0.4 * n;
     A *= 1.0 - 0.22 * smoothstep(0.55, 0.9, vnoise(vUv * 0.5 + 9.0));
+    A = mix(A, vec3(dot(A, vec3(0.333))), 0.25) * 0.8;
   #elif KIND == 6
     vec2 g = abs(fract(vUv / 0.6) - 0.5);
     float edge = smoothstep(0.475, 0.49, max(g.x, g.y));
@@ -207,6 +215,45 @@ void main(){
     float band = smoothstep(0.02, 0.0, abs(vUv.y - top * 0.36 * 0.12)) + smoothstep(0.02, 0.0, abs(vUv.y - top * 0.36 * 0.88));
     A = mix(vec3(0.035), mix(bc, vec3(0.5, 0.32, 0.08), clamp(band, 0.0, 1.0) * 0.7) * (0.85 + 0.25 * sin(fu * 3.14159)), bookm);
     float bw2 = fwidth(u); A = mix(A, vec3(0.08, 0.06, 0.05), smoothstep(0.35, 1.2, bw2));
+  #elif KIND == 11
+    // limestone in courses: 0.9 x 0.42 m blocks, running bond, fine joints, every block its own shade
+    vec2 bs = vec2(0.9, 0.42); vec2 p = vUv / bs; p.x += 0.5 * mod(floor(p.y), 2.0);
+    vec2 c = floor(p); vec2 f = p - c; vec2 em = min(f, 1.0 - f) * bs; vec2 fw = fwidth(vUv);
+    vec2 gg = 1.0 - smoothstep(vec2(0.004) - fw, vec2(0.004) + fw, em);
+    float far = smoothstep(0.02, 0.08, max(fw.x, fw.y));
+    gm = mix(max(gg.x, gg.y), 0.08, far);
+    float h = hash21(c + 5.0);
+    A = uAlb * (0.88 + 0.22 * h) * (0.9 + 0.14 * vnoise(vUv * 5.0 + h * 9.0)) * (0.95 + 0.08 * vnoise(vUv * 43.0));
+    A = mix(A, uAlb * 0.55, gm);
+    bump = (1.0 - smoothstep(vec2(0.004), vec2(0.03), em)) * sign(f - 0.5) * 0.35 * (1.0 - far);
+    gloss *= 1.0 - gm;
+  #elif KIND == 12
+    // oak planks 14 cm wide, staggered ends, the grain from the wood texture
+    vec2 ps = vec2(1.1, 0.14); vec2 p = vUv / ps; float row = floor(p.y); p.x += hash21(vec2(row, 3.0)) * 2.0;
+    vec2 c = floor(p); vec2 f = p - c; vec2 em = min(f, 1.0 - f) * ps; vec2 fw = fwidth(vUv);
+    vec2 gg = 1.0 - smoothstep(vec2(0.0015) - fw, vec2(0.0015) + fw, em);
+    float far = smoothstep(0.02, 0.08, max(fw.x, fw.y));
+    gm = mix(max(gg.x, gg.y), 0.05, far);
+    float h = hash21(c + 31.0);
+    vec3 wt = pow(texture2D(tTex, vec2(vUv.x * 0.45 + h * 5.3, vUv.y * 1.7 + h * 3.1)).rgb, vec3(2.2));
+    A = uAlb * mix(wt / max(dot(wt, vec3(0.333)), 0.05), vec3(1.0), 0.35) * (0.78 + 0.44 * h);
+    A = mix(A, uAlb * 0.3, gm);
+    gloss *= 1.0 - gm;
+  #elif KIND == 13
+    // polished marble, cream and near-black in 60 cm squares, veined
+    float sq = 0.6; vec2 p = vUv / sq; vec2 c = floor(p); vec2 f = p - c; vec2 fw = fwidth(vUv);
+    float chk = mod(c.x + c.y, 2.0);
+    vec3 cream = vec3(0.80, 0.76, 0.68), dark = vec3(0.10, 0.11, 0.10), avg = (cream + dark) * 0.5;
+    vec3 base = chk > 0.5 ? dark : cream;
+    float v = vnoise(vUv * 1.6 + c * 7.13) * 0.65 + vnoise(vUv * 5.0 + c * 3.1) * 0.35;
+    float vein = 1.0 - smoothstep(0.0, 0.01 + fw.x * 1.5, abs(v - 0.52));
+    base = mix(base, chk > 0.5 ? vec3(0.34, 0.33, 0.30) : vec3(0.58, 0.55, 0.50), vein * 0.4);
+    base *= 0.94 + 0.1 * vnoise(vUv * 9.0 + c);
+    vec2 em = min(f, 1.0 - f) * sq;
+    vec2 gg = 1.0 - smoothstep(vec2(0.0015) - fw, vec2(0.0015) + fw, em);
+    gm = mix(max(gg.x, gg.y), 0.02, smoothstep(0.02, 0.08, max(fw.x, fw.y)));
+    A = mix(base, vec3(0.3, 0.28, 0.25), gm) * (uAlb / avg);
+    gloss *= 1.0 - gm;
   #endif
   if (dot(bump, bump) > 0.0) { mat3 M = tbn(N, vL, vUv); N = normalize(M * vec3(bump, 1.0)); }
   vec3 L = lightmap(vUv2);
@@ -498,7 +545,7 @@ async function loadPrefab(name) {
               uAlb: { value: new THREE.Vector3().fromArray(alb) }, uSize: { value: K.size || 0.15 }, uGrout: { value: K.grout || 0.005 }, uJit: { value: K.jit || 0.05 },
               uGloss: { value: K.gloss }, uF0: { value: K.f0 }, uRough: { value: K.rough },
               uP0: { value: new THREE.Vector3().fromArray(pal[0]) }, uP1: { value: new THREE.Vector3().fromArray(pal[1]) }, uP2: { value: new THREE.Vector3().fromArray(pal[2]) }, uP3: { value: new THREE.Vector3().fromArray(pal[3]) },
-              tTex: { value: K.k === 7 ? woodTex() : null }
+              tTex: { value: K.k === 7 || K.k === 12 ? woodTex() : null }
             }),
             vertexShader: ROOM_VS, fragmentShader: ROOM_FS
           });

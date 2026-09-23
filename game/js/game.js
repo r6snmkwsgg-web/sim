@@ -343,9 +343,9 @@ function fadeMsg(t, s) { $('#fade-t').textContent = t; $('#fade-s').textContent 
 function sleepNow(reason) {
   if (nightBusy) return; nightBusy = true;
   const lines = {
-    bed: ['You lie down on the narrow bed.', 'The pool lights make slow shapes on the ceiling. Then there is nothing.'],
-    floor: ['You lie down where you are.', 'The tiles are cool. Sleep comes the way it always does here: all at once.'],
-    dark: ['The lights are out. Only the water still glows.', 'You sleep where you lie. Everyone does.'],
+    bed: ['You lie down on the narrow bed.', 'The lamps make slow shapes on the ceiling. Then there is nothing.'],
+    floor: ['You lie down where you are.', 'The floor is cool. Sleep comes the way it always does here: all at once.'],
+    dark: ['The lights are out. Only the little step lamps still glow.', 'You sleep where you lie. Everyone does.'],
     fall: ['You close your eyes. The wind keeps its one long note.', 'You sleep, somehow, still falling.'],
     dead: ['It is dark for a long time.', 'If you are killed, you will be restored the following day.'],
   }[reason] || ['You sleep.', ''];
@@ -409,7 +409,7 @@ function updateTime(dt) {
   if (S.time >= LIGHTS_OFF - 0.25 && S.time < LIGHTS_OFF) { lampT = 0.8 + 0.2 * Math.sin(performance.now() * 0.03) * Math.sin(performance.now() * 0.011); if (S.flags.dimWarn !== S.day) { S.flags.dimWarn = S.day; toast('The lights are flickering. The dark is a few minutes away.'); } }
   if (S.time >= LIGHTS_OFF) {
     lampT = 0;
-    if (!dark) { dark = true; SFX.thunk(); toast(S.fall ? 'The lights go out. You fall in total darkness.' : 'The lights go out, all of them, all at once. Only the pools still glow. Find a bed (E) or lie down (Z).', true); if (S.fall) setTimeout(() => sleepNow('fall'), 2500); }
+    if (!dark) { dark = true; SFX.thunk(); toast(S.fall ? 'The lights go out. You fall in total darkness.' : 'The lights go out, all of them, all at once. Only the step lamps still glow. Find a bed (E) or lie down (Z).', true); if (S.fall) setTimeout(() => sleepNow('fall'), 2500); }
     if (S.time >= LIGHTS_OFF + 1) sleepNow('dark');
   }
   dayK += (lampT - dayK) * Math.min(1, dt * (lampT < dayK ? 4 : 1));
@@ -518,7 +518,7 @@ function describeTarget(t) {
     b = n.mode === 'dead' ? '[E] Look' : lying && S.time >= 21.5 ? 'Asleep' : '[E] Talk' + (n.mode === 'chase' ? ' · [F] Shove' : '');
   } else if (t.kind === 'ground') { a = esc(addrLine(parseKey(t.gb.id))) + '<br>lying on the floor'; b = S.carried ? 'Your hands are full' : '[E] Pick it up'; }
   else if (t.kind === 'kiosk') { a = 'A kiosk, glowing softly'; b = '[E] Ask for food or drink'; }
-  else if (t.kind === 'bed') { a = 'A narrow bed in a tiled alcove'; b = S.time >= 17 || dark ? '[E] Sleep until the lights come on' : 'Beds are for the evening (after 17:00).'; }
+  else if (t.kind === 'bed') { a = 'A narrow bed in an alcove'; b = S.time >= 17 || dark ? '[E] Sleep until the lights come on' : 'Beds are for the evening (after 17:00).'; }
   else if (t.kind === 'bath') { a = 'The washroom'; b = '[E] Go in'; }
   else if (t.kind === 'plaque') { a = 'A brass plaque, and a slot beneath it'; b = S.carried ? '[E] Post the book you hold through the slot' : '[E] Read the plaque'; }
   else if (t.kind === 'edge') { a = 'The parapet. Below it, the shaft goes down past every floor anyone has counted.'; b = PL.edgeArm > 0 ? '[E] again to let go · step back to stay' : '[E] Climb over' + (S.carried ? ' · [G] Drop the book in' : ''); }
@@ -862,7 +862,7 @@ function renderJournal() {
       <p>The chance that the next book you open is yours: <span class="num">1 in 10<sup>${fmt(LOG10_BOOKS)}</sup></span>. Opening one book a second since the Big Bang would change that exponent by about 17.</p>
       <h3>Where this game lies to you</h3>
       <p>In a truly random library, a particular twenty-character sentence turns up about once in <span class="num">10<sup>${Math.round(sent)}</sup></span> books. Here, one book in ${FRAG_RATE} carries a readable fragment. That is the game’s one mercy, and you should know it is one. Short strings are honest: search any book for a three-letter word and you will usually find one or two, just as chance predicts.</p>
-      <p>The book’s library is one gallery, repeated forever. This one dreams: pools, towers, wells and yellow rooms, rearranging themselves as you walk. The books are the same books.</p>
+      <p>The book’s library is one gallery, repeated forever. This one dreams: vaults, towers, wells, sunken courts and labyrinths, rearranging themselves as you walk. The books are the same books.</p>
       <p class="note">For the record, your own book is on a floor whose number begins ${lb.lead}… and runs to about ${fmt(lb.digits)} digits. Nobody here could tell you that; the game can.</p>
     </div>`;
   }
@@ -934,7 +934,7 @@ const PRO = [
   { who: '', text: 'He calls Lester first — a Christian, certain of everything — and sends him through a door you are glad you cannot see beyond. Then Julia, an atheist, who seems mostly annoyed to be wrong.' },
   { who: 'Xandern', text: 'You five are going somewhere else. Three things. One: if you die, you will be brought back. Two: your earthly covenants — marriage included — are dissolved.' },
   { who: 'Xandern', text: 'Three: find the book that tells your life, every word of it, without a single error, and post it through the slot. Then you may go. It is meant to teach you something. It is a punishment. It is not forever.' },
-  { who: '', text: 'Then there is white tile, and still water, and a body that doesn’t hurt anymore.' },
+  { who: '', text: 'Then there is warm stone, and lamplight, and shelves, and a body that doesn’t hurt anymore.' },
 ];
 let proI = 0;
 $('#b-new').onclick = () => { if (!WORLD.ready) return; audioInit(); $('#title').hidden = true; $('#prologue').hidden = false; MODE = 'prologue'; proI = 0; showPro(); };
@@ -946,7 +946,7 @@ function showPro() {
 }
 $('#b-pro').onclick = () => {
   if (proI < PRO.length - 1) { proI++; showPro(); return; }
-  S = freshState(); logJ('Died of cancer. Was processed by a demon named Xandern. The true religion was Zoroastrianism.'); logJ('Woke beside a small round pool in a tiled room, with four others who arrived when I did. I can remember every day of my life, exactly. That should make my book easy to recognise. It does not make it easier to find.');
+  S = freshState(); logJ('Died of cancer. Was processed by a demon named Xandern. The true religion was Zoroastrianism.'); logJ('Woke beside a small stepped pit in a green room, with four others who arrived when I did. I can remember every day of my life, exactly. That should make my book easy to recognise. It does not make it easier to find.');
   save(); startPlay(true);
 };
 function startPlay(first) {
@@ -988,26 +988,26 @@ function syncRoom() {
   // light where you stand, for the people and loose books; a little haze tinted by the room
   const av = r ? (dayK * (r.pf.meta.avg.day || 1) + (1 - dayK) * (r.pf.meta.avg.night || 0.05)) : 0.5;
   AMB.top.set(av * 1.15, av * 1.13, av * 1.1); AMB.col.set(av * 0.7, av * 0.72, av * 0.75);
-  const fog = r && r.pf.name === 'backrooms' ? [0.5, 0.46, 0.3] : r && (r.pf.name === 'well' || r.pf.name === 'tower') ? [0.34, 0.36, 0.4] : [0.42, 0.46, 0.5];
+  const fog = r && r.pf.name === 'backrooms' ? [0.36, 0.3, 0.22] : r && (r.pf.name === 'well' || r.pf.name === 'tower') ? [0.36, 0.32, 0.27] : [0.46, 0.41, 0.34];
   WU.uFogCol.value.setRGB(fog[0] * av, fog[1] * av, fog[2] * av);
   WU.uFogD.value = r && (r.pf.name === 'well' || r.pf.name === 'tower') ? 0.012 : r && r.pf.name === 'backrooms' ? 0.02 : 0.006;
   if (AU.ctx) {
-    AU.hum.gain.value = r && r.pf.name === 'backrooms' ? 0.012 * (0.3 + 0.7 * dayK) : 0;
+    AU.hum.gain.value = 0;
     AU.water.gain.value = r && r.pf.meta.water.length ? 0.006 + (PL.wade || PL.swim ? 0.01 : 0) : 0;
     AU.under.frequency.value = PL.under ? 600 : 20000;
   }
 }
 function roomFirst(name) {
   const t = {
-    poolhall: 'A long hall with a pool down the middle. The water is so still it looks like another room.',
-    stacks: 'Bookcases standing in water to the knee. The bottom shelves are drowned, and the books on them are perfectly dry when you take them out.',
-    backrooms: 'Yellow wallpaper. Damp carpet. The hum. You have been here before, somehow, in a dream.',
-    pillars: 'A forest of tiled columns in shallow water, and light falling in squares.',
+    poolhall: 'A long stone hall with a canal of books sunk down its middle. The shelves go below your feet.',
+    stacks: 'The floor drops two steps and the bookcases stand in rows below you, under squares of light.',
+    backrooms: 'Green damask. Red carpet. Low ceilings and one more turn, and one more. You have been here before, somehow, in a dream.',
+    pillars: 'A forest of stone columns on a sunken marble floor, and light falling in squares.',
     well: 'A square shaft through the middle of everything. Look down: floors, and floors, and floors.',
-    tower: 'A white ramp winds up and down a round tower, one turn to a floor. The middle is open.',
+    tower: 'A stone ramp winds up and down a round tower, one turn to a floor. The middle is open.',
     grand: 'A great hall two floors tall, books from the floor to the vault.',
-    crossing: 'Four tiled vaults meet under a dome. Light comes through the eye of it.',
-    bath: 'A sunken bath, cobalt blue, with steps down on every side. The water is perfectly clear and perfectly still.',
+    crossing: 'Four stone vaults meet under a dome. Light comes through the eye of it, down into a stepped pit.',
+    bath: 'A sunken court of black and white marble, with steps down on every side, and columns all round.',
     reading: 'A reading room: oak, lamplight, green shades. It smells like a library you once loved.',
   }[name];
   if (t && MODE === 'play') toast(t);

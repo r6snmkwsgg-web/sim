@@ -27,7 +27,7 @@ const MST_FIRST = 'and in the morning the river came back as if it had never bee
 }
 
 const MOMENTS = {
-  arrival: { eyebrow: 'Year one · Day one', title: 'The First Week', art: 'ch1', text: 'You wake beside a small round pool, in a body that no longer hurts. Four strangers wake beside you. Beyond the arches: tile, water, shelves, and more arches, and more shelves, as far as anyone has walked.' },
+  arrival: { eyebrow: 'Year one · Day one', title: 'The First Week', art: 'ch1', text: 'You wake beside a small stepped pit, in a body that no longer hurts. Four strangers wake beside you. Beyond the arches: stone, lamplight, shelves, and more arches, and more shelves, as far as anyone has walked.' },
   university: { eyebrow: 'Six rooms west, three floors down', title: 'The University', art: 'ch2', text: 'People who have been here for a century have made something out of it: a university, of all things, in a great hall of books — devoted to the rare sentence that means anything at all.' },
   direites: { eyebrow: 'They come through the arches', title: 'The Direites', art: 'ch3', text: 'Some people here decided that pain is the only thing in the library nobody wrote down first. They follow a man called Dire Dan. They are coming this way.' },
   abyss: { eyebrow: 'The lights went out. You kept falling.', title: 'The Deepest Abyss', art: 'ch4', text: 'The lights came back on and you are still falling. You can steer. You cannot stop — unless you hit a floor hard enough to kill you, and wake tomorrow wherever that was.' },
@@ -319,7 +319,7 @@ function startCeremony() {
   if (!S.flags.rachelGone && !npcRec('rachel').following) { R.mode = 'speak'; R.t = 400; R.path = [localToAbs(home, [17.3, 0, 10.4])]; R.faceAt = look; lines.push({ who: 'Master Treacle', text: 'By vote of the faculty, the Most Significant Text of the year — read for us by Dr. Rachel Hasnick.' }); lines.push({ who: 'Rachel Hasnick', text: `“${text}.”` }); }
   else lines.push({ who: 'Master Treacle', text: `The Most Significant Text of the year: “${text}.”` });
   lines.push({ who: '', text: '(A murmur. Someone weeps quietly. Someone else insists the second word is a typo.)' });
-  lines.push({ who: 'Master Treacle', text: 'Thank you all. Discussion continues at the pool, as usual.' });
+  lines.push({ who: 'Master Treacle', text: 'Thank you all. Discussion continues in the court, as usual.' });
   showCaptions(lines, () => {
     S.flags.mstDone = 1; S.flags.mstDay = S.day; logJ(`Heard the University read its Most Significant Text: “${text}.”`);
     for (const n of [T, R, NPC_BY.pruitt, ...POOL]) if (n.mode === 'stand' || n.mode === 'speak') { n.mode = 'idle'; n.t = 0; n.faceAt = null; }
@@ -464,7 +464,7 @@ const DLG = {
     root(c) {
       const m = c.rec; let text;
       if (c.greet && !m.met) { m.met = true; logJ('Met Betty, who doesn’t think much of my homework.'); text = "Betty. You’re the Mormon, aren’t you? You’ve got the look — like you’re waiting for somebody to come and grade your homework."; }
-      else if (c.greet) text = m.aff >= 3 ? 'Sit with me by the pool tonight, when the lights go out. It glows. It’s the only thing in here that looks like it’s alive.' : 'Still behaving yourself?';
+      else if (c.greet) text = m.aff >= 3 ? 'Sit with me by the step lamps tonight, when the lights go out. They stay lit. They’re the only thing in here that looks like it’s alive.' : 'Still behaving yourself?';
       else text = 'Well?';
       return { text, opts: [
         { t: 'What do you mean?', go: 'mean', if: !m.f.cov },
@@ -620,7 +620,7 @@ function chatPrompt(n) {
   const d = n.d, rec = npcRec(d.key);
   const persona = PERSONA[d.key] || `${n.gname || 'A stranger'}, an ordinary American from ${n.gtown || 'the Midwest'} stuck in the library; ${n.assign ? { searchers: 'a methodical searcher', drinkers: 'a cheerful drinker', still: 'someone who has given up', scholars: 'a University scholar', preacher: 'a follower of a shelf-preacher' }[n.assign.role] || 'a searcher' : 'a falling soul'}.`;
   const recent = S.journal.slice(-6).map(j => `- ${j.text}`).join('\n');
-  return `You are voicing a character in a first-person video game set in the Hell of Steven L. Peck's novella "A Short Stay in Hell": an endless library holding every possible 410-page book. In this game the library is dreamlike: endless tiled rooms with still pools, vaulted halls, a yellow maze like the backrooms, spiral towers, and square wells that drop through every floor. A soul may leave only by finding the flawless book of their own life and posting it through the slot in a rest area. Nobody dies for good: the dead wake restored the next morning, where they died — someone who dies while falling wakes up still falling. The lights go out at 22:00; only the pools keep glowing. Kiosks give any food or drink. At dawn every book returns to its shelf.
+  return `You are voicing a character in a first-person video game set in the Hell of Steven L. Peck's novella "A Short Stay in Hell": an endless library holding every possible 410-page book. In this game the library is dreamlike, built like the liminal 'poolrooms' but of stone, oak, marble and books: vaulted halls, sunken courts and book-lined canals, a low green labyrinth, spiral towers, and square wells that drop through every floor. A soul may leave only by finding the flawless book of their own life and posting it through the slot in a rest area. Nobody dies for good: the dead wake restored the next morning, where they died — someone who dies while falling wakes up still falling. The lights go out at 22:00; only the little step lamps keep glowing. Kiosks give any food or drink. At dawn every book returns to its shelf.
 
 In this game, climbing over a parapet into a well and falling is an ordinary action the player's character (Soren Johansson, a Mormon geologist) can take, and nobody's death here is permanent, so talk of jumping, falling or dying is about the game world: answer it in character, as your character would. Step out of character only if the person clearly signals a real-life crisis about themselves.
 

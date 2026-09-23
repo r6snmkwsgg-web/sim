@@ -1,5 +1,5 @@
-"""The Pool Hall: a long vaulted nave with a pool down its length, arcades on both sides,
-vaulted aisles lined with books, and a skylight slot running the length of the vault."""
+"""The Long Hall: a vaulted stone nave with a sunken canal of books down its length, arcades on
+both sides, vaulted aisles lined with books, and a skylight slot running the length of the vault."""
 from lib import *
 
 
@@ -30,14 +30,22 @@ def make():
         for ay in (T + aw / 2, D - T - aw / 2):
             R.cut(cyl(x, ay, 2.3 + aw / 2 - 0.25, 2.3 + aw / 2 + 0.5, 0.26, 20))
             R.light(cyl(x, ay, 2.3 + aw / 2 + 0.42, 2.3 + aw / 2 + 0.45, 0.26, 20, side='e_panel', top='e_panel', bottom='e_panel'))
-    # the pool, with steps down at the west end
+    # the canal: a sheer-sided trench of books, with steps down at the west end
     px0, px1, py0, py1, depth = 4.6, W - 4.6, cy - 2.8, cy + 2.8, 1.5
-    R.pool(px0, py0, px1, py1, depth)
-    for k in range(1, 6):
-        R.parts.add(box(px0 - 0.01, py0, -depth, px0 + (6 - k) * 0.36, py1, -k * 0.25, 'mosaic', skip=('-z',)))
-    for x in (px0 + 3.0, (px0 + px1) / 2, px1 - 3.0):     # pool lights on both long walls
+    R.pool(px0, py0, px1, py1, depth, steps=False)
+    for k in range(1, 6):   # steps down at both ends
+        R.parts.add(box(px0 - 0.01, py0, -depth, px0 + k * 0.36, py1, -k * 0.25, 'mosaic', skip=('-z',)))
+        R.parts.add(box(px1 - k * 0.36, py0, -depth, px1 + 0.01, py1, -k * 0.25, 'mosaic', skip=('-z',)))
+    L = (px1 - 2.2) - (px0 + 2.2)
+    R.shelf(px0 + 2.2, py0, -depth, L, '+y', rows=3, frame='wood')
+    R.shelf(px1 - 2.2, py1, -depth, L, '-y', rows=3, frame='wood')
+    # a stone parapet with a brass rail along both long edges, open at the stairs
+    for (y0, y1) in ((py0 - 0.22, py0), (py1, py1 + 0.22)):
+        R.parts.add(box(px0 + 2.0, y0, 0, px1 - 2.0, y1, 0.9, 'tile', skip=('-z',)))
+        R.parts.add(box(px0 + 1.97, y0 - 0.03, 0.9, px1 - 1.97, y1 + 0.03, 0.96, 'brass'))
+    for x in (px0 + 3.0, (px0 + px1) / 2, px1 - 3.0):     # lamps along the canal's lip
         for (y, a) in ((py0 + 0.01, 0.0), (py1 - 0.01, math.pi)):
-            R.light(box(x - 0.25, y - 0.04, -0.75, x + 0.25, y + 0.04, -0.5, 'e_pool'))
+            R.light(box(x - 0.25, y - 0.04, -0.1, x + 0.25, y + 0.04, -0.02, 'e_pool'))
     # books along both aisle walls, and flanking the end doors
     for y0, face in ((T, '+y'), (D - T, '-y')):
         for (a, b) in ((0.7, 6.1), (9.9, 22.1), (25.9, W - 0.7)):
@@ -58,5 +66,5 @@ def make():
     for x in (6, 14, 22, 26):
         R.spot('read', x, T + aw / 2, 0, math.pi / 2 * -1)
     R.spot('probe', W / 2, cy, 1.7)
-    R.meta['label'] = 'The Pool Hall'
+    R.meta['label'] = 'The Long Hall'
     return R

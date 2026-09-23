@@ -32,10 +32,10 @@ MATS = {
     'pink':      (0.86, 0.60, 0.56),
     'mint':      (0.58, 0.80, 0.70),
     'cobalt':    (0.16, 0.30, 0.62),
-    'plaster':   (0.80, 0.78, 0.74),
+    'plaster':   (0.82, 0.76, 0.66),
     'terrazzo':  (0.72, 0.70, 0.66),
     'paper':     (0.74, 0.64, 0.34),   # yellow wallpaper
-    'carpet':    (0.50, 0.43, 0.26),
+    'carpet':    (0.34, 0.09, 0.08),   # deep red
     'ceiltile':  (0.78, 0.76, 0.68),
     'wood':      (0.36, 0.22, 0.13),
     'oak':       (0.62, 0.46, 0.30),
@@ -46,14 +46,24 @@ MATS = {
     'black':     (0.03, 0.03, 0.03),
     'bed':       (0.82, 0.80, 0.74),
     'kiosk':     (0.30, 0.34, 0.36),
+    # the library palette
+    'stone':     (0.66, 0.60, 0.50),   # warm limestone, laid in courses
+    'parquet':   (0.29, 0.19, 0.12),   # dark oak planks
+    'marble':    (0.47, 0.45, 0.40),   # cream and near-black checker, polished
+    'green':     (0.14, 0.26, 0.20),   # library green paint
+    'oxblood':   (0.36, 0.11, 0.09),
+    'damask':    (0.17, 0.24, 0.17),   # dark green patterned wallpaper
 }
+# The rooms were first drawn in pool tile; the library wears these instead.
+THEME = {'tile': 'stone', 'floor': 'parquet', 'terrazzo': 'marble', 'mosaic': 'marble', 'cobalt': 'marble',
+         'mint': 'green', 'pink': 'oxblood', 'paper': 'damask', 'ceiltile': 'plaster', 'paint': 'wood'}
 # Emitters: colour and strength (W/m^2-ish in Cycles emission units). Not baked; drawn glowing.
 EMIT = {
-    'e_sky':   ((0.86, 0.94, 1.00), 14.0),   # skylight / oculus
-    'e_panel': ((1.00, 0.97, 0.90), 10.0),   # ceiling light panel
+    'e_sky':   ((1.00, 0.91, 0.76), 14.0),   # skylight / oculus: warm, like late afternoon
+    'e_panel': ((1.00, 0.88, 0.70), 10.0),   # ceiling light panel
     'e_lamp':  ((1.00, 0.84, 0.62), 16.0),   # warm lamp
-    'e_fluor': ((0.96, 1.00, 0.86), 9.0),    # backrooms fluorescent
-    'e_pool':  ((0.55, 0.95, 1.00), 22.0),   # underwater pool light
+    'e_fluor': ((1.00, 0.82, 0.58), 9.0),    # low lamps in the labyrinth
+    'e_pool':  ((1.00, 0.64, 0.32), 12.0),   # step lights in the sunken floors
     'e_amber': ((1.00, 0.55, 0.20), 6.0),    # night lamp
     'e_kiosk': ((0.85, 0.95, 1.00), 5.0),
     'e_portal': ((0.92, 0.92, 0.90), 1.0),   # stands in for the next room's light
@@ -121,7 +131,7 @@ class Geo:
         self.v.append(tuple(float(c) for c in p)); return len(self.v) - 1
 
     def face(self, idx, m, uvs):
-        self.f.append(tuple(idx)); self.m.append(m); self.uv.append([tuple(u) for u in uvs])
+        self.f.append(tuple(idx)); self.m.append(THEME.get(m, m)); self.uv.append([tuple(u) for u in uvs])
 
     def fix(self):
         """Make a closed primitive face outward (reverse every face if its signed volume is negative)."""
@@ -408,17 +418,27 @@ class Room:
     def light(self, g):
         self.emit.add(g)
 
-    def pool(self, x0, y0, x1, y1, depth, surface=-0.08, m='mosaic', coping=None, z=0.0):
-        self.cut(box(x0, y0, z - depth, x1, y1, z + 0.3, m, top='tile'))
-        self.water.append({'x0': x0, 'y0': y0, 'x1': x1, 'y1': y1, 'top': z + surface, 'bot': z - depth})
+    def pool(self, x0, y0, x1, y1, depth, surface=None, m='mosaic', coping=None, z=0.0, steps=True):
+        """A sunken floor: terraces 0.3 m down and 0.45 m in, to depth (steps=False: one sheer drop)."""
+        k, d = 0, 0.0
+        while d < depth - 1e-6:
+            ins = k * 0.45 if steps else 0.0
+            if min(x1 - x0, y1 - y0) - 2 * ins < 0.9: break
+            d = min(depth, d + 0.3) if steps else depth
+            self.cut(box(x0 + ins, y0 + ins, z - d, x1 - ins, y1 - ins, z + 0.3, m, top='tile'))
+            k += 1
         if coping:
             c = 0.28
             for bx in ((x0 - c, y0 - c, x1 + c, y0), (x0 - c, y1, x1 + c, y1 + c), (x0 - c, y0, x0, y1), (x1, y0, x1 + c, y1)):
                 self.parts.add(box(bx[0], bx[1], z, bx[2], bx[3], z + coping, 'tile', skip=('-z',)))
 
-    def round_pool(self, cx, cy, r, depth, surface=-0.08, m='mosaic', z=0.0, segs=48):
-        self.cut(cyl(cx, cy, z - depth, z + 0.3, r, segs, side=m, bottom=m, top='tile'))
-        self.water.append({'cx': cx, 'cy': cy, 'r': r, 'top': z + surface, 'bot': z - depth})
+    def round_pool(self, cx, cy, r, depth, surface=None, m='mosaic', z=0.0, segs=48):
+        """A round sunken pit, stepped like an amphitheatre."""
+        k, d = 0, 0.0
+        while d < depth - 1e-6 and r - k * 0.45 > 0.5:
+            d = min(depth, d + 0.3)
+            self.cut(cyl(cx, cy, z - d, z + 0.3, r - k * 0.45, segs, side=m, bottom=m, top='tile'))
+            k += 1
 
     def spot(self, kind, x, y, z=0.0, face=0.0, **kw):
         s = {'k': kind, 'p': [x, y, z], 'f': face}; s.update(kw); self.spots.append(s); return s

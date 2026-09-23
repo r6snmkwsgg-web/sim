@@ -1,4 +1,4 @@
-"""The Crossing: four tiled barrel vaults meet under a dome with an oculus; a round pool below it.
+"""The Crossing: four stone barrel vaults meet under a dome with an oculus; a stepped round pit below it.
 Book niches line the tunnels and the dome's diagonals."""
 from lib import *
 
@@ -18,11 +18,11 @@ def make():
     R.cut(sphere(cx, cy, zs, rc, 64, 24, 'tile', lower=False))
     R.cut(cyl(cx, cy, zs + rc - 0.5, R.hi + 0.5, 0.95, 40, side='tile', top='tile', bottom='tile'))   # oculus
     R.light(cyl(cx, cy, R.hi - 0.08, R.hi - 0.05, 0.95, 40, side='e_sky', top='e_sky', bottom='e_sky'))
-    # the pool under the oculus
+    # the stepped pit under the oculus
     R.round_pool(cx, cy, 2.7, 1.1, segs=64)
-    for k in range(4):   # underwater lights, lit day and night
+    for k in range(4):   # step lights, lit day and night
         a = math.pi / 4 + k * math.pi / 2
-        g = box(-0.22, -0.04, -0.62, 0.22, 0.04, -0.42, 'e_pool').xform(a + math.pi / 2, cx + math.cos(a) * 2.69, cy + math.sin(a) * 2.69)
+        g = box(-0.22, -0.04, -0.22, 0.22, 0.04, -0.1, 'e_pool').xform(a + math.pi / 2, cx + math.cos(a) * 2.69, cy + math.sin(a) * 2.69)
         R.light(g)
     # niches along the tunnels (in the four corner piers), each holding a bookcase
     nw, nj, nd = 2.3, 2.5, 0.62

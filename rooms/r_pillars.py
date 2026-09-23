@@ -1,5 +1,5 @@
-"""The Pillar Forest: a flooded hypostyle hall. Slender tiled columns on a 3.2 m grid stand in
-shallow water; some columns are square towers of books. Light falls in a checkerboard."""
+"""The Pillar Forest: a hypostyle hall. Slender stone columns on a 3.2 m grid stand on a sunken
+marble floor; some columns are square towers of books. Light falls in a checkerboard."""
 from lib import *
 
 
@@ -29,7 +29,7 @@ def make():
                 R.parts.add(cyl(x, y, H - 0.35, H, 0.4, 24, side='tile', caps=False))     # capital
     for x in (6.4, 16.0, 25.6):
         for (y, a) in ((2.41, 0), (W - 2.41, 0)):
-            R.light(box(x - 0.2, y - 0.04, -0.3, x + 0.2, y + 0.04, -0.15, 'e_pool'))
+            R.light(box(x - 0.2, y - 0.04, -0.25, x + 0.2, y + 0.04, -0.12, 'e_pool'))
     # books along the outer walls
     for (a, b) in ((0.8, 6.2), (9.8, 22.2), (25.8, W - 0.8)):
         R.shelf(a, T, 0, b - a, '+y', rows=6, frame='paint')

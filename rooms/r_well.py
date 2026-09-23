@@ -10,7 +10,7 @@ def make():
     # the gallery: everything between the walls and the shaft, full height of the level
     R.cut(box(T - 0.02, T - 0.02, 0, C - T + 0.02, C - T + 0.02, TOP, 'tile', bottom='floor', top='plaster'))
     R.cut(box(s0, s0, -LH, s1, s1, 2 * LH, 'tile'))
-    # tiled parapet with a brass rail round the shaft
+    # stone parapet with a brass rail round the shaft
     pw, ph = 0.22, 0.86
     for (x0, y0, x1, y1) in ((s0 - pw, s0 - pw, s1 + pw, s0), (s0 - pw, s1, s1 + pw, s1 + pw), (s0 - pw, s0, s0, s1), (s1, s0, s1 + pw, s1)):
         R.parts.add(box(x0, y0, 0, x1, y1, ph, 'tile', skip=('-z',)))

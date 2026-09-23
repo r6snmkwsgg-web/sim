@@ -1,5 +1,5 @@
 """A rest area, as in the book: a kiosk that feeds you, cots, a washroom, a plaque with the rules.
-Here it is a low mint-tiled room with coffered skylights and a small round plunge pool."""
+Here it is a low room in library green, with coffered skylights over a small stepped pit."""
 from lib import *
 
 
@@ -14,11 +14,11 @@ def make():
         R.light(box(x - 1.05, y - 1.05, H + 0.28, x + 1.05, y + 1.05, H + 0.31, 'e_panel'))
     R.cut(cyl(8, 8, H - 0.05, H + 0.5, 1.1, 32, side='plaster', top='plaster', bottom='plaster'))
     R.light(cyl(8, 8, H + 0.42, H + 0.45, 1.1, 32, side='e_sky', top='e_sky', bottom='e_sky'))
-    # plunge pool under the round skylight
-    R.round_pool(8, 8, 1.75, 1.2, segs=48)
+    # a small stepped pit under the round skylight
+    R.round_pool(8, 8, 1.75, 0.9, segs=48)
     for k in range(3):
         a = k * 2 * math.pi / 3 + 0.4
-        R.light(box(-0.18, -0.04, -0.7, 0.18, 0.04, -0.5, 'e_pool').xform(a + math.pi / 2, 8 + math.cos(a) * 1.74, 8 + math.sin(a) * 1.74))
+        R.light(box(-0.18, -0.04, -0.22, 0.18, 0.04, -0.1, 'e_pool').xform(a + math.pi / 2, 8 + math.cos(a) * 1.74, 8 + math.sin(a) * 1.74))
     # cots in two arched alcoves on the east wall
     beds = []
     for yc in (3.3, 12.7):

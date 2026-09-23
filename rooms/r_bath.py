@@ -1,5 +1,5 @@
-"""The Bath: a sunken cobalt pool with steps down on every side, ringed by white columns under a
-coffered ceiling, a great square skylight above the water, books in arched niches round the walls."""
+"""The Sunken Court: a marble floor stepping down on every side, ringed by stone columns under a
+coffered ceiling, a great square skylight above it, books in arched niches round the walls."""
 from lib import *
 
 
@@ -11,18 +11,17 @@ def make():
     # the stepped basin: three steps of 0.3 m, then the floor of the bath
     for a, z in ((4.0, -0.3), (4.3, -0.6), (4.6, -0.9), (4.9, -1.2)):
         R.cut(box(a, a, z, C - a, C - a, 0.3, 'cobalt', top='tile'))
-    R.water.append({'x0': 4.0, 'y0': 4.0, 'x1': C - 4.0, 'y1': C - 4.0, 'top': -0.08, 'bot': -1.2})
     for x in (6.0, 8.0, 10.0):
         for y in (4.91, C - 4.91):
             R.light(box(x - 0.2, y - 0.04, -1.12, x + 0.2, y + 0.04, -0.98, 'e_pool'))
-    # the skylight over the water, in a deep coffer
+    # the skylight over the court, in a deep coffer
     R.cut(box(5.0, 5.0, H - 0.05, C - 5.0, C - 5.0, H + 1.4, 'plaster'))
     R.light(box(5.3, 5.3, H + 1.3, C - 5.3, C - 5.3, H + 1.33, 'e_sky'))
     # coffers round the edge of the ceiling
     for (x, y) in ((2.2, 2.2), (C - 2.2, 2.2), (2.2, C - 2.2), (C - 2.2, C - 2.2)):
         R.cut(box(x - 1.1, y - 1.1, H - 0.05, x + 1.1, y + 1.1, H + 0.35, 'plaster'))
         R.light(box(x - 0.8, y - 0.8, H + 0.28, x + 0.8, y + 0.8, H + 0.31, 'e_panel'))
-    # columns round the bath
+    # columns round the court
     for i in range(4):
         for j in range(4):
             if 0 < i < 3 and 0 < j < 3: continue
@@ -47,6 +46,6 @@ def make():
     for (x, y, a) in ((8, 3.2, math.pi / 2), (8, C - 3.2, -math.pi / 2), (3.2, 8, 0), (C - 3.2, 8, math.pi)):
         R.spot('sit', x, y, 0.0, a)
     R.spot('probe', 8, 8, 1.6)
-    R.meta['label'] = 'The Bath'
+    R.meta['label'] = 'The Sunken Court'
     R.meta['box'] = [[W0, -1.2, W0], [C - W0, H, C - W0]]
     return R

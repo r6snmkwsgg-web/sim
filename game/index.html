@@ -8,7 +8,7 @@
   color-scheme:dark;
   --ink:#0b0d10; --panel:#14171c; --panel2:#1c2026; --edge:rgba(220,206,176,.14);
   --vellum:#ddd0b3; --dim:#9d9586; --faint:#6d685f; --lichen:#8e9c88;
-  --lamp:#8fd6cf; --lamp-soft:rgba(143,214,207,.14); --oxide:#d0735c;
+  --lamp:#dcb46a; --lamp-soft:rgba(220,180,106,.14); --oxide:#d0735c;
   --display:'IM Fell English','Iowan Old Style','Palatino Linotype',Georgia,serif;
   --sc:'IM Fell English SC','Iowan Old Style',Georgia,serif;
   --body:'Spectral','Iowan Old Style',Georgia,serif;
@@ -70,7 +70,7 @@ button{cursor:pointer}
 .overlay{position:fixed;inset:0;z-index:15;display:grid;place-items:center;background:rgba(5,6,8,.66);padding:16px;overflow:auto}
 .card{background:var(--panel);border:1px solid var(--edge);box-shadow:0 30px 80px rgba(0,0,0,.6);width:min(760px,100%);max-height:calc(100dvh - 32px);overflow:auto}
 .btn{background:transparent;border:1px solid var(--edge);color:var(--vellum);padding:9px 16px;font-family:var(--sc);letter-spacing:.08em;font-size:15px;transition:background .15s,border-color .15s}
-.btn:hover{background:var(--lamp-soft);border-color:rgba(143,214,207,.5)}
+.btn:hover{background:var(--lamp-soft);border-color:rgba(220,180,106,.5)}
 .btn.primary{border-color:var(--lamp);color:var(--lamp)}
 .btn.danger{border-color:rgba(192,90,64,.6);color:#e09a86}
 .btn:disabled{opacity:.4;cursor:default}
@@ -114,7 +114,7 @@ h1,h2,h3{font-family:var(--display);font-weight:400;margin:0;text-wrap:balance}
 .page-wrap{background:#cfc2a3 url(assets/paper.jpg) center/cover;color:#2a2620;padding:22px clamp(10px,2vw,26px);overflow:auto;min-height:0}
 .page-head{display:flex;justify-content:space-between;font-family:var(--sc);font-size:13px;letter-spacing:.08em;color:#6a5f4e;margin-bottom:10px;gap:8px}
 #page{font-family:var(--mono);font-size:clamp(8px,1.02vw,12.4px);line-height:1.34;white-space:pre;margin:0;color:#2c2822}
-#page mark{background:rgba(143,214,207,.6);color:#1d1a15;border-radius:1px}
+#page mark{background:rgba(220,180,106,.6);color:#1d1a15;border-radius:1px}
 #page mark.frag{background:#2c2822;color:#f1e6c8;padding:0 1px}
 .rside{padding:18px;display:grid;gap:16px;align-content:start;border-left:1px solid var(--edge)}
 .rside h3{font-size:21px;line-height:1.2}
@@ -127,7 +127,7 @@ h1,h2,h3{font-family:var(--display);font-weight:400;margin:0;text-wrap:balance}
 #r-results{max-height:180px;overflow:auto;display:grid;gap:2px;font-family:var(--mono);font-size:12px}
 #r-results button{background:none;border:0;text-align:left;color:var(--vellum);padding:3px 4px}
 #r-results button:hover{background:var(--lamp-soft)}
-.fragbox{border:1px solid rgba(143,214,207,.45);background:var(--lamp-soft);padding:10px 12px;display:grid;gap:8px}
+.fragbox{border:1px solid rgba(220,180,106,.45);background:var(--lamp-soft);padding:10px 12px;display:grid;gap:8px}
 .fragbox q{font-family:var(--display);font-size:18px;color:var(--vellum)}
 
 /* Dialogue */
@@ -267,11 +267,11 @@ h1,h2,h3{font-family:var(--display);font-weight:400;margin:0;text-wrap:balance}
     <p id="t-load">Building the library…</p>
     <div class="keys">
       <span><b>WASD</b>walk · steer when falling</span><span><b>Mouse</b>look</span><span><b>Shift</b>sprint</span>
-      <span><b>Space</b>jump · swim up</span><span><b>C</b>crouch · dive</span><span><b>E</b>take · use · talk</span>
+      <span><b>Space</b>jump</span><span><b>C</b>crouch</span><span><b>E</b>take · use · talk</span>
       <span><b>R</b>read held book</span><span><b>G</b>drop · into a well</span><span><b>F</b>shove</span>
       <span><b>Q</b>eat · drink</span><span><b>Z</b>sleep</span><span><b>J</b>journal</span>
     </div>
-    <p class="credit">A fan-made game. The rooms were modelled and lit in Blender; portraits and paintings generated with Higgsfield; the books, the tiles, the water, the people and the sounds are generated in your browser.</p>
+    <p class="credit">A fan-made game. The rooms were modelled and lit in Blender; portraits and paintings generated with Higgsfield; the books, the stone, the marble, the people and the sounds are generated in your browser.</p>
   </div>
 </section>
 
@@ -408,11 +408,11 @@ h1,h2,h3{font-family:var(--display);font-weight:400;margin:0;text-wrap:balance}
     <div class="set"><label for="s-vol">Sound</label><input type="range" id="s-vol" min="0" max="1" step="0.05"><output id="o-vol"></output></div>
     <div class="set"><label for="s-q">Render scale</label><input type="range" id="s-q" min="0.5" max="1" step="0.05"><output id="o-q"></output></div>
     <div class="set"><label for="s-gfx">Graphics</label><input type="range" id="s-gfx" min="0" max="2" step="1"><output id="o-gfx"></output></div>
-    <p class="note" style="margin-top:-8px">High adds traced reflections in the water and more rooms in view; Medium keeps soft shadows and tile reflections; Low is the fastest.</p>
+    <p class="note" style="margin-top:-8px">High shows more rooms at once; Medium keeps the reflections in the marble and brass; Low is the fastest.</p>
     <div class="checks"><label><input type="checkbox" id="s-hints"> Show the current thread</label></div>
     <div class="keys">
       <span><b>WASD</b>walk · steer falling</span><span><b>Mouse</b>look</span><span><b>Shift</b>sprint</span>
-      <span><b>Space</b>jump · swim up · sleep falling</span><span><b>C</b>crouch · dive</span><span><b>E</b>take · use · talk</span>
+      <span><b>Space</b>jump · sleep falling</span><span><b>C</b>crouch</span><span><b>E</b>take · use · talk</span>
       <span><b>R</b>read held book</span><span><b>G</b>drop · into a well</span><span><b>F</b>shove</span>
       <span><b>Q</b>eat · drink</span><span><b>Z</b>sleep</span><span><b>J</b>journal</span>
     </div>
