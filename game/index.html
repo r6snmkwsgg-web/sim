@@ -1,0 +1,1921 @@
+<meta charset="utf-8">
+<title>A Short Stay in Hell</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=IM+Fell+English:ital@0;1&family=IM+Fell+English+SC&family=Spectral:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap">
+<style>
+:root{
+  color-scheme:dark;
+  --ink:#0d0f12; --panel:#15181d; --panel2:#1d2127; --edge:rgba(220,206,176,.14);
+  --vellum:#ddd0b3; --dim:#9d9586; --faint:#6d685f; --lichen:#8e9c88;
+  --lamp:#e2a656; --lamp-soft:rgba(226,166,86,.16); --oxide:#b8543c;
+  --display:'IM Fell English','Iowan Old Style','Palatino Linotype',Georgia,serif;
+  --sc:'IM Fell English SC','Iowan Old Style',Georgia,serif;
+  --body:'Spectral','Iowan Old Style',Georgia,serif;
+  --mono:'Courier Prime','Courier New',Courier,monospace;
+}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{margin:0;background:var(--ink);color:var(--vellum);font-family:var(--body);font-size:15px;overflow:hidden;-webkit-user-select:none;user-select:none;touch-action:none}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--lamp);outline-offset:2px}
+#game{position:fixed;inset:0}
+#game canvas{display:block;width:100%;height:100%}
+#vignette{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 45%,transparent 45%,rgba(0,0,0,.55) 100%)}
+#hurt{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,transparent 35%,rgba(150,20,10,.55));opacity:0;transition:opacity .25s}
+#fade{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity 1.4s ease;display:grid;place-items:center;text-align:center;padding-inline:24px}
+#fade.on{opacity:1;pointer-events:auto}
+#fade p{font-family:var(--display);font-style:italic;font-size:clamp(20px,3vw,30px);color:var(--vellum);max-width:34ch;line-height:1.35;text-wrap:balance;margin:0}
+#fade small{display:block;margin-top:14px;font-family:var(--sc);font-style:normal;color:var(--dim);font-size:15px;letter-spacing:.08em}
+
+/* HUD */
+#hud{position:fixed;inset:0;pointer-events:none;font-variant-numeric:tabular-nums}
+.hud-block{position:absolute;top:calc(14px + env(safe-area-inset-top,0px));display:grid;gap:3px;text-shadow:0 1px 2px #000,0 0 12px rgba(0,0,0,.8)}
+#hud-pos{left:18px}
+#hud-time{right:18px;text-align:right;justify-items:end}
+.lbl{font-family:var(--sc);font-size:12px;letter-spacing:.14em;color:var(--dim);text-transform:uppercase}
+.big{font-family:var(--mono);font-size:22px;font-weight:700;color:var(--vellum);letter-spacing:.02em}
+.sub{font-family:var(--mono);font-size:12.5px;color:var(--dim)}
+.sub b{color:var(--vellum);font-weight:400}
+#h-home{color:var(--lichen)}
+#h-hunger{width:92px;height:3px;background:rgba(255,255,255,.1);margin-top:4px}
+#h-hunger i{display:block;height:100%;background:var(--lamp);width:0}
+#crosshair{position:absolute;left:50%;top:50%;width:5px;height:5px;margin:-2.5px 0 0 -2.5px;border-radius:50%;background:rgba(230,215,185,.75);box-shadow:0 0 4px #000}
+#crosshair.hot{width:9px;height:9px;margin:-4.5px 0 0 -4.5px;background:transparent;border:1.5px solid var(--lamp)}
+#prompt{position:absolute;left:50%;top:calc(50% + 34px);transform:translateX(-50%);text-align:center;max-width:min(560px,calc(100vw - 32px));text-shadow:0 1px 3px #000,0 0 14px #000}
+#prompt .t{font-family:var(--mono);font-size:13px;color:var(--vellum)}
+#prompt .k{font-family:var(--mono);font-size:12px;color:var(--lamp);margin-top:4px}
+#prompt .n{font-family:var(--display);font-size:20px;color:var(--vellum)}
+#carry{position:absolute;left:18px;bottom:calc(18px + env(safe-area-inset-bottom,0px));display:flex;gap:10px;align-items:center;background:rgba(13,15,18,.72);border:1px solid var(--edge);padding:8px 12px 8px 8px;max-width:calc(100vw - 36px)}
+#carry .spine{width:14px;height:44px;border-radius:1px;box-shadow:inset -3px 0 0 rgba(0,0,0,.25),inset 0 6px 0 rgba(0,0,0,.18),inset 0 -6px 0 rgba(0,0,0,.18)}
+#carry .ct{font-family:var(--mono);font-size:12px;color:var(--vellum);line-height:1.45}
+#carry .ct span{color:var(--dim)}
+#toasts{position:absolute;top:calc(92px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);display:grid;gap:6px;justify-items:center;width:min(620px,calc(100vw - 32px))}
+.toast{font-family:var(--body);font-style:italic;font-size:16px;color:var(--vellum);background:rgba(13,15,18,.78);border-left:2px solid var(--lamp);padding:7px 14px;animation:tin .4s ease both;text-align:center}
+.toast.bad{border-left-color:var(--oxide)}
+@keyframes tin{from{opacity:0;transform:translateY(-6px)}}
+#fallhud{position:absolute;left:50%;bottom:calc(64px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);text-align:center;text-shadow:0 1px 3px #000}
+#fallhud .big{font-size:34px}
+#fallhud .sub{margin-top:6px}
+#clickhint{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);margin-top:70px;font-family:var(--sc);letter-spacing:.1em;font-size:14px;color:var(--vellum);background:rgba(13,15,18,.7);padding:8px 14px;border:1px solid var(--edge)}
+
+/* Screens & overlays */
+.screen{position:fixed;inset:0;z-index:20;overflow:auto}
+.overlay{position:fixed;inset:0;z-index:15;display:grid;place-items:center;background:rgba(6,7,9,.66);padding:16px;overflow:auto}
+.card{background:var(--panel);border:1px solid var(--edge);box-shadow:0 30px 80px rgba(0,0,0,.6);width:min(760px,100%);max-height:calc(100dvh - 32px);overflow:auto}
+.btn{background:transparent;border:1px solid var(--edge);color:var(--vellum);padding:9px 16px;font-family:var(--sc);letter-spacing:.08em;font-size:15px;transition:background .15s,border-color .15s}
+.btn:hover{background:var(--lamp-soft);border-color:rgba(226,166,86,.5)}
+.btn.primary{border-color:var(--lamp);color:var(--lamp)}
+.btn.danger{border-color:rgba(184,84,60,.6);color:#e09a86}
+.btn:disabled{opacity:.4;cursor:default}
+.x{position:absolute;right:10px;top:8px;background:none;border:0;color:var(--dim);font-size:24px;line-height:1;padding:6px}
+h1,h2,h3{font-family:var(--display);font-weight:400;margin:0;text-wrap:balance}
+.eyebrow{font-family:var(--sc);font-size:12px;letter-spacing:.16em;color:var(--dim);text-transform:uppercase}
+
+#title{background:#07080a}
+#title .art{position:absolute;inset:0;background:#0b0c0f url(assets/title.jpg) center/cover no-repeat}
+#title .art::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(7,8,10,.94) 0%,rgba(7,8,10,.72) 38%,rgba(7,8,10,.1) 75%),linear-gradient(0deg,rgba(7,8,10,.9),transparent 45%)}
+#title .inner{position:relative;min-height:100%;display:flex;flex-direction:column;justify-content:flex-end;gap:22px;padding:40px clamp(16px,6vw,72px) max(40px,calc(24px + env(safe-area-inset-bottom,0px)));max-width:720px;box-sizing:border-box}
+#title h1{font-size:clamp(44px,8vw,96px);line-height:.92;letter-spacing:-.01em}
+#title h1 em{display:block;font-style:italic;color:var(--lamp);font-size:.5em;letter-spacing:0;margin-bottom:10px}
+#title .tag{font-size:17px;line-height:1.55;color:var(--vellum);max-width:48ch;margin:0}
+#title .row{display:flex;gap:10px;flex-wrap:wrap}
+.keys{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:4px 18px;font-family:var(--mono);font-size:12px;color:var(--dim)}
+.keys b{color:var(--vellum);font-weight:700;display:inline-block;min-width:4.2em}
+#title .credit{font-size:12.5px;color:var(--faint);line-height:1.5;margin:0}
+
+#intro{background:#050607;display:grid;place-items:center;padding:24px}
+#intro .inner{max-width:40ch;text-align:left;display:grid;gap:26px}
+#intro p{font-family:var(--display);font-size:clamp(21px,2.6vw,28px);line-height:1.42;margin:0;text-wrap:pretty;animation:tin 1.2s ease both}
+#intro .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+#intro input{background:transparent;border:0;border-bottom:1px solid var(--edge);font-family:var(--display);font-size:26px;padding:6px 2px;width:min(320px,100%);color:var(--lamp)}
+#intro input:focus{outline:none;border-bottom-color:var(--lamp)}
+
+/* Reader */
+#reader .card{width:min(1080px,100%);display:grid;grid-template-columns:minmax(0,1fr) 280px;position:relative}
+.page-wrap{background:#cfc2a3 url(assets/paper.jpg) center/cover;color:#2a2620;padding:22px clamp(10px,2vw,26px);overflow:auto;min-height:0}
+.page-head{display:flex;justify-content:space-between;font-family:var(--sc);font-size:13px;letter-spacing:.08em;color:#6a5f4e;margin-bottom:10px;gap:8px}
+#page{font-family:var(--mono);font-size:clamp(8px,1.02vw,12.4px);line-height:1.34;white-space:pre;margin:0;color:#2c2822}
+#page mark{background:rgba(226,166,86,.55);color:#1d1a15;border-radius:1px}
+#page mark.frag{background:#2c2822;color:#f1e6c8;padding:0 1px}
+.rside{padding:18px 18px 18px;display:grid;gap:16px;align-content:start;border-left:1px solid var(--edge)}
+.rside h3{font-size:21px;line-height:1.2}
+.addr{font-family:var(--mono);font-size:12px;color:var(--dim);line-height:1.6}
+.addr b{color:var(--vellum);font-weight:400}
+.pnav{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.pnav input,.field{background:var(--panel2);border:1px solid var(--edge);padding:7px 8px;font-family:var(--mono);font-size:13px;width:5.5em}
+.field.wide{width:100%;box-sizing:border-box}
+.pnav .btn{padding:6px 11px}
+#r-results{max-height:180px;overflow:auto;display:grid;gap:2px;font-family:var(--mono);font-size:12px}
+#r-results button{background:none;border:0;text-align:left;color:var(--vellum);padding:3px 4px}
+#r-results button:hover{background:var(--lamp-soft)}
+.note{font-size:13.5px;line-height:1.5;color:var(--dim);margin:0}
+.fragbox{border:1px solid rgba(226,166,86,.45);background:var(--lamp-soft);padding:10px 12px;display:grid;gap:8px}
+.fragbox q{font-family:var(--display);font-size:18px;color:var(--vellum)}
+
+/* Dialogue */
+#dialog .card{display:grid;grid-template-columns:200px minmax(0,1fr);position:relative;width:min(820px,100%)}
+.por{background:#111 center/cover no-repeat;min-height:240px;position:relative}
+.por .sil{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--display);font-size:80px;color:rgba(221,208,179,.18);background:radial-gradient(circle at 50% 40%,#2a241c,#0f1012)}
+.dbody{padding:22px 24px;display:grid;gap:14px;align-content:start;min-height:0}
+.dname{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.dname h2{font-size:28px}
+.chip{font-family:var(--sc);font-size:12px;letter-spacing:.08em;padding:2px 8px;border:1px solid var(--edge);color:var(--dim)}
+.chip.hostile{border-color:rgba(184,84,60,.7);color:#e09a86}
+.chip.warm{border-color:rgba(142,156,136,.6);color:var(--lichen)}
+#d-text{font-size:17.5px;line-height:1.6;margin:0;max-width:62ch;white-space:pre-line}
+#d-opts{display:grid;gap:6px}
+#d-opts button{text-align:left;background:transparent;border:0;border-left:2px solid var(--edge);padding:6px 12px;color:var(--vellum);font-size:15.5px}
+#d-opts button:hover,#d-opts button:focus-visible{border-left-color:var(--lamp);background:var(--lamp-soft)}
+#d-opts button.soft{color:var(--dim)}
+#d-opts button .n{font-family:var(--mono);color:var(--faint);margin-right:8px;font-size:12px}
+#d-chat{display:grid;gap:10px}
+#d-log{max-height:280px;overflow:auto;display:grid;gap:10px;padding-right:4px}
+#d-log .me{color:var(--dim);font-style:italic}
+#d-log .them{color:var(--vellum)}
+.chatrow{display:flex;gap:8px}
+.chatrow input{flex:1;min-width:0}
+
+/* Kiosk */
+#kiosk .card{padding:24px;position:relative;display:grid;gap:14px;width:min(560px,100%)}
+#kiosk .sugg{display:flex;gap:6px;flex-wrap:wrap}
+#kiosk .sugg button{background:none;border:1px solid var(--edge);padding:4px 10px;font-size:14px;color:var(--dim)}
+#k-out{font-family:var(--display);font-size:19px;line-height:1.45;min-height:1.4em;margin:0}
+
+/* Journal */
+#journal .card{position:relative;width:min(860px,100%);display:grid;grid-template-rows:auto auto minmax(0,1fr)}
+.jhead{padding:22px 24px 8px;display:grid;gap:4px}
+.jhead h2{font-size:30px}
+.tabs{display:flex;gap:2px;padding:0 20px;border-bottom:1px solid var(--edge);flex-wrap:wrap}
+.tabs button{background:none;border:0;border-bottom:2px solid transparent;padding:10px 12px;font-family:var(--sc);letter-spacing:.08em;color:var(--dim)}
+.tabs button[aria-selected=true]{color:var(--vellum);border-bottom-color:var(--lamp)}
+.jpane{padding:18px 24px 26px;overflow:auto;min-height:0}
+.log{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+.log li{display:grid;grid-template-columns:5.5em minmax(0,1fr);gap:12px;font-size:15px;line-height:1.5}
+.log li span{font-family:var(--mono);font-size:12px;color:var(--faint);padding-top:3px}
+.frags{display:grid;gap:14px}
+.frags blockquote{margin:0;border-left:2px solid var(--lamp);padding:2px 0 2px 14px}
+.frags q{font-family:var(--display);font-size:20px}
+.frags cite{display:block;font-style:normal;font-family:var(--mono);font-size:11.5px;color:var(--faint);margin-top:4px}
+.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:18px 22px}
+.stat .v{font-family:var(--mono);font-size:24px;color:var(--vellum)}
+.stat .k{font-family:var(--sc);font-size:12px;letter-spacing:.1em;color:var(--dim)}
+.souls{display:grid;gap:10px}
+.soul{display:grid;grid-template-columns:48px minmax(0,1fr) auto;gap:12px;align-items:center}
+.soul .p{width:48px;height:48px;background:#1b1b1b center/cover;border:1px solid var(--edge)}
+.soul .nm{font-family:var(--display);font-size:18px}
+.soul .ds{font-size:13px;color:var(--dim)}
+.facs{display:grid;gap:8px;margin-bottom:22px}
+.fac{display:grid;grid-template-columns:minmax(120px,210px) minmax(0,1fr) 80px;gap:12px;align-items:center;font-size:14px}
+.fac .bar{height:4px;background:rgba(255,255,255,.08);position:relative}
+.fac .bar i{position:absolute;top:0;bottom:0;left:50%;background:var(--lichen)}
+.fac .bar i.neg{background:var(--oxide)}
+.fac .w{font-family:var(--sc);font-size:12px;color:var(--dim);text-align:right}
+.odds{display:grid;gap:14px;max-width:66ch}
+.odds p{margin:0;line-height:1.6}
+.odds .num{font-family:var(--mono);color:var(--lamp)}
+.odds h3{font-size:20px;margin-top:6px}
+
+/* Pause */
+#pause .card{padding:26px;position:relative;display:grid;gap:18px;width:min(620px,100%)}
+#pause h2{font-size:32px}
+.set{display:grid;grid-template-columns:130px minmax(0,1fr) 3em;gap:12px;align-items:center;font-size:14px}
+.set input[type=range]{width:100%;accent-color:var(--lamp)}
+.set output{font-family:var(--mono);font-size:12px;color:var(--dim)}
+#confirm-reset{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:14px;color:#e09a86}
+
+/* Touch */
+#touch{position:fixed;inset:0;z-index:10;pointer-events:none}
+#joy{position:absolute;left:22px;bottom:calc(26px + env(safe-area-inset-bottom,0px));width:124px;height:124px;border-radius:50%;border:1px solid rgba(221,208,179,.25);background:rgba(13,15,18,.3);pointer-events:auto}
+#joy i{position:absolute;left:50%;top:50%;width:50px;height:50px;margin:-25px 0 0 -25px;border-radius:50%;background:rgba(221,208,179,.22)}
+#tbtns{position:absolute;right:16px;bottom:calc(22px + env(safe-area-inset-bottom,0px));display:grid;grid-template-columns:repeat(3,58px);gap:8px;pointer-events:auto}
+#tbtns button{height:52px;background:rgba(13,15,18,.5);border:1px solid rgba(221,208,179,.25);font-family:var(--sc);font-size:13px;letter-spacing:.05em}
+#tmenu{position:absolute;right:16px;top:calc(96px + env(safe-area-inset-top,0px));display:flex;gap:6px;pointer-events:auto}
+#tmenu button{background:rgba(13,15,18,.5);border:1px solid rgba(221,208,179,.25);padding:6px 10px;font-family:var(--sc);font-size:13px}
+
+@media (max-width:760px){
+  #reader .card{grid-template-columns:1fr}
+  .rside{border-left:0;border-top:1px solid var(--edge)}
+  #dialog .card{grid-template-columns:1fr}
+  .por{min-height:150px;height:150px;background-position:center 25%}
+  .big{font-size:18px}
+  .fac{grid-template-columns:1fr 1fr 60px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div id="game"></div>
+<div id="vignette"></div>
+<div id="hurt"></div>
+
+<div id="hud" hidden>
+  <div id="hud-pos" class="hud-block">
+    <span class="lbl">Floor</span>
+    <span class="big" id="h-floor">—</span>
+    <span class="sub" id="h-case"></span>
+    <span class="sub" id="h-walk"></span>
+    <span class="sub" id="h-home" hidden></span>
+  </div>
+  <div id="hud-time" class="hud-block">
+    <span class="lbl" id="h-day">Day 1</span>
+    <span class="big" id="h-clock">08:00</span>
+    <span class="sub" id="h-lamps">Lamps lit</span>
+    <div id="h-hunger" title="Hunger"><i></i></div>
+  </div>
+  <div id="crosshair"></div>
+  <div id="prompt"></div>
+  <div id="carry" hidden></div>
+  <div id="toasts"></div>
+  <div id="fallhud" hidden>
+    <div class="lbl">Falling</div>
+    <div class="big" id="f-floors">0 floors</div>
+    <div class="sub" id="f-sub"></div>
+  </div>
+  <div id="clickhint" hidden>Click to look around</div>
+</div>
+
+<div id="fade"><div><p id="fade-t"></p><small id="fade-s"></small></div></div>
+
+<section id="title" class="screen">
+  <div class="art"></div>
+  <div class="inner">
+    <div class="eyebrow">After the novella by Steven L. Peck</div>
+    <h1><em>a walk through the library of</em>A Short Stay in Hell</h1>
+    <p class="tag">Every book that can be written is shelved here. One of them is the story of your life, without a single error. Find it, and you may leave.</p>
+    <div class="row">
+      <button class="btn primary" id="b-continue" hidden>Continue</button>
+      <button class="btn" id="b-new">Begin</button>
+    </div>
+    <div class="keys">
+      <span><b>WASD</b>walk</span><span><b>Mouse</b>look</span><span><b>Shift</b>sprint</span>
+      <span><b>Space</b>jump</span><span><b>C</b>crouch</span><span><b>E</b>take · use · talk</span>
+      <span><b>R</b>read held book</span><span><b>G</b>drop book</span><span><b>F</b>shove</span>
+      <span><b>J</b>journal</span><span><b>Esc</b>pause</span>
+    </div>
+    <p class="credit">A fan-made game. Portraits, textures and title art generated with Higgsfield; the library, its books and its sounds are generated in your browser.</p>
+  </div>
+</section>
+
+<section id="intro" class="screen" hidden>
+  <div class="inner">
+    <p id="intro-p"></p>
+    <div class="row" id="intro-name" hidden>
+      <input id="in-name" maxlength="40" autocomplete="off" placeholder="Your name" aria-label="Your name">
+    </div>
+    <div class="row"><button class="btn primary" id="b-intro">Go on</button></div>
+  </div>
+</section>
+
+<section id="reader" class="overlay" hidden>
+  <div class="card">
+    <div class="page-wrap">
+      <div class="page-head"><span id="r-ph-l"></span><span id="r-ph-r"></span></div>
+      <pre id="page"></pre>
+    </div>
+    <div class="rside">
+      <button class="x" data-close aria-label="Close">×</button>
+      <div class="eyebrow">A volume</div>
+      <h3 id="r-title">—</h3>
+      <div class="addr" id="r-addr"></div>
+      <div class="pnav">
+        <button class="btn" id="r-prev" aria-label="Previous page">‹</button>
+        <input id="r-pg" inputmode="numeric" aria-label="Page number">
+        <span class="sub">of 410</span>
+        <button class="btn" id="r-next" aria-label="Next page">›</button>
+      </div>
+      <div id="r-frag"></div>
+      <div style="display:grid;gap:8px">
+        <label class="eyebrow" for="r-q">Search this book</label>
+        <div class="chatrow"><input id="r-q" class="field wide" maxlength="60" autocomplete="off" placeholder="e.g. the"><button class="btn" id="r-go">Find</button></div>
+        <p class="note" id="r-qnote"></p>
+        <div id="r-results"></div>
+      </div>
+      <p class="note">← → turn pages · Esc to close. You are holding this book; put it in any empty slot with E, or drop it with G.</p>
+    </div>
+  </div>
+</section>
+
+<section id="dialog" class="overlay" hidden>
+  <div class="card">
+    <div class="por" id="d-por"></div>
+    <div class="dbody">
+      <button class="x" data-close aria-label="Close">×</button>
+      <div class="dname"><h2 id="d-name"></h2><span class="chip" id="d-fac"></span></div>
+      <p id="d-text"></p>
+      <div id="d-opts"></div>
+      <div id="d-chat" hidden>
+        <div id="d-log"></div>
+        <div class="chatrow">
+          <input id="d-in" class="field wide" maxlength="400" autocomplete="off" placeholder="Say something…">
+          <button class="btn" id="d-send">Say</button>
+          <button class="btn" id="d-stop" hidden>Stop</button>
+        </div>
+        <div><button class="btn" id="d-back">Back</button></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="kiosk" class="overlay" hidden>
+  <div class="card">
+    <button class="x" data-close aria-label="Close">×</button>
+    <div class="eyebrow">Kiosk</div>
+    <h2 style="font-size:28px">It hums, patient as a clock.</h2>
+    <p class="note">Ask for anything to eat. It has never once said no.</p>
+    <div class="chatrow"><input id="k-in" class="field wide" maxlength="60" autocomplete="off" placeholder="Anything at all…"><button class="btn primary" id="k-ask">Ask</button></div>
+    <div class="sugg" id="k-sugg"></div>
+    <p id="k-out"></p>
+    <div class="row" id="k-food" style="display:flex;gap:8px;flex-wrap:wrap" hidden>
+      <button class="btn primary" id="k-eat">Eat it</button>
+      <button class="btn" id="k-keep">Keep it for later</button>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;border-top:1px solid var(--edge);padding-top:14px">
+      <button class="btn" id="k-present">Present the book you hold</button>
+      <button class="btn" id="k-where">Ask where your book is</button>
+    </div>
+  </div>
+</section>
+
+<section id="journal" class="overlay" hidden>
+  <div class="card">
+    <button class="x" data-close aria-label="Close">×</button>
+    <div class="jhead"><div class="eyebrow" id="j-eye"></div><h2>Journal</h2></div>
+    <div class="tabs" role="tablist">
+      <button role="tab" data-tab="log" aria-selected="true">Days</button>
+      <button role="tab" data-tab="frags">Fragments</button>
+      <button role="tab" data-tab="souls">Souls</button>
+      <button role="tab" data-tab="nums">Numbers</button>
+      <button role="tab" data-tab="odds">The odds</button>
+    </div>
+    <div class="jpane" id="j-pane"></div>
+  </div>
+</section>
+
+<section id="pause" class="overlay" hidden>
+  <div class="card">
+    <div class="eyebrow">Paused</div>
+    <h2>The library waits. It is good at that.</h2>
+    <div class="row" style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn primary" id="p-resume">Resume</button>
+      <button class="btn" id="p-journal">Journal</button>
+      <button class="btn" id="p-title">Title screen</button>
+    </div>
+    <div class="set"><label for="s-sens">Mouse speed</label><input type="range" id="s-sens" min="0.3" max="3" step="0.1"><output id="o-sens"></output></div>
+    <div class="set"><label for="s-vol">Sound</label><input type="range" id="s-vol" min="0" max="1" step="0.05"><output id="o-vol"></output></div>
+    <div class="set"><label for="s-q">Render scale</label><input type="range" id="s-q" min="0.5" max="1" step="0.05"><output id="o-q"></output></div>
+    <div class="keys">
+      <span><b>WASD</b>walk</span><span><b>Mouse</b>look</span><span><b>Shift</b>sprint</span>
+      <span><b>Space</b>jump</span><span><b>C</b>crouch</span><span><b>E</b>take · use · talk</span>
+      <span><b>R</b>read held book</span><span><b>G</b>drop book</span><span><b>F</b>shove</span>
+      <span><b>J</b>journal</span><span><b>Esc</b>pause</span>
+    </div>
+    <div style="border-top:1px solid var(--edge);padding-top:14px;display:grid;gap:8px">
+      <div><button class="btn danger" id="p-reset">Start over…</button></div>
+      <div id="confirm-reset" hidden>Erase this soul's progress, journal and every book moved? <button class="btn danger" id="p-reset-yes">Erase</button><button class="btn" id="p-reset-no">Keep</button></div>
+    </div>
+  </div>
+</section>
+
+<div id="touch" hidden>
+  <div id="joy"><i></i></div>
+  <div id="tmenu"><button id="t-j">Journal</button><button id="t-p">Pause</button></div>
+  <div id="tbtns">
+    <button id="t-e">Use</button><button id="t-r">Read</button><button id="t-g">Drop</button>
+    <button id="t-c">Crouch</button><button id="t-f">Shove</button><button id="t-sp">Jump</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+'use strict';
+/* ==========================================================================
+   Constants — the shape of Hell
+   ========================================================================== */
+const H = 4;              // floor to floor, metres
+const P = 52;             // one segment: 20 bookcases (40 m) + a rest area (12 m)
+const CASES = 20, CW = 2, ROWS = 7, PER = 40, BT = 0.0475, RH = 0.46, RY = 0.12;
+const SHELF_Z = -3.0, CHASM = 16;
+const CX = 46, CZ = -8.5, SR = 1.85, SCOL = 0.55, TH0 = Math.PI / 2; // spiral stair
+const PAGES = 410, LINES = 40, COLS = 80, PAGE_CH = LINES * COLS;
+const FWIN = 22;          // floors drawn above and below
+const HOUR_SEC = 22;      // real seconds per game hour
+const LIGHTS_ON = 6, LIGHTS_OFF = 22;
+const LOG10_BOOKS = 1312000 * Math.log10(95);
+const DIGITS = Math.floor(LOG10_BOOKS) + 1;
+const FRAG_RATE = 60;     // one book in 60 carries a readable fragment
+const PALETTE = [[0.36,0.42,0.37],[0.44,0.23,0.21],[0.55,0.44,0.25],[0.31,0.35,0.42],[0.37,0.32,0.28],[0.49,0.42,0.35],[0.25,0.29,0.27],[0.42,0.35,0.43],[0.52,0.5,0.44]];
+const fmt = n => Math.round(n).toLocaleString('en-US');
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const $ = s => document.querySelector(s);
+const esc = s => s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const mod = (a, n) => ((a % n) + n) % n;
+
+/* ==========================================================================
+   Hashing & the books themselves — every book is a pure function of its address
+   ========================================================================== */
+function mix(h) { h ^= h >>> 16; h = Math.imul(h, 0x7feb352d); h ^= h >>> 15; h = Math.imul(h, 0x846ca68b); h ^= h >>> 16; return h >>> 0; }
+function hnum(h, n) { const lo = mod(n, 4294967296), hi = Math.floor(n / 4294967296); h = mix((h ^ lo) >>> 0); return mix((h ^ (hi >>> 0) ^ 0x9e3779b9) >>> 0); }
+function bookHash(f, c, r, p, salt) { let h = mix((salt * 0x2545F491) >>> 0 ^ 0x1234567); h = hnum(h, f); h = hnum(h, c); return mix((h ^ (r * 131 + p * 7919)) >>> 0); }
+function strHash(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return mix(h >>> 0); }
+function sfc32(a, b, c, d) { return function () { a >>>= 0; b >>>= 0; c >>>= 0; d >>>= 0; let t = (a + b) | 0; a = b ^ (b >>> 9); b = (c + (c << 3)) | 0; c = (c << 21) | (c >>> 11); d = (d + 1) | 0; t = (t + d) | 0; c = (c + t) | 0; return (t >>> 0) / 4294967296; }; }
+const keyOf = (f, c, r, p) => f + ':' + c + ':' + r + ':' + p;
+const parseKey = k => { const a = k.split(':').map(Number); return { f: a[0], c: a[1], r: a[2], p: a[3] }; };
+
+const FRAGMENTS = [
+  "the lamps were already lit when i arrived", "we kept a garden once", "nobody told me it would be this quiet",
+  "she said my name like it was a question", "i remember rain", "forgive the reader", "the kettle is still on",
+  "somewhere a door is open", "you have read this far", "this sentence is not about you", "turn back", "keep going",
+  "there was an orchard behind the house", "i was happy and did not know it", "all the clocks agree",
+  "we will meet at the kiosk", "the answer is on another floor", "he never learned to swim", "mercy is a long hallway",
+  "the dog waited by the gate", "i have forgotten my mother's face", "the snow came early that year", "light a lamp for me",
+  "no one is keeping score", "hold the rail", "you are not the first to read this", "the ink is still wet",
+  "salt, bread, a window", "tell them i tried", "it was a tuesday", "every book is a letter to someone", "the stairs go on",
+  "almost", "we laughed until the neighbours knocked", "under the floorboards, a key", "ask again tomorrow",
+  "a small boat on a calm lake", "i kept your letters", "nothing here is lost, only mislaid", "breathe",
+  "morning will come whether you are ready or not", "you left the porch light on", "i am still here", "there is no hurry",
+  "the river remembers", "read slowly", "one more floor", "a warm kitchen and a radio", "the bells at noon",
+  "she planted tulips every autumn", "a door, a hall, a door", "the bus was late again", "call your sister",
+  "what did you expect", "the light through the curtains", "it was never about the book"
+];
+function fragOf(id) {
+  const h = bookHash(id.f, id.c, id.r, id.p, 97);
+  if (h % FRAG_RATE !== 0) return null;
+  const text = FRAGMENTS[mix(h ^ 0xabc) % FRAGMENTS.length];
+  const page = mix(h ^ 0x11) % PAGES, line = mix(h ^ 0x22) % LINES, col = mix(h ^ 0x33) % (COLS - text.length);
+  return { text, page, at: line * COLS + col };
+}
+const pageCache = new Map();
+function pageText(id, pg) {
+  const ck = keyOf(id.f, id.c, id.r, id.p) + '#' + pg;
+  const hit = pageCache.get(ck); if (hit) return hit;
+  const rnd = sfc32(bookHash(id.f, id.c, id.r, id.p, 11), mix((pg * 0x9E3779B1) >>> 0 ^ 0x51ed27), bookHash(id.f, id.c, id.r, id.p, 23) ^ pg, 0xC0FFEE ^ pg);
+  for (let i = 0; i < 12; i++) rnd();
+  const a = new Uint8Array(PAGE_CH);
+  for (let i = 0; i < PAGE_CH; i++) a[i] = 32 + ((rnd() * 95) | 0);
+  let s = String.fromCharCode.apply(null, a);
+  const fr = fragOf(id);
+  if (fr && fr.page === pg) s = s.slice(0, fr.at) + fr.text + s.slice(fr.at + fr.text.length);
+  if (pageCache.size > 60) pageCache.delete(pageCache.keys().next().value);
+  pageCache.set(ck, s);
+  return s;
+}
+function bookLook(f, c, r, p) {
+  const h = bookHash(f, c, r, p, 5);
+  const base = PALETTE[h % PALETTE.length], j = 0.82 + ((h >>> 8) & 255) / 255 * 0.34;
+  return { col: [base[0] * j, base[1] * j, base[2] * j], h: 0.27 + ((h >>> 16) & 255) / 255 * 0.1, d: 0.2 + ((h >>> 24) & 255) / 255 * 0.06 };
+}
+const cssCol = c => `rgb(${c.map(v => Math.round(clamp(v * 1.35, 0, 1) * 255)).join(',')})`;
+function lifeBook(name) {
+  const r = sfc32(strHash(name || 'you'), 0x1f2e3d, 0xbeef, 7);
+  let d = String(1 + Math.floor(r() * 9)); for (let i = 0; i < 17; i++) d += Math.floor(r() * 10);
+  return { lead: d.replace(/\B(?=(\d{3})+(?!\d))/g, ','), digits: DIGITS - 3 - Math.floor(r() * 40), shelf: 1 + Math.floor(r() * 7), book: 1 + Math.floor(r() * 40) };
+}
+
+/* ==========================================================================
+   Save state
+   ========================================================================== */
+const SAVE_KEY = 'short-stay-in-hell-v1';
+let S = null;
+function freshState(name) {
+  return {
+    v: 1, name: name || 'Friend',
+    homeSeg: 599417, homeFloor: 40112,
+    seg: 599417, lx: 46, floor: 40112, ly: 0, z: -4.2, yaw: Math.PI, pitch: -0.05,
+    day: 1, time: 8.0, hunger: 0.15, hp: 100, meal: false,
+    carried: null, over: {}, ground: [], seen: {},
+    stats: { dist: 0, books: 0, pages: 0, deaths: 0, fallen: 0, climbed: 0, searches: 0, maxFall: 0 },
+    journal: [], frags: [],
+    fac: { searchers: 0, congregation: 0, wardens: 0, still: 0 },
+    npc: {}, flags: {}, bed: null,
+    settings: { sens: 1, vol: 0.8, q: 1 }
+  };
+}
+function save() { if (!S) return; try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) {} }
+function loadSave() { try { const t = localStorage.getItem(SAVE_KEY); if (!t) return null; const s = JSON.parse(t); return s && s.v === 1 ? s : null; } catch (e) { return null; } }
+function clock(t = S.time) { const h = Math.floor(t), m = Math.floor((t - h) * 60); return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0'); }
+function logJ(text) { S.journal.push({ d: S.day, t: clock(), text }); if (S.journal.length > 400) S.journal.shift(); }
+function npcRec(k) { return S.npc[k] || (S.npc[k] = { met: false, aff: 0, last: 0, f: {}, talks: 0, hello: 0 }); }
+let overFloors = new Map();
+function recountOver() { overFloors = new Map(); for (const k in S.over) { const f = +k.slice(0, k.indexOf(':')); overFloors.set(f, (overFloors.get(f) || 0) + 1); } }
+
+/* ==========================================================================
+   Renderer, shaders, materials
+   ========================================================================== */
+const renderer = new THREE.WebGLRenderer({ antialias: (window.devicePixelRatio || 1) < 1.5, powerPreference: 'high-performance' });
+renderer.setSize(innerWidth, innerHeight);
+$('#game').appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+const FOGC = new THREE.Color(0x0a0b0e);
+scene.background = FOGC.clone();
+scene.fog = new THREE.FogExp2(FOGC, 0.02);
+const camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, 0.05, 320);
+camera.rotation.order = 'YXZ';
+let AQ = 1; // automatic scale, lowered if frames run long
+function applyQuality() { renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5) * (S ? S.settings.q : 1) * AQ); renderer.setSize(innerWidth, innerHeight); }
+
+const U = {
+  uLamp: { value: 1 }, uAmb: { value: new THREE.Color(0.075, 0.08, 0.095) },
+  uFog: { value: FOGC }, uFogD: { value: 0.02 }, uLampCol: { value: new THREE.Color(1.0, 0.7, 0.42) }
+};
+const VS = `
+varying vec3 vW; varying vec3 vN; varying vec2 vUv; varying vec3 vC;
+void main(){
+  vec4 p = vec4(position,1.0); vec3 n = normal;
+  #ifdef USE_INSTANCING
+    p = instanceMatrix * p; n = mat3(instanceMatrix) * n;
+  #endif
+  vec4 w = modelMatrix * p; vW = w.xyz; vN = mat3(modelMatrix) * n; vUv = uv; vC = vec3(1.0);
+  #ifdef USE_COLOR
+    vC *= color;
+  #endif
+  #ifdef USE_INSTANCING_COLOR
+    vC *= instanceColor;
+  #endif
+  gl_Position = projectionMatrix * viewMatrix * w;
+}`;
+const FS = `
+uniform sampler2D uMap; uniform vec2 uRep; uniform float uTriS; uniform vec3 uColor; uniform float uEm;
+uniform float uLamp; uniform vec3 uAmb; uniform vec3 uFog; uniform float uFogD; uniform vec3 uLampCol;
+varying vec3 vW; varying vec3 vN; varying vec2 vUv; varying vec3 vC;
+float lampT(vec3 lp, vec3 n){ vec3 d = lp - vW; float d2 = dot(d,d) + 0.0001; float ndl = dot(n, d * inversesqrt(d2)); return (0.3 + 0.7 * max(ndl, 0.0)) * 1.7 / (1.0 + d2 * 0.33); }
+void main(){
+  vec3 n = normalize(vN);
+  vec3 base = uColor * vC;
+  float em = step(1.01, vC.r);
+  #ifdef TRI
+    vec3 an = pow(abs(n), vec3(4.0)); an /= (an.x + an.y + an.z);
+    vec3 t = texture2D(uMap, vW.zy * uTriS).rgb * an.x + texture2D(uMap, vW.xz * uTriS).rgb * an.y + texture2D(uMap, vW.xy * uTriS).rgb * an.z;
+    base *= t * 1.9;
+  #endif
+  #ifdef UVMAP
+    base *= texture2D(uMap, vUv * uRep).rgb;
+  #endif
+  #ifdef SPINE
+    float b = smoothstep(0.0, 0.025, abs(vUv.y - 0.13)) * smoothstep(0.0, 0.025, abs(vUv.y - 0.87));
+    base *= mix(0.6, 1.0, b) * (0.86 + 0.14 * sin(vUv.x * 3.14159));
+  #endif
+  float fl = floor((vW.y + 0.02) / 4.0); float ly = fl * 4.0 + 3.28;
+  float lx0 = floor(vW.x / 4.0) * 4.0 + 2.0;
+  float L = 0.0;
+  for (int i = -1; i <= 1; i++) { float x = lx0 + float(i) * 4.0; L += lampT(vec3(x, ly, -1.5), n); L += lampT(vec3(x, ly, 17.5), n); }
+  float rx = floor((vW.x - 50.0) / 52.0 + 0.5) * 52.0 + 50.0; L += 1.5 * lampT(vec3(rx, ly - 0.2, -9.0), n);
+  float rx2 = floor((vW.x - 2.0) / 52.0 + 0.5) * 52.0 + 2.0; L += 1.5 * lampT(vec3(rx2, ly - 0.2, 25.0), n);
+  float sx = floor((vW.x - 45.6) / 52.0 + 0.5) * 52.0 + 45.6; L += 0.7 * lampT(vec3(sx, fl * 4.0 + 2.6, -8.5), n);
+  vec3 col = base * (uAmb + uLampCol * L * uLamp);
+  col = mix(col, vC * uLampCol * 0.85 * uLamp + vC * 0.02, em);
+  col += base * uEm;
+  float d = length(vW - cameraPosition);
+  float f = 1.0 - exp(-pow(d * uFogD, 2.0));
+  col = mix(col, uFog, clamp(f, 0.0, 1.0));
+  gl_FragColor = vec4(col, 1.0);
+}`;
+function makeMat(o = {}) {
+  const defines = {};
+  if (o.tri) defines.TRI = 1; else if (o.map) defines.UVMAP = 1;
+  if (o.spine) defines.SPINE = 1;
+  return new THREE.ShaderMaterial({
+    defines, vertexColors: !!o.vc, side: o.side || THREE.FrontSide,
+    uniforms: Object.assign({}, U, {
+      uMap: { value: o.map || null }, uRep: { value: new THREE.Vector2(o.rep ? o.rep[0] : 1, o.rep ? o.rep[1] : 1) },
+      uTriS: { value: o.triS || 0.5 }, uColor: { value: new THREE.Color(o.color !== undefined ? o.color : 0xffffff) }, uEm: { value: o.em || 0 }
+    }),
+    vertexShader: VS, fragmentShader: FS
+  });
+}
+
+/* Textures (Higgsfield art with procedural fallbacks) */
+const maxAniso = renderer.capabilities.getMaxAnisotropy();
+function fallbackCanvas(kind) {
+  const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
+  g.fillStyle = kind === 'wood' ? '#5a4232' : '#6b6863'; g.fillRect(0, 0, 128, 128);
+  for (let i = 0; i < 900; i++) { g.fillStyle = `rgba(${kind === 'wood' ? '30,20,12' : '20,20,20'},${Math.random() * 0.12})`; g.fillRect(Math.random() * 128, Math.random() * 128, kind === 'wood' ? 30 : 3, kind === 'wood' ? 1 : 3); }
+  return c;
+}
+function loadTex(url, kind) {
+  const t = new THREE.TextureLoader().load(url, undefined, undefined, () => { t.image = fallbackCanvas(kind); t.needsUpdate = true; });
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = Math.min(4, maxAniso);
+  return t;
+}
+const TEX = { stone: loadTex('assets/stone.jpg', 'stone'), wood: loadTex('assets/wood.jpg', 'wood') };
+const spinesImg = new Image(); spinesImg.src = 'assets/spines.jpg';
+
+/* The far-shelf atlas: four bookcases of painted spines, matched to the near books' palette */
+const atlasCanvas = document.createElement('canvas'); atlasCanvas.width = 1024; atlasCanvas.height = 448;
+const atlasTex = new THREE.CanvasTexture(atlasCanvas);
+atlasTex.wrapS = THREE.RepeatWrapping; atlasTex.anisotropy = Math.min(8, maxAniso);
+function paintAtlas() {
+  const g = atlasCanvas.getContext('2d'), pxm = 128, W = 1024, Hh = 448;
+  g.fillStyle = '#120e0b'; g.fillRect(0, 0, W, Hh);
+  const r = sfc32(1, 2, 3, 4);
+  const yOf = y => Hh - y * pxm;
+  for (let row = 0; row < ROWS; row++) {
+    const y0 = RY + row * RH;
+    for (let cse = 0; cse < 4; cse++) {
+      let x = cse * CW + 0.05;
+      for (let b = 0; b < PER; b++) {
+        const pc = PALETTE[(r() * PALETTE.length) | 0], j = 0.8 + r() * 0.35, hgt = 0.27 + r() * 0.1;
+        g.fillStyle = cssCol(pc.map(v => v * j * 0.78));
+        g.fillRect(x * pxm, yOf(y0 + hgt), BT * pxm - 0.8, hgt * pxm);
+        g.fillStyle = 'rgba(0,0,0,.28)'; g.fillRect(x * pxm, yOf(y0 + hgt * 0.87), BT * pxm - 0.8, 2); g.fillRect(x * pxm, yOf(y0 + hgt * 0.13), BT * pxm - 0.8, 2);
+        x += BT;
+      }
+    }
+    if (spinesImg.complete && spinesImg.naturalWidth) { g.globalAlpha = 0.16; g.globalCompositeOperation = 'overlay'; g.drawImage(spinesImg, 0, yOf(y0 + 0.37), W, 0.37 * pxm); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'; }
+  }
+  for (let j = 0; j <= ROWS; j++) { const yt = RY + j * RH; g.fillStyle = '#4a3526'; g.fillRect(0, yOf(yt), W, (j === 0 ? RY : 0.03) * pxm); }
+  for (let cse = 0; cse <= 4; cse++) { g.fillStyle = '#3f2d20'; g.fillRect(cse * CW * pxm - 3, 0, 6, Hh); }
+  atlasTex.needsUpdate = true;
+}
+paintAtlas(); spinesImg.onload = paintAtlas;
+
+const glowCanvas = document.createElement('canvas'); glowCanvas.width = glowCanvas.height = 64;
+{ const g = glowCanvas.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,225,170,1)'); gr.addColorStop(0.18, 'rgba(255,190,110,.55)'); gr.addColorStop(1, 'rgba(255,160,80,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); }
+
+const MAT = {
+  stone: makeMat({ tri: true, map: TEX.stone, triS: 0.42, vc: true }),
+  wood: makeMat({ tri: true, map: TEX.wood, triS: 0.8, vc: true }),
+  atlas: makeMat({ map: atlasTex, rep: [5, 1] }),
+  books: makeMat({ spine: true }),
+};
+
+/* ==========================================================================
+   Geometry: one segment of one floor, merged, then instanced across the window
+   ========================================================================== */
+function boxG(x0, y0, z0, x1, y1, z1) { const g = new THREE.BoxGeometry(x1 - x0, y1 - y0, z1 - z0); g.translate((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2); return g; }
+function merge(parts) {
+  let n = 0; const gs = parts.map(p => { const g = p.g.index ? p.g.toNonIndexed() : p.g; n += g.attributes.position.count; return [g, p.c || [1, 1, 1]]; });
+  const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3), uv = new Float32Array(n * 2), col = new Float32Array(n * 3); let o = 0;
+  for (const [g, c] of gs) {
+    const cnt = g.attributes.position.count;
+    pos.set(g.attributes.position.array, o * 3); nor.set(g.attributes.normal.array, o * 3); uv.set(g.attributes.uv.array, o * 2);
+    for (let i = 0; i < cnt; i++) { col[(o + i) * 3] = c[0]; col[(o + i) * 3 + 1] = c[1]; col[(o + i) * 3 + 2] = c[2]; }
+    o += cnt;
+  }
+  const m = new THREE.BufferGeometry();
+  m.setAttribute('position', new THREE.BufferAttribute(pos, 3)); m.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+  m.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); m.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  m.computeBoundingSphere(); return m;
+}
+const C = { floor: [0.78, 0.75, 0.7], wall: [0.5, 0.47, 0.44], dark: [0.22, 0.2, 0.19], rail: [0.62, 0.45, 0.3], brass: [0.7, 0.55, 0.32], bulb: [2.4, 1.75, 1.05], bed: [0.55, 0.5, 0.45], linen: [0.8, 0.76, 0.68], kiosk: [0.36, 0.36, 0.4], screen: [1.9, 1.5, 1.0], table: [0.6, 0.45, 0.32] };
+function stoneParts(detail) {
+  const ps = [], add = (x0, y0, z0, x1, y1, z1, c) => ps.push({ g: boxG(x0, y0, z0, x1, y1, z1), c });
+  // floor slab (with the square stair hole in the rest area)
+  add(0, -0.3, -3.0, 40, 0, 0, C.floor);
+  add(40, -0.3, -6.3, 52, 0, 0, C.floor);
+  add(40, -0.3, -13.2, 52, 0, -10.7, C.floor);
+  add(40, -0.3, -10.7, 43.8, 0, -6.3, C.floor);
+  add(48.2, -0.3, -10.7, 52, 0, -6.3, C.floor);
+  add(0, -0.45, 0.0, 52, 0.04, 0.3, C.wall);                // slab lip at the chasm
+  add(0, 0, -3.9, 40, 3.7, -3.4, C.dark);                     // wall behind the bookcases
+  add(0, 3.42, -3.4, 40, 3.7, -2.96, C.wall);                 // cornice
+  add(39.8, 0, -13.4, 40.0, 3.7, -2.96, C.wall);              // rest-area side walls
+  add(51.8, 0, -13.4, 52.0, 3.7, -2.96, C.wall);
+  add(39.8, 0, -13.4, 52.0, 3.7, -13.2, C.wall);              // back wall
+  // railing
+  const step = detail ? 2 : 4;
+  for (let x = 1; x < 52; x += step) add(x - 0.035, 0, 0.115, x + 0.035, 1.05, 0.185, C.rail);
+  add(0, 1.02, 0.09, 52, 1.1, 0.21, C.rail);
+  if (detail) add(0, 0.5, 0.13, 52, 0.54, 0.17, C.rail);
+  // walkway lamps, one every four metres, plus the rest-area lamp
+  for (let x = 2; x < 52; x += 4) {
+    add(x - 0.01, 3.34, -1.51, x + 0.01, 3.7, -1.49, C.brass);
+    if (detail) add(x - 0.13, 3.3, -1.63, x + 0.13, 3.38, -1.37, C.brass);
+    add(x - 0.06, 3.2, -1.56, x + 0.06, 3.3, -1.44, C.bulb);
+  }
+  add(49.99, 3.2, -9.01, 50.01, 3.7, -8.99, C.brass); add(49.93, 3.05, -9.07, 50.07, 3.2, -8.93, C.bulb);
+  if (detail) {
+    // the stair shaft: an enclosure with a door facing the gallery
+    add(43.8, 0, -10.7, 48.2, 3.7, -10.5, C.wall); add(43.8, 0, -10.7, 44.0, 3.7, -6.3, C.wall); add(48.0, 0, -10.7, 48.2, 3.7, -6.3, C.wall);
+    add(43.8, 0, -6.5, 45.35, 3.7, -6.3, C.wall); add(46.65, 0, -6.5, 48.2, 3.7, -6.3, C.wall); add(45.35, 2.35, -6.5, 46.65, 3.7, -6.3, C.wall);
+    for (let i = 0; i < 16; i++) {
+      const th = TH0 + (i + 0.5) / 16 * Math.PI * 2, h = (i + 0.5) / 16 * H;
+      const g = new THREE.BoxGeometry(1.62, 0.12, 0.86); g.translate(0.3 + 0.81, 0, 0); g.rotateY(-th); g.translate(CX, h - 0.06, CZ);
+      ps.push({ g, c: C.floor });
+    }
+    const col = new THREE.CylinderGeometry(0.3, 0.3, H, 10, 1, true); col.translate(CX, H / 2, CZ); ps.push({ g: col, c: C.wall });
+    add(CX - 0.4, 2.52, CZ - 0.06, CX - 0.28, 2.66, CZ + 0.06, C.bulb);
+    // beds, kiosk, table, benches
+    for (const bx of [40.25, 41.55, 42.85]) { add(bx, 0, -13.0, bx + 0.9, 0.42, -11.0, C.bed); add(bx + 0.08, 0.42, -12.95, bx + 0.82, 0.5, -11.1, C.linen); add(bx + 0.15, 0.5, -12.9, bx + 0.75, 0.6, -12.5, C.linen); }
+    add(51.2, 0, -9.8, 51.8, 1.35, -8.2, C.kiosk); add(51.15, 0.78, -9.55, 51.2, 1.18, -8.45, C.screen); add(51.1, 0.55, -9.3, 51.2, 0.62, -8.7, C.dark);
+    add(48.9, 0.72, -5.4, 51.1, 0.78, -4.4, C.table);
+    for (const [lx, lz] of [[49.0, -5.3], [51.0, -5.3], [49.0, -4.5], [51.0, -4.5]]) add(lx - 0.04, 0, lz - 0.04, lx + 0.04, 0.72, lz + 0.04, C.table);
+    add(48.9, 0.42, -6.05, 51.1, 0.47, -5.75, C.table); add(48.9, 0.42, -4.05, 51.1, 0.47, -3.75, C.table);
+  }
+  return ps;
+}
+function woodParts() {
+  const ps = [], add = (x0, y0, z0, x1, y1, z1) => ps.push({ g: boxG(x0, y0, z0, x1, y1, z1), c: [0.8, 0.66, 0.52] });
+  for (let k = -1; k <= 1; k++) {
+    const o = k * P;
+    add(o, 0, -3.4, o + 40, RY, -3.0);
+    for (let j = 1; j <= ROWS; j++) { const yt = RY + j * RH; add(o, yt - 0.03, -3.4, o + 40, j === ROWS ? 3.42 : yt, -3.0); }
+    for (let i = 0; i <= CASES; i++) add(o + i * CW - 0.025, 0, -3.4, o + i * CW + 0.025, 3.42, -2.99);
+  }
+  return ps;
+}
+
+const geoNear = merge(stoneParts(true)), geoFar = merge(stoneParts(false));
+const NEARF = 2;
+function modMatrix(s, f, side) {
+  const m = new THREE.Matrix4();
+  if (side === 0) m.makeTranslation(s * P, f * H, 0);
+  else { m.makeRotationY(Math.PI); m.setPosition(s * P + P, f * H, CHASM); }
+  return m;
+}
+function buildInstanced(geo, mat, list) {
+  const im = new THREE.InstancedMesh(geo, mat, list.length);
+  list.forEach((m, i) => im.setMatrixAt(i, m));
+  im.frustumCulled = false; im.instanceMatrix.needsUpdate = true; scene.add(im); return im;
+}
+{
+  const near = [], far = [], atl = [];
+  for (let f = -FWIN; f <= FWIN; f++) for (let s = -2; s <= 2; s++) for (let side = 0; side < 2; side++) {
+    const m = modMatrix(s, f, side);
+    (Math.abs(f) <= NEARF ? near : far).push(m);
+    if (side === 0 && f === 0 && s >= -1 && s <= 1) continue; // near zone: real books instead
+    atl.push(m);
+  }
+  buildInstanced(geoNear, MAT.stone, near);
+  buildInstanced(geoFar, MAT.stone, far);
+  const pg = new THREE.PlaneGeometry(40, 3.42); pg.translate(20, 1.71, -3.02);
+  buildInstanced(pg, MAT.atlas, atl);
+  const wood = new THREE.Mesh(merge(woodParts()), MAT.wood); wood.frustumCulled = false; scene.add(wood);
+  // lamp glows
+  const pts = [];
+  for (let f = -FWIN; f <= FWIN; f++) for (let s = -2; s <= 2; s++) {
+    for (let x = 2; x < 52; x += 4) { pts.push(s * P + x, f * H + 3.25, -1.5); pts.push(s * P + (P - x), f * H + 3.25, CHASM + 1.5); }
+    pts.push(s * P + 50, f * H + 3.1, -9); pts.push(s * P + 2, f * H + 3.1, CHASM + 9);
+  }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+  const pm = new THREE.PointsMaterial({ size: 1.25, map: new THREE.CanvasTexture(glowCanvas), color: 0xffc98a, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: true, opacity: 0.9 });
+  var GLOW = new THREE.Points(g, pm); GLOW.frustumCulled = false; scene.add(GLOW);
+}
+const GLOWMAT = scene.children[scene.children.length - 1].material;
+
+/* The near books: 3 segments × 20 cases × 7 shelves × 40 books, rebuilt as you move */
+const NBOOKS = 3 * CASES * ROWS * PER;
+const bookGeo = new THREE.BoxGeometry(1, 1, 1);
+const books = new THREE.InstancedMesh(bookGeo, MAT.books, NBOOKS);
+books.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(NBOOKS * 3), 3);
+books.frustumCulled = false; scene.add(books);
+const bIdx = (k, i, r, p) => (((k + 1) * CASES + i) * ROWS + r) * PER + p;
+function setBook(idx, k, i, r, p, id) {
+  const M = books.instanceMatrix.array, o = idx * 16;
+  if (!id) { for (let j = 0; j < 16; j++) M[o + j] = 0; return; }
+  const L = bookLook(id.f, id.c, id.r, id.p);
+  const x = k * P + i * CW + 0.05 + p * BT + BT / 2, y = RY + r * RH + L.h / 2, z = SHELF_Z - 0.012 - L.d / 2;
+  M[o] = BT * 0.93; M[o + 1] = 0; M[o + 2] = 0; M[o + 3] = 0; M[o + 4] = 0; M[o + 5] = L.h; M[o + 6] = 0; M[o + 7] = 0;
+  M[o + 8] = 0; M[o + 9] = 0; M[o + 10] = L.d; M[o + 11] = 0; M[o + 12] = x; M[o + 13] = y; M[o + 14] = z; M[o + 15] = 1;
+  const Cc = books.instanceColor.array; Cc[idx * 3] = L.col[0]; Cc[idx * 3 + 1] = L.col[1]; Cc[idx * 3 + 2] = L.col[2];
+}
+function slotContent(f, c, r, p) { const o = S.over[keyOf(f, c, r, p)]; if (o === undefined) return { f, c, r, p }; return o === '' ? null : parseKey(o); }
+let booksFor = '';
+function refreshBooks(force) {
+  const tag = S.seg + '/' + S.floor;
+  if (!force && tag === booksFor) return;
+  booksFor = tag;
+  const f = S.floor, has = overFloors.has(f);
+  for (let k = -1; k <= 1; k++) for (let i = 0; i < CASES; i++) {
+    const c = (S.seg + k) * CASES + i;
+    for (let r = 0; r < ROWS; r++) for (let p = 0; p < PER; p++) setBook(bIdx(k, i, r, p), k, i, r, p, has ? slotContent(f, c, r, p) : { f, c, r, p });
+  }
+  books.instanceMatrix.needsUpdate = true; books.instanceColor.needsUpdate = true;
+}
+function refreshSlot(f, c, r, p) {
+  if (f !== S.floor) return;
+  const k = Math.floor(c / CASES) - S.seg, i = mod(c, CASES);
+  if (k < -1 || k > 1) return;
+  setBook(bIdx(k, i, r, p), k, i, r, p, slotContent(f, c, r, p));
+  books.instanceMatrix.needsUpdate = true; books.instanceColor.needsUpdate = true;
+}
+
+/* Books lying on floors */
+const groundPool = [];
+for (let i = 0; i < 40; i++) { const m = new THREE.Mesh(bookGeo, makeMat({ spine: true })); m.visible = false; scene.add(m); groundPool.push(m); }
+function updateGroundBooks() {
+  let n = 0;
+  for (const gb of S.ground) {
+    if (n >= groundPool.length) break;
+    const df = gb.floor - S.floor, ds = gb.seg - S.seg;
+    if (Math.abs(df) > 6 || Math.abs(ds) > 2) continue;
+    const m = groundPool[n++], id = parseKey(gb.id), L = bookLook(id.f, id.c, id.r, id.p);
+    m.visible = true; m.scale.set(L.d, 0.045, L.h); m.position.set(ds * P + gb.lx, df * H + gb.ly + 0.023, gb.z); m.rotation.set(0, gb.yaw, 0);
+    m.material.uniforms.uColor.value.setRGB(L.col[0], L.col[1], L.col[2]); gb._m = m;
+  }
+  for (let i = n; i < groundPool.length; i++) groundPool[i].visible = false;
+}
+
+/* ==========================================================================
+   Audio — a procedural drone, echoing footsteps, pages, wind
+   ========================================================================== */
+const AU = { ctx: null };
+function noiseBuf(ctx, sec) { const b = ctx.createBuffer(1, Math.floor(ctx.sampleRate * sec), ctx.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; return b; }
+function audioInit() {
+  if (AU.ctx) { if (AU.ctx.state === 'suspended') AU.ctx.resume(); return; }
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)(); AU.ctx = ctx;
+    AU.master = ctx.createGain(); AU.master.gain.value = S ? S.settings.vol : 0.8; AU.master.connect(ctx.destination);
+    const rev = ctx.createConvolver(), len = ctx.sampleRate * 4, ir = ctx.createBuffer(2, len, ctx.sampleRate);
+    for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.6); }
+    rev.buffer = ir; AU.rev = ctx.createGain(); AU.rev.gain.value = 0.55; AU.rev.connect(rev); rev.connect(AU.master);
+    AU.noise = noiseBuf(ctx, 2);
+    // drone
+    const dg = ctx.createGain(); dg.gain.value = 0.05; const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 260; lp.Q.value = 0.6;
+    lp.connect(dg); dg.connect(AU.master); dg.connect(AU.rev); AU.drone = dg;
+    [[55, 'sawtooth', 0.5], [82.6, 'sine', 0.9], [110.3, 'triangle', 0.35], [164.4, 'sine', 0.12]].forEach(([f, t, g]) => { const o = ctx.createOscillator(); o.type = t; o.frequency.value = f; const og = ctx.createGain(); og.gain.value = g; o.connect(og); og.connect(lp); o.start(); });
+    const lfo = ctx.createOscillator(); lfo.frequency.value = 0.04; const lg = ctx.createGain(); lg.gain.value = 90; lfo.connect(lg); lg.connect(lp.frequency); lfo.start();
+    const air = ctx.createBufferSource(); air.buffer = AU.noise; air.loop = true; const af = ctx.createBiquadFilter(); af.type = 'bandpass'; af.frequency.value = 500; af.Q.value = 0.4;
+    const ag = ctx.createGain(); ag.gain.value = 0.012; air.connect(af); af.connect(ag); ag.connect(AU.master); air.start();
+    // wind for falling
+    const w = ctx.createBufferSource(); w.buffer = AU.noise; w.loop = true; AU.windF = ctx.createBiquadFilter(); AU.windF.type = 'lowpass'; AU.windF.frequency.value = 300;
+    AU.wind = ctx.createGain(); AU.wind.gain.value = 0; w.connect(AU.windF); AU.windF.connect(AU.wind); AU.wind.connect(AU.master); w.start();
+  } catch (e) { AU.ctx = null; }
+}
+function burst({ dur = 0.08, type = 'bandpass', f = 900, q = 1.2, gain = 0.25, rev = 0.5, att = 0.004 }) {
+  const ctx = AU.ctx; if (!ctx) return;
+  const t = ctx.currentTime, s = ctx.createBufferSource(); s.buffer = AU.noise; s.playbackRate.value = 0.8 + Math.random() * 0.4;
+  const fl = ctx.createBiquadFilter(); fl.type = type; fl.frequency.value = f; fl.Q.value = q;
+  const g = ctx.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(gain, t + att); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  s.connect(fl); fl.connect(g); g.connect(AU.master); const rs = ctx.createGain(); rs.gain.value = rev; g.connect(rs); rs.connect(AU.rev);
+  s.start(t, Math.random()); s.stop(t + dur + 0.05);
+}
+function tone(f0, f1, dur, gain, type = 'sine', rev = 0.4) {
+  const ctx = AU.ctx; if (!ctx) return; const t = ctx.currentTime, o = ctx.createOscillator(), g = ctx.createGain();
+  o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(gain, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); g.connect(AU.master); const rs = AU.ctx.createGain(); rs.gain.value = rev; g.connect(rs); rs.connect(AU.rev); o.start(t); o.stop(t + dur + 0.05);
+}
+const SFX = {
+  step: (soft) => burst({ dur: 0.07, f: 600 + Math.random() * 500, q: 1.4, gain: soft ? 0.08 : 0.16, rev: 0.7 }),
+  page: () => { burst({ dur: 0.22, type: 'highpass', f: 2600, q: 0.5, gain: 0.07, rev: 0.2, att: 0.03 }); setTimeout(() => burst({ dur: 0.12, type: 'highpass', f: 3400, q: 0.5, gain: 0.05, rev: 0.2 }), 90); },
+  book: () => { burst({ dur: 0.06, f: 380, q: 2, gain: 0.2, rev: 0.4 }); },
+  chime: () => { tone(660, 660, 1.2, 0.08); setTimeout(() => tone(990, 990, 1.4, 0.06), 140); },
+  thunk: () => { tone(80, 32, 1.6, 0.35, 'sine', 0.9); burst({ dur: 0.5, type: 'lowpass', f: 200, gain: 0.3, rev: 0.9 }); },
+  hit: () => { burst({ dur: 0.18, type: 'lowpass', f: 420, gain: 0.5, rev: 0.4 }); tone(120, 50, 0.25, 0.3); },
+  jump: () => burst({ dur: 0.1, f: 500, q: 1, gain: 0.08, rev: 0.4 }),
+};
+
+/* ==========================================================================
+   Input
+   ========================================================================== */
+const keys = {};
+let MODE = 'title', locked = false, mouseDrag = false;
+const isTouch = matchMedia('(pointer: coarse)').matches || ('ontouchstart' in window && navigator.maxTouchPoints > 0);
+const joy = { x: 0, y: 0, id: null };
+const canvas = renderer.domElement;
+function requestLock() {
+  if (isTouch) return;
+  try { const p = canvas.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (e) {}
+}
+document.addEventListener('pointerlockchange', () => {
+  locked = document.pointerLockElement === canvas;
+  if (!locked && MODE === 'play' && !pauseSuppressed) openPause();
+  if (S && MODE === 'play') showClickHint();
+});
+let pauseSuppressed = false;
+canvas.addEventListener('mousedown', e => { audioInit(); if (MODE !== 'play') return; if (!locked) { requestLock(); mouseDrag = true; } });
+addEventListener('mouseup', () => mouseDrag = false);
+addEventListener('mousemove', e => {
+  if (MODE !== 'play') return;
+  if (locked || mouseDrag) { const s = 0.0022 * S.settings.sens; S.yaw -= e.movementX * s; S.pitch = clamp(S.pitch - e.movementY * s, -1.5, 1.5); }
+});
+addEventListener('keydown', e => {
+  if (e.target && (e.target.tagName === 'INPUT')) { if (e.code === 'Escape') { e.target.blur(); } return; }
+  const k = e.code; keys[k] = true;
+  if (e.repeat && ['KeyE', 'KeyR', 'KeyG', 'KeyF', 'KeyJ', 'KeyC'].includes(k)) return;
+  if (MODE === 'play') {
+    if (['Space', 'ArrowUp', 'ArrowDown', 'Tab'].includes(k)) e.preventDefault();
+    if (k === 'KeyE') act('use'); else if (k === 'KeyR') act('read'); else if (k === 'KeyG') act('drop');
+    else if (k === 'KeyF') act('shove'); else if (k === 'KeyJ') openJournal(); else if (k === 'KeyC') PL.crouch = !PL.crouch;
+    else if (k === 'Space' && PL.falling) closeEyes();
+    else if (k === 'Escape' && !locked) openPause();
+  } else if (MODE === 'ui') {
+    if (k === 'Escape' || (k === 'KeyJ' && !$('#journal').hidden)) { e.preventDefault(); closeOverlays(); }
+    else if (!$('#reader').hidden && (k === 'ArrowRight' || k === 'ArrowLeft')) { turnPage(k === 'ArrowRight' ? 1 : -1); }
+    else if (!$('#dialog').hidden && /^Digit[1-9]$/.test(k)) { const b = $('#d-opts').children[+k.slice(5) - 1]; if (b) b.click(); }
+  } else if (MODE === 'pause' && k === 'Escape') resume();
+});
+addEventListener('keyup', e => { keys[e.code] = false; });
+addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
+addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); applyQuality(); });
+
+/* Touch controls */
+if (isTouch) {
+  const J = $('#joy'), knob = J.querySelector('i');
+  J.addEventListener('pointerdown', e => { joy.id = e.pointerId; J.setPointerCapture(e.pointerId); moveJoy(e); });
+  J.addEventListener('pointermove', e => { if (e.pointerId === joy.id) moveJoy(e); });
+  const endJ = e => { if (e.pointerId !== joy.id) return; joy.id = null; joy.x = joy.y = 0; knob.style.transform = ''; };
+  J.addEventListener('pointerup', endJ); J.addEventListener('pointercancel', endJ);
+  function moveJoy(e) { const r = J.getBoundingClientRect(), dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2), d = Math.min(1, Math.hypot(dx, dy) / 50), a = Math.atan2(dy, dx); joy.x = Math.cos(a) * d; joy.y = Math.sin(a) * d; knob.style.transform = `translate(${joy.x * 40}px,${joy.y * 40}px)`; }
+  let look = null;
+  canvas.addEventListener('pointerdown', e => { audioInit(); if (e.pointerType !== 'mouse') look = { id: e.pointerId, x: e.clientX, y: e.clientY }; });
+  canvas.addEventListener('pointermove', e => { if (!look || e.pointerId !== look.id || MODE !== 'play') return; S.yaw -= (e.clientX - look.x) * 0.005 * S.settings.sens; S.pitch = clamp(S.pitch - (e.clientY - look.y) * 0.005 * S.settings.sens, -1.5, 1.5); look.x = e.clientX; look.y = e.clientY; });
+  canvas.addEventListener('pointerup', e => { if (look && e.pointerId === look.id) look = null; });
+  const tb = (id, fn) => $(id).addEventListener('pointerdown', e => { e.preventDefault(); audioInit(); if (MODE === 'play') fn(); });
+  tb('#t-e', () => act('use')); tb('#t-r', () => act('read')); tb('#t-g', () => act('drop')); tb('#t-f', () => act('shove'));
+  tb('#t-c', () => PL.crouch = !PL.crouch); tb('#t-sp', () => { if (PL.falling) closeEyes(); else keys.TouchJump = true; });
+  tb('#t-j', openJournal); tb('#t-p', openPause);
+}
+
+/* ==========================================================================
+   The player
+   ========================================================================== */
+const PL = { vy: 0, vz: 0, onGround: true, crouch: false, eye: 1.62, falling: false, fallFrom: 0, fallStart: 0, stepAcc: 0, bob: 0, railArm: 0, hurtT: 0 };
+const WALLS = [
+  [0, 40, -3.9, -3.0], [39.8, 40.0, -13.4, -2.96], [51.8, 52.0, -13.4, -2.96], [39.8, 52, -13.4, -13.2],
+  [0, 52, 0, 0.3],
+  [43.8, 48.2, -10.7, -10.5], [43.8, 44.0, -10.7, -6.3], [48.0, 48.2, -10.7, -6.3], [43.8, 45.35, -6.5, -6.3], [46.65, 48.2, -6.5, -6.3],
+  [40.25, 43.75, -13.0, -11.0],            // beds
+  [51.2, 51.8, -9.8, -8.2],                // kiosk
+  [48.9, 51.1, -5.45, -4.35],              // table
+];
+function pushCircle(pos, r) {
+  const b0 = Math.floor(pos.x / P);
+  for (let pass = 0; pass < 2; pass++) for (let k = b0 - 1; k <= b0 + 1; k++) for (const w of WALLS) {
+    const x0 = w[0] + k * P, x1 = w[1] + k * P;
+    const cx = clamp(pos.x, x0, x1), cz = clamp(pos.z, w[2], w[3]);
+    let dx = pos.x - cx, dz = pos.z - cz, d2 = dx * dx + dz * dz;
+    if (d2 >= r * r) continue;
+    if (d2 > 1e-9) { const d = Math.sqrt(d2), s = (r - d) / d; pos.x += dx * s; pos.z += dz * s; }
+    else { const pen = [pos.x - x0 + r, x1 - pos.x + r, pos.z - w[2] + r, w[3] - pos.z + r], m = Math.min(...pen), i = pen.indexOf(m); if (i === 0) pos.x = x0 - r; else if (i === 1) pos.x = x1 + r; else if (i === 2) pos.z = w[2] - r; else pos.z = w[3] + r; }
+  }
+  // stair: central column and the round well
+  const lx = mod(pos.x, P);
+  if (lx > 44.0 && lx < 48.0 && pos.z > -10.5 && pos.z < -6.5) {
+    const ox = pos.x - lx + CX, dx = pos.x - ox, dz = pos.z - CZ, d = Math.hypot(dx, dz);
+    if (d < SCOL) { const s = SCOL / Math.max(d, 1e-4); pos.x = ox + dx * s; pos.z = CZ + dz * s; }
+    else if (d > SR && !(Math.abs(dx) < 0.62 && dz > 1.5)) { const s = SR / d; pos.x = ox + dx * s; pos.z = CZ + dz * s; }
+  }
+}
+function inStair(x, z) { const lx = mod(x, P); return lx > 44.0 && lx < 48.0 && z > -10.5 && z < -6.5 && !(Math.abs(lx - CX) < 0.65 && z > -6.9); }
+function helixH(x, z, near) {
+  const lx = mod(x, P), th = Math.atan2(z - CZ, lx - CX);
+  let t = (th - TH0) / (Math.PI * 2); t -= Math.floor(t);
+  const h0 = t * H; let best = h0, bd = Math.abs(h0 - near);
+  for (const c of [h0 - H, h0 + H]) { const d = Math.abs(c - near); if (d < bd) { bd = d; best = c; } }
+  return best;
+}
+function groundAt(x, z, ly) { if (z > 0.2) return -Infinity; return inStair(x, z) ? helixH(x, z, ly) : 0; }
+
+function updatePlayer(dt) {
+  const walkIn = { x: 0, z: 0 };
+  if (keys.KeyW || keys.ArrowUp) walkIn.z -= 1; if (keys.KeyS || keys.ArrowDown) walkIn.z += 1;
+  if (keys.KeyA || keys.ArrowLeft) walkIn.x -= 1; if (keys.KeyD || keys.ArrowRight) walkIn.x += 1;
+  walkIn.x += joy.x; walkIn.z += joy.y;
+  const ml = Math.hypot(walkIn.x, walkIn.z); if (ml > 1) { walkIn.x /= ml; walkIn.z /= ml; }
+  const hungry = S.hunger > 0.75;
+  const sprint = (keys.ShiftLeft || keys.ShiftRight || (isTouch && ml > 0.97)) && !PL.crouch && !hungry;
+  const spd = PL.falling ? 1.2 : PL.crouch ? 1.3 : sprint ? 6.4 : 2.7;
+  const sy = Math.sin(S.yaw), cy = Math.cos(S.yaw);
+  const vx = (walkIn.x * cy + walkIn.z * sy) * spd, vz = (-walkIn.x * sy + walkIn.z * cy) * spd;
+  const pos = { x: S.lx + vx * dt, z: S.z + vz * dt + (PL.falling ? PL.vz * dt : 0) };
+  if (PL.falling) { PL.vz *= Math.pow(0.4, dt); pos.z = clamp(pos.z, 0.4, CHASM - 0.4); }
+  else { pushCircle(pos, 0.3); pushNPCs(pos); }
+  const moved = Math.hypot(pos.x - S.lx, pos.z - S.z);
+  S.lx = pos.x; S.z = pos.z;
+  // vertical
+  const jumpKey = keys.Space || keys.TouchJump; keys.TouchJump = false;
+  if (!PL.falling && PL.onGround && jumpKey && !PL.crouch) { PL.vy = 4.3; PL.onGround = false; SFX.jump(); }
+  PL.vy = Math.max(PL.vy - 12 * dt, PL.falling ? -52 : -30);
+  let ny = S.ly + PL.vy * dt;
+  const g = PL.falling ? -Infinity : groundAt(S.lx, S.z, S.ly);
+  if (ny <= g + 0.001) { ny = g; if (PL.vy < -9) hurt(Math.round((-PL.vy - 9) * 8), 'the fall'); PL.vy = 0; PL.onGround = true; }
+  else if (PL.onGround && ny - g < 0.45 && PL.vy <= 0) { ny = g; PL.vy = 0; }
+  else PL.onGround = false;
+  if (!PL.falling && g > S.ly && g - S.ly < 0.5) { ny = Math.max(ny, g); PL.onGround = true; PL.vy = Math.max(PL.vy, 0); }
+  S.ly = ny;
+  // floating origin: wrap segment and floor
+  let segMoved = false, floorMoved = 0;
+  while (S.lx >= P) { S.lx -= P; S.seg++; segMoved = true; }
+  while (S.lx < 0) { S.lx += P; S.seg--; segMoved = true; }
+  while (S.ly >= H) { S.ly -= H; S.floor++; floorMoved++; }
+  while (S.ly < -1e-4) { S.ly += H; S.floor--; floorMoved--; }
+  if (floorMoved) {
+    if (PL.falling) { S.stats.fallen -= floorMoved; }
+    else if (floorMoved > 0) S.stats.climbed += floorMoved; else S.stats.climbed += 0;
+    if (!PL.falling) { refreshBooks(); updateGroundBooks(); }
+  }
+  if (segMoved && !PL.falling) { refreshBooks(); updateGroundBooks(); }
+  // footsteps & distance
+  if (PL.onGround && moved > 0) {
+    S.stats.dist += moved; PL.stepAcc += moved; PL.bob += moved * 2.3;
+    const stride = sprint ? 1.6 : 0.85;
+    if (PL.stepAcc > stride) { PL.stepAcc = 0; SFX.step(PL.crouch); }
+  }
+  // eye
+  const target = PL.crouch ? 1.0 : 1.62; PL.eye += (target - PL.eye) * Math.min(1, dt * 10);
+  camera.position.set(S.lx, S.ly + PL.eye + (PL.onGround ? Math.sin(PL.bob) * 0.028 : 0), S.z);
+  camera.rotation.set(S.pitch, S.yaw, 0);
+  if (PL.falling) {
+    const fl = S.fallStartFloor - S.floor;
+    $('#f-floors').textContent = fmt(fl) + (fl === 1 ? ' floor' : ' floors');
+    $('#f-sub').textContent = `Floor ${fmt(S.floor)} · ${Math.round(-PL.vy)} m/s · ${isTouch ? 'Jump' : 'Space'}: close your eyes until morning`;
+    if (AU.ctx) { const sp = clamp(-PL.vy / 52, 0, 1); AU.wind.gain.value = sp * 0.35; AU.windF.frequency.value = 200 + sp * 1600; }
+  }
+}
+function hurt(n, by) {
+  if (n <= 0 || PL.dead) return;
+  S.hp -= n; PL.hurtT = 1; SFX.hit();
+  if (S.hp <= 0) die(by);
+}
+
+/* ==========================================================================
+   NPCs
+   ========================================================================== */
+const NPC_DEFS = [
+  { key: 'ilse', name: 'Ilse', por: 'ilse', fac: null, role: 'companion', home: 0, tunic: [0.42, 0.42, 0.45], hair: [0.12, 0.09, 0.07], lane: -1.2 },
+  { key: 'aurel', name: 'Brother Aurel', por: 'aurel', fac: 'searchers', role: 'searcher', home: 1, tunic: [0.4, 0.39, 0.37], hair: [0.35, 0.31, 0.27], lane: -2.2 },
+  { key: 'tomas', name: 'Tomas', por: 'tomas', fac: 'still', role: 'idler', home: 0, tunic: [0.36, 0.36, 0.37], hair: [0.1, 0.08, 0.07], lane: -1.8 },
+  { key: 'vey', name: 'Mother Vey', por: 'vey', fac: 'congregation', role: 'preacher', home: -1, tunic: [0.44, 0.42, 0.4], hair: [0.55, 0.45, 0.4], lane: -1.5, sash: true },
+  { key: 'pell', name: 'Old Pell', por: 'pell', fac: null, role: 'counter', home: 0, tunic: [0.43, 0.41, 0.38], hair: [0.82, 0.8, 0.76], lane: -0.9 },
+  { key: 'kasimir', name: 'Kasimir', por: 'kasimir', fac: 'wardens', role: 'warden', home: 2, tunic: [0.3, 0.3, 0.31], hair: [0.08, 0.07, 0.06], lane: -1.6, big: 1.1 },
+  { key: 'nadia', name: 'Nadia', por: 'nadia', fac: 'searchers', role: 'cartographer', home: 1, tunic: [0.4, 0.4, 0.43], hair: [0.25, 0.14, 0.09], lane: -0.8 },
+  { key: 'brun', name: 'Brun', fac: 'wardens', role: 'warden', home: 2, tunic: [0.3, 0.29, 0.28], hair: [0.3, 0.2, 0.1], lane: -2.0, minor: true, big: 1.05 },
+  { key: 'oskar', name: 'Oskar', fac: 'wardens', role: 'warden', home: 2, tunic: [0.32, 0.31, 0.3], hair: [0.1, 0.1, 0.1], lane: -1.0, minor: true },
+  { key: 'hale', name: 'Sister Hale', fac: 'congregation', role: 'congregant', home: -1, tunic: [0.45, 0.43, 0.41], hair: [0.4, 0.3, 0.2], lane: -2.1, minor: true, sash: true },
+  { key: 'dov', name: 'Brother Dov', fac: 'congregation', role: 'congregant', home: -1, tunic: [0.45, 0.43, 0.41], hair: [0.15, 0.12, 0.1], lane: -0.9, minor: true, sash: true },
+  { key: 'mira', name: 'Mira', fac: null, role: 'wanderer', home: 0, tunic: [0.4, 0.38, 0.42], hair: [0.6, 0.4, 0.2], lane: -1.7, minor: true },
+  { key: 'joss', name: 'Joss', fac: 'still', role: 'idler', home: 1, tunic: [0.35, 0.35, 0.35], hair: [0.2, 0.15, 0.1], lane: -2.4, minor: true },
+  { key: 'ferrant', name: 'Ferrant', fac: 'searchers', role: 'searcher', home: -1, tunic: [0.38, 0.38, 0.36], hair: [0.5, 0.5, 0.5], lane: -2.5, minor: true },
+];
+const FACTION_NAME = { searchers: 'The Searchers', congregation: 'Congregation of the Word', wardens: 'The Wardens', still: 'The Still' };
+const matCache = {};
+function colMat(c) { const k = c.join(','); return matCache[k] || (matCache[k] = makeMat({ color: new THREE.Color(c[0], c[1], c[2]) })); }
+function buildFigure(d) {
+  const g = new THREE.Group(), tun = colMat(d.tunic), skin = colMat([0.72, 0.56, 0.46]), hair = colMat(d.hair), dark = colMat([0.2, 0.18, 0.16]);
+  const mk = (geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); g.add(m); return m; };
+  const legG = new THREE.BoxGeometry(0.13, 0.82, 0.15); legG.translate(0, -0.41, 0);
+  const armG = new THREE.BoxGeometry(0.09, 0.62, 0.1); armG.translate(0, -0.31, 0);
+  const parts = {};
+  parts.lL = mk(legG, dark, -0.1, 0.84, 0); parts.lR = mk(legG, dark, 0.1, 0.84, 0);
+  parts.body = mk(new THREE.CylinderGeometry(0.2, 0.27, 0.78, 8), tun, 0, 1.2, 0);
+  parts.aL = mk(armG, tun, -0.27, 1.52, 0); parts.aR = mk(armG, tun, 0.27, 1.52, 0);
+  parts.head = mk(new THREE.SphereGeometry(0.125, 10, 8), skin, 0, 1.73, 0);
+  mk(new THREE.SphereGeometry(0.135, 10, 6, 0, Math.PI * 2, 0, Math.PI * 0.42), hair, 0, 1.75, -0.025);
+  const eyeM = colMat([0.1, 0.08, 0.07]); mk(new THREE.BoxGeometry(0.025, 0.02, 0.01), eyeM, -0.045, 1.745, 0.122); mk(new THREE.BoxGeometry(0.025, 0.02, 0.01), eyeM, 0.045, 1.745, 0.122);
+  if (d.sash) { const s = mk(new THREE.BoxGeometry(0.06, 0.8, 0.44), colMat([0.85, 0.8, 0.66]), 0, 1.2, 0); s.rotation.z = 0.6; s.scale.set(1, 1, 1.02); }
+  parts.book = mk(new THREE.BoxGeometry(0.18, 0.24, 0.05), colMat([0.45, 0.25, 0.2]), 0, 1.25, 0.3); parts.book.visible = false;
+  const s = d.big || 1; g.scale.set(s, s, s); g.rotation.order = 'YXZ';
+  g.userData = parts; scene.add(g); return g;
+}
+const NPCS = NPC_DEFS.map(d => ({ d, seg: 0, lx: 0, z: 0, floor: 0, ly: 0, yaw: 0, path: [], mode: 'idle', t: 0, phase: Math.random() * 6, stun: 0, hitCd: 0, gone: false, mesh: buildFigure(d), speed: 1.25 }));
+const NPC_BY = Object.fromEntries(NPCS.map(n => [n.d.key, n]));
+function homeSeg(n) { return S.homeSeg + n.d.home; }
+function roomSpot(n, kind) {
+  const r = sfc32(strHash(n.d.key + kind), 9, 9, 9);
+  if (kind === 'bed') { const beds = [40.7, 42.0, 43.3], b = beds[(strHash(n.d.key) % 3)]; return { lx: b, z: -12.0 }; }
+  if (kind === 'table') { const spots = [[49.3, -5.9], [50.3, -5.9], [49.3, -3.9], [50.3, -3.9], [48.5, -4.9], [51.4, -4.9], [47.8, -4.0], [42.5, -4.5]]; const s = spots[strHash(n.d.key) % spots.length]; return { lx: s[0], z: s[1] }; }
+  return { lx: 41 + r() * 10, z: -3.6 - r() * 2.2 };
+}
+function placeNPC(n, seg, lx, z) { n.seg = seg; n.lx = lx; n.z = z; n.floor = S.homeFloor; n.ly = 0; n.path = []; }
+function resetNPCs() {
+  for (const n of NPCS) {
+    n.gone = n.d.key === 'tomas' && !!S.flags.tomasGone; n.stun = 0; n.mode = 'idle';
+    const rec = npcRec(n.d.key);
+    if (n.d.key === 'ilse' && rec.following && S.bed) { placeNPC(n, S.seg, S.lx + 0.8, S.z); n.floor = S.floor; continue; }
+    const sp = roomSpot(n, 'wake'); placeNPC(n, homeSeg(n), sp.lx, sp.z);
+  }
+}
+const gx = (seg, lx) => (seg - S.seg) * P + lx; // x in render coords
+function planPath(n, tseg, tlx, tz) {
+  const pts = [], fromRoom = n.z < -3.3, toRoom = tz < -3.3;
+  const side = lx => lx < 43.8 ? 42.2 : lx > 48.2 ? 49.8 : lx;
+  if (fromRoom && n.z < -6.2 && (tseg !== n.seg || !toRoom || Math.abs(side(n.lx) - side(tlx)) > 0.5)) pts.push({ seg: n.seg, lx: side(n.lx), z: -5.2 });
+  if (fromRoom && (tseg !== n.seg || !toRoom)) pts.push({ seg: n.seg, lx: clamp(n.lx, 41, 51), z: n.d.lane });
+  if (toRoom && (tseg !== n.seg || !fromRoom)) { pts.push({ seg: tseg, lx: clamp(tlx, 41, 51), z: n.d.lane }); }
+  if (toRoom && tz < -6.2) pts.push({ seg: tseg, lx: side(tlx), z: -5.2 });
+  pts.push({ seg: tseg, lx: tlx, z: tz });
+  n.path = pts;
+}
+function schedule(n) {
+  const t = S.time, rec = npcRec(n.d.key), hs = homeSeg(n), r = Math.random();
+  if (n.d.key === 'ilse' && rec.following) return { mode: 'follow' };
+  if (n.d.role === 'warden' && S.fac.wardens <= -30 && S.day >= 2 && S.flags.beatenDay !== S.day && n.floor === S.floor && t > 7 && t < 21.5) {
+    const dx = gx(n.seg, n.lx) - S.lx; if (Math.abs(dx) < 26 && !PL.falling && !PL.dead) return { mode: 'chase' };
+  }
+  if (t >= 21.5) { const b = roomSpot(n, 'bed'); return { mode: 'bed', seg: hs, lx: b.lx + (Math.random() - 0.5) * 0.2, z: b.z }; }
+  if ((t >= 12 && t < 13) || (t >= 19 && t < 21.5)) { const s = roomSpot(n, 'table'); return { mode: 'sit', seg: hs, lx: s.lx, z: s.z, dur: 60 }; }
+  switch (n.d.role) {
+    case 'idler': return n.d.key === 'tomas' ? { mode: 'lie', seg: hs, lx: 50.95, z: -3.9, dur: 999 } : { mode: 'sit', seg: hs, lx: 44 + r * 6, z: -1.2, dur: 45 };
+    case 'counter': return { mode: 'sit', seg: hs, lx: 30 + Math.floor(r * 2) * 2, z: -0.7, dur: 40 };
+    case 'preacher': return { mode: 'stand', seg: hs, lx: 46, z: -4.4, dur: 30, face: 'out' };
+    case 'congregant': return { mode: 'stand', seg: hs, lx: 44.8 + r * 2.4, z: -2.9 + Math.random() * 0.8, dur: 25, face: 'vey' };
+    case 'warden': return { mode: 'stand', seg: hs + Math.floor(r * 3) - 1, lx: 4 + Math.random() * 44, z: n.d.lane, dur: 8 + Math.random() * 10 };
+    case 'cartographer': return { mode: 'stand', seg: hs + Math.floor(r * 9) - 4, lx: Math.random() * 50, z: -0.8, dur: 6 + Math.random() * 8, face: 'out' };
+    case 'wanderer': return { mode: 'stand', seg: hs + Math.floor(r * 7) - 3, lx: Math.random() * 50, z: n.d.lane, dur: 5 + Math.random() * 6 };
+    default: { // searchers & the companion: read at a case
+      const cs = Math.floor(Math.random() * CASES), sg = hs + Math.floor(r * 5) - 2;
+      return { mode: 'read', seg: sg, lx: cs * CW + 1, z: -2.45, dur: 18 + Math.random() * 25, face: 'shelf' };
+    }
+  }
+}
+function pushNPCs(pos) {
+  for (const n of NPCS) {
+    if (n.gone || n.floor !== S.floor || n.mode === 'lie' || n.mode === 'bed') continue;
+    const x = gx(n.seg, n.lx), dx = pos.x - x, dz = pos.z - n.z, d = Math.hypot(dx, dz), m = 0.55 * (n.d.big || 1);
+    if (d < m && d > 1e-4 && Math.abs(n.ly - S.ly) < 1.5) { pos.x = x + dx / d * m; pos.z = n.z + dz / d * m; }
+  }
+}
+function npcDist(n) { if (n.floor !== S.floor) return Infinity; return Math.hypot(gx(n.seg, n.lx) - S.lx, n.z - S.z); }
+function updateNPCs(dt) {
+  for (const n of NPCS) {
+    const m = n.mesh, P_ = m.userData;
+    if (n.gone) { m.visible = false; continue; }
+    const far = Math.abs(n.seg - S.seg) > 12 || Math.abs(n.floor - S.floor) > 30;
+    n.t -= dt; n.hitCd -= dt; if (n.stun > 0) n.stun -= dt;
+    if (!far && n.stun <= 0) {
+      if (n.mode === 'chase' || n.mode === 'follow') {
+        if (n.floor !== S.floor && n.mode === 'follow') { n.lostT = (n.lostT || 0) + dt; if (n.lostT > 4 && !PL.falling) { n.floor = S.floor; n.seg = S.seg; n.lx = 46; n.z = -5.6; n.ly = 0; n.lostT = 0; } }
+        const tx = S.lx, tz = S.z, x = gx(n.seg, n.lx), dx = tx - x, dz = tz - n.z, d = Math.hypot(dx, dz);
+        const want = n.mode === 'follow' ? 1.8 : 0.9;
+        const spd = n.mode === 'chase' ? 4.9 : clamp(d - want, 0, 6) > 3 ? 4.0 : 2.4;
+        if (d > want && n.floor === S.floor) {
+          const st = Math.min(spd * dt, d - want); n.lx += dx / d * st; n.z += dz / d * st; n.walking = true; n.yaw = Math.atan2(dx, dz);
+          const pos = { x: gx(n.seg, n.lx), z: n.z }; if (!PL.falling) pushCircle(pos, 0.28); n.lx = pos.x - (n.seg - S.seg) * P; n.z = pos.z;
+        } else n.walking = false;
+        if (n.mode === 'follow' && inStair(gx(n.seg, n.lx), n.z)) n.ly = mod(helixH(gx(n.seg, n.lx), n.z, S.ly), H); else if (n.mode === 'follow') n.ly = 0;
+        if (n.mode === 'chase' && d < 1.2 && n.hitCd <= 0 && n.floor === S.floor && !PL.dead) {
+          n.hitCd = 1.1; hurt(n.d.key === 'kasimir' ? 30 : 22, 'the Wardens');
+          if (S.carried && n.d.key === 'kasimir' && !PL.dead) { toast('Kasimir tears the book from your hands and flings it into the chasm.', true); logJ('Kasimir threw the book I was carrying into the chasm. Its shelf will stay empty.'); S.carried = null; updateCarry(); }
+        }
+        if (n.mode === 'chase' && (S.flags.beatenDay === S.day || S.time > 21.5 || n.floor !== S.floor || Math.abs(gx(n.seg, n.lx) - S.lx) > 60)) n.mode = 'idle', n.t = 0;
+        if (n.mode === 'follow' && !npcRec('ilse').following) n.mode = 'idle', n.t = 0;
+      } else if (n.path.length) {
+        const w = n.path[0], x = gx(n.seg, n.lx), tx = gx(w.seg, w.lx), dx = tx - x, dz = w.z - n.z, d = Math.hypot(dx, dz);
+        const st = n.speed * dt;
+        if (d <= st) { n.lx = w.lx; n.seg = w.seg; n.z = w.z; n.path.shift(); }
+        else { n.lx += dx / d * st; n.z += dz / d * st; n.yaw = Math.atan2(dx, dz); }
+        n.walking = true;
+      } else {
+        n.walking = false;
+        if (n.t <= 0 || n.mode === 'idle') {
+          const g = schedule(n);
+          if (g.mode === 'chase' || g.mode === 'follow') { n.mode = g.mode; }
+          else { n.mode = g.mode; n.goalFace = g.face; n.t = g.dur || 20; planPath(n, g.seg, g.lx, g.z); }
+        }
+      }
+      while (n.lx >= P) { n.lx -= P; n.seg++; } while (n.lx < 0) { n.lx += P; n.seg--; }
+      if (n.path.length === 0 && n.mode === 'bed') n.mode = 'lie';
+    }
+    // pose
+    const vis = !far && Math.abs(n.floor - S.floor) <= FWIN && Math.abs(gx(n.seg, n.lx) - S.lx) < 130;
+    m.visible = vis; if (!vis) continue;
+    n.phase += dt * (n.walking ? (n.mode === 'chase' ? 11 : 6.5) : 1.2);
+    const sw = n.walking ? Math.sin(n.phase) * 0.55 : 0;
+    P_.lL.rotation.x = sw; P_.lR.rotation.x = -sw; P_.aL.rotation.x = -sw * 0.8; P_.aR.rotation.x = sw * 0.8;
+    P_.book.visible = false; m.rotation.set(0, 0, 0);
+    let y = (n.floor - S.floor) * H + n.ly;
+    if (!n.walking) {
+      if (n.mode === 'read') { P_.aL.rotation.x = P_.aR.rotation.x = -1.1; P_.book.visible = true; n.yaw = Math.PI; }
+      else if (n.goalFace === 'out' || (n.mode === 'sit' && n.z > -1.5)) n.yaw = 0;
+      else if (n.goalFace === 'vey') { const v = NPC_BY.vey; n.yaw = Math.atan2(gx(v.seg, v.lx) - gx(n.seg, n.lx), v.z - n.z); }
+      if (n.mode === 'sit') { P_.lL.rotation.x = P_.lR.rotation.x = -1.45; y -= n.z > -3 ? 0.8 : 0.4; }
+      if (n.mode === 'stand' || n.mode === 'idle') { P_.aL.rotation.x = Math.sin(n.phase) * 0.04; }
+      if (n.d.key === 'ilse' && n.mode === 'follow') { const dx = S.lx - gx(n.seg, n.lx), dz = S.z - n.z; n.yaw = Math.atan2(dx, dz); }
+    }
+    let px = gx(n.seg, n.lx), pz = n.z;
+    if (n.mode === 'lie' && !n.walking) {
+      const onBed = n.z < -10;
+      m.rotation.set(-Math.PI / 2, onBed ? 0 : Math.PI / 2, 0);
+      y += onBed ? 0.68 : 0.62; if (onBed) pz += 0.95;
+    } else m.rotation.set(0, n.yaw, n.stun > 0 ? 0.35 : 0);
+    m.position.set(px, y, pz);
+  }
+}
+
+/* ==========================================================================
+   Targeting — what's under the crosshair
+   ========================================================================== */
+let TARGET = null;
+const _o = new THREE.Vector3(), _d = new THREE.Vector3();
+function raySphere(cx, cy, cz, r) { const ox = _o.x - cx, oy = _o.y - cy, oz = _o.z - cz, b = ox * _d.x + oy * _d.y + oz * _d.z, c = ox * ox + oy * oy + oz * oz - r * r, h = b * b - c; if (h < 0) return Infinity; const t = -b - Math.sqrt(h); return t > 0 ? t : Infinity; }
+function findTarget() {
+  if (PL.falling || PL.dead) return null;
+  camera.getWorldPosition(_o); camera.getWorldDirection(_d);
+  let best = null, bt = 3.2;
+  // shelves
+  if (_d.z < -1e-3) {
+    const t = (SHELF_Z - _o.z) / _d.z;
+    if (t > 0 && t < 2.8) {
+      const x = _o.x + _d.x * t, y = _o.y + _d.y * t, k = Math.floor(x / P), lxs = x - k * P;
+      if (lxs < 40 && y > RY && y < RY + ROWS * RH && k >= -1 && k <= 1) {
+        const i = Math.floor(lxs / CW), u = lxs - i * CW;
+        if (u > 0.05 && u < 1.95) {
+          const p = clamp(Math.floor((u - 0.05) / BT), 0, PER - 1), r = clamp(Math.floor((y - RY) / RH), 0, ROWS - 1);
+          const c = (S.seg + k) * CASES + i, cont = slotContent(S.floor, c, r, p);
+          if (t < bt) { bt = t; best = { kind: 'slot', f: S.floor, c, r, p, book: cont }; }
+        }
+      }
+    }
+  }
+  for (const n of NPCS) {
+    if (n.gone || !n.mesh.visible || n.floor !== S.floor) continue;
+    const t = raySphere(n.mesh.position.x, n.mesh.position.y + (n.mode === 'lie' ? 0.2 : 1.35), n.mesh.position.z, n.mode === 'lie' ? 0.7 : 0.5);
+    if (t < bt && t < 3.2) { bt = t; best = { kind: 'npc', n }; }
+  }
+  for (const gb of S.ground) { if (!gb._m || !gb._m.visible) continue; const p = gb._m.position, t = raySphere(p.x, p.y, p.z, 0.28); if (t < bt) { bt = t; best = { kind: 'ground', gb }; } }
+  const lx = S.lx;
+  if (S.ly < 0.5) for (const ox of [0, -P]) {
+    const kt = raySphere(ox + 51.5, 1.0, -9.0, 0.85); if (kt < bt) { bt = kt; best = { kind: 'kiosk' }; }
+    for (const bx of [40.7, 42.0, 43.3]) { const t = raySphere(ox + bx, 0.45, -12.0, 0.9); if (t < bt) { bt = t; best = { kind: 'bed' }; } }
+  }
+  if (S.ly < 0.5) {
+    if (S.z > -0.75 && _d.z > 0.2 && _d.y < 0.4) { const t = (0.1 - _o.z) / _d.z; if (t < bt) { bt = t; best = { kind: 'rail' }; } }
+  }
+  void lx; return best;
+}
+function addrLine(id) { return `Floor ${fmt(id.f)} · Case ${fmt(id.c)} · Shelf ${id.r + 1} · Book ${id.p + 1}`; }
+function describeTarget(t) {
+  const P_ = $('#prompt'), ch = $('#crosshair');
+  ch.classList.toggle('hot', !!t);
+  if (!t) { P_.innerHTML = ''; return; }
+  let a = '', b = '';
+  if (t.kind === 'slot') {
+    if (t.book) {
+      const out = keyOf(t.book.f, t.book.c, t.book.r, t.book.p) !== keyOf(t.f, t.c, t.r, t.p);
+      a = esc(addrLine(t.book)) + (out ? '<br><span style="color:var(--lamp)">out of place — found on this shelf</span>' : '');
+      b = S.carried ? 'Your hands are full · G to drop the book you hold' : '[E] Take it and read';
+    } else { a = 'An empty slot · ' + esc(addrLine({ f: t.f, c: t.c, r: t.r, p: t.p })); b = S.carried ? '[E] Put the book you hold here' : 'Someone took this book'; }
+  } else if (t.kind === 'npc') {
+    const n = t.n, rec = npcRec(n.d.key);
+    a = `<span class="n">${esc(rec.met || n.d.minor ? n.d.name : 'A stranger')}</span>`;
+    const hostile = n.d.fac === 'wardens' && S.fac.wardens <= -30;
+    b = n.mode === 'lie' && n.d.key !== 'tomas' && S.time >= 21.5 ? 'Asleep' : '[E] Talk' + (hostile ? ' · [F] Shove' : '');
+  } else if (t.kind === 'ground') { a = esc(addrLine(parseKey(t.gb.id))) + '<br>lying on the floor'; b = S.carried ? 'Your hands are full' : '[E] Pick it up'; }
+  else if (t.kind === 'kiosk') { a = 'A kiosk'; b = '[E] Ask for food'; }
+  else if (t.kind === 'bed') { a = 'A narrow bed'; b = S.time >= 17 ? '[E] Sleep until the lamps come back' : 'You aren\'t tired yet. Beds are for after 17:00.'; }
+  else if (t.kind === 'rail') { a = 'The railing. Below it, nothing — for as far as anyone has fallen.'; b = PL.railArm > 0 ? '[E] again to let go · step back to stay' : '[E] Climb over'; }
+  P_.innerHTML = `<div class="t">${a}</div><div class="k">${b}</div>`;
+}
+
+/* ==========================================================================
+   Actions
+   ========================================================================== */
+function act(kind) {
+  const t = TARGET;
+  if (kind === 'read') { if (S.carried) openReader(parseKey(S.carried)); else toast('You aren\'t holding a book. Look at one and press E.'); return; }
+  if (kind === 'drop') {
+    if (!S.carried) return;
+    if (PL.falling) { toast('It tumbles away from you and is gone.'); logJ('Let go of a book while falling.'); S.carried = null; updateCarry(); return; }
+    const fx = -Math.sin(S.yaw) * 0.6, fz = -Math.cos(S.yaw) * 0.6;
+    const pos = { x: S.lx + fx, z: clamp(S.z + fz, -12.8, -0.35) }; pushCircle(pos, 0.12);
+    S.ground.push({ id: S.carried, seg: S.seg, lx: pos.x, z: pos.z, floor: S.floor, ly: groundAt(pos.x, pos.z, S.ly) === -Infinity ? 0 : groundAt(pos.x, pos.z, S.ly), yaw: Math.random() * 6 });
+    if (S.ground.length > 120) S.ground.shift();
+    S.carried = null; SFX.book(); updateCarry(); updateGroundBooks(); save(); return;
+  }
+  if (kind === 'shove') {
+    if (t && t.kind === 'npc') {
+      const n = t.n; n.stun = 2.4; n.hitCd = 2.4; SFX.hit();
+      const x = gx(n.seg, n.lx), dx = x - S.lx, dz = n.z - S.z, d = Math.hypot(dx, dz) || 1; const pos = { x: x + dx / d * 0.9, z: n.z + dz / d * 0.9 }; pushCircle(pos, 0.28); n.lx = pos.x - (n.seg - S.seg) * P; n.z = pos.z;
+      if (n.d.fac && !(n.d.fac === 'wardens' && S.fac.wardens <= -30)) { S.fac[n.d.fac] -= 6; toast(`${n.d.minor || npcRec(n.d.key).met ? n.d.name : 'The stranger'} stumbles and glares at you.`); }
+      if (n.d.key === 'ilse') { npcRec('ilse').aff -= 2; }
+    }
+    return;
+  }
+  if (!t) return;
+  if (t.kind === 'slot') {
+    const slotKey = keyOf(t.f, t.c, t.r, t.p);
+    if (t.book) {
+      if (S.carried) { toast('You can only carry one book. Put yours in an empty slot, or drop it with G.'); return; }
+      const idk = keyOf(t.book.f, t.book.c, t.book.r, t.book.p);
+      S.over[slotKey] = ''; S.carried = idk; recountOver(); refreshSlot(t.f, t.c, t.r, t.p); SFX.book(); updateCarry();
+      if (!S.flags.firstBook) { S.flags.firstBook = 1; logJ(`Took my first book from the shelves: ${addrLine(t.book)}.`); }
+      openReader(t.book); save();
+    } else if (S.carried) {
+      const own = S.carried === slotKey;
+      if (own) delete S.over[slotKey]; else S.over[slotKey] = S.carried;
+      S.carried = null; recountOver(); refreshSlot(t.f, t.c, t.r, t.p); SFX.book(); updateCarry(); save();
+      if (!own) toast('Shelved out of place. It will stay exactly where you left it.');
+    }
+    return;
+  }
+  if (t.kind === 'ground') {
+    if (S.carried) { toast('Your hands are full.'); return; }
+    S.carried = t.gb.id; S.ground.splice(S.ground.indexOf(t.gb), 1); SFX.book(); updateCarry(); updateGroundBooks(); openReader(parseKey(S.carried)); save(); return;
+  }
+  if (t.kind === 'npc') { openDialogue(t.n); return; }
+  if (t.kind === 'kiosk') { openKiosk(); return; }
+  if (t.kind === 'bed') {
+    if (S.time < 17) { toast('You aren\'t tired. Nobody sleeps before the evening here — there is too much of the day to get through.'); return; }
+    S.bed = { seg: S.seg, floor: S.floor }; nightfall('bed'); return;
+  }
+  if (t.kind === 'rail') {
+    if (PL.railArm > 0) { goOver(); return; }
+    PL.railArm = 3; toast('You swing a leg over the rail. The air below is cool. Press E again to let go.'); return;
+  }
+}
+function goOver(withCongregation) {
+  PL.railArm = 0; PL.falling = true; PL.vy = 0; PL.vz = 1.4; S.z = 0.8; PL.onGround = false;
+  S.fallStartFloor = S.floor; S.fallFrom = { seg: S.seg, floor: S.floor };
+  $('#fallhud').hidden = false;
+  logJ(withCongregation ? 'Went over the railing with the Congregation, reciting.' : 'Climbed over the railing and let go.');
+  if (withCongregation) for (const k of ['vey', 'hale', 'dov']) NPC_BY[k].gone = true;
+  if (S.carried) { toast('The book you hold falls with you.'); }
+  save();
+}
+function closeEyes() { if (PL.falling) nightfall('fall'); }
+
+/* ==========================================================================
+   Day & night, death & waking
+   ========================================================================== */
+let nightBusy = false;
+function fadeMsg(t, s) { $('#fade-t').textContent = t; $('#fade-s').textContent = s || ''; $('#fade').classList.add('on'); }
+function nightfall(reason) {
+  if (nightBusy) return; nightBusy = true;
+  const wasFalling = PL.falling, dead = PL.dead;
+  if (wasFalling) { const fl = S.fallStartFloor - S.floor; S.stats.maxFall = Math.max(S.stats.maxFall, fl); logJ(`Fell ${fmt(fl)} floors before the lamps went out.`); }
+  SFX.thunk();
+  const lines = {
+    bed: ['You lie down on the narrow bed.', 'Somewhere, far above or below, someone is still talking. Then the lamps go out.'],
+    lights: ['The lamps go out, all of them, all at once.', 'Everyone, everywhere, sleeps where they stand.'],
+    fall: ['You close your eyes. The wind keeps its one long note.', 'You fall until the lamps go out, and then you stop being anywhere at all.'],
+    dead: ['It is dark for a long time.', 'Death here is not an ending. It is an interruption.'],
+  }[dead ? 'dead' : reason];
+  pauseSuppressed = true; if (document.pointerLockElement) document.exitPointerLock();
+  fadeMsg(lines[0], lines[1]);
+  setTimeout(() => { morning(wasFalling || dead); }, 3600);
+}
+function morning(revive) {
+  const prevDay = S.day;
+  S.day++; S.time = LIGHTS_ON + 0.1; S.hp = 100;
+  S.hunger = clamp(S.hunger + 0.1, 0.25, 0.6);
+  if (revive) {
+    const at = S.fallFrom || S.bed || { seg: S.homeSeg, floor: S.homeFloor };
+    S.seg = at.seg; S.floor = at.floor; S.lx = 42.0; S.z = -10.4; S.ly = 0; S.yaw = 0; S.pitch = 0;
+    if (PL.falling && S.carried) { logJ('The book I was holding fell and is lost.'); S.carried = null; }
+  } else if (S.bed && S.bed.seg === S.seg && S.bed.floor === S.floor && S.lx > 40 && S.lx < 44 && S.z < -10) { S.z = -10.4; }
+  PL.falling = false; PL.dead = false; PL.vy = 0; PL.vz = 0; $('#fallhud').hidden = true; if (AU.wind) AU.wind.gain.value = 0;
+  S.fallFrom = null;
+  // the world's slow changes
+  if (S.day >= 3 && S.flags.tributeDay !== prevDay) S.fac.wardens -= S.day >= 8 ? 16 : 11;
+  if (S.flags.tributeDay === prevDay) S.fac.wardens += 2;
+  S.fac.wardens = clamp(S.fac.wardens, -100, 100);
+  if (S.flags.tomasGone) S.flags.tomasGone = 0;
+  logJ(`Day ${S.day}. ${revive ? 'Woke whole again, in a bed I did not lie down in.' : 'The lamps came back on.'}`);
+  if (S.fac.wardens <= -30 && !S.flags.wardenWarned) { S.flags.wardenWarned = 1; logJ('Word is that the Wardens mean to make an example of me.'); }
+  resetNPCs(); refreshBooks(true); updateGroundBooks(); updateCarry(); save();
+  $('#fade-t').textContent = `Day ${fmt(S.day)}`; $('#fade-s').textContent = revive ? 'You wake restored, as everyone does.' : 'The lamps are lit. The shelves have not moved.';
+  setTimeout(() => { $('#fade').classList.remove('on'); nightBusy = false; pauseSuppressed = false; if (MODE === 'play') showClickHint(); }, 2200);
+}
+function die(by) {
+  if (PL.dead) return; PL.dead = true; S.stats.deaths++;
+  S.flags.beatenDay = S.day;
+  logJ(`Died, at the hands of ${by}. On floor ${fmt(S.floor)}.`);
+  S.fallFrom = S.bed || { seg: S.homeSeg, floor: S.homeFloor };
+  if (S.carried) { S.ground.push({ id: S.carried, seg: S.seg, lx: S.lx, z: clamp(S.z, -12.8, -0.35), floor: S.floor, ly: 0, yaw: 1 }); S.carried = null; }
+  $('#hurt').style.opacity = 1;
+  setTimeout(() => nightfall('dead'), 900);
+}
+function updateTime(dt) {
+  if (nightBusy) return;
+  const rate = PL.falling ? 24 : 1;
+  S.time += dt / HOUR_SEC * rate;
+  S.hunger = clamp(S.hunger + dt / HOUR_SEC / 16 * rate * 0.9, 0, 1);
+  if (S.hp < 100 && !PL.dead) S.hp = Math.min(100, S.hp + dt * 1.5);
+  // lamps
+  let lamp = 1;
+  if (S.time > LIGHTS_OFF - 0.5) { const k = (S.time - (LIGHTS_OFF - 0.5)) / 0.5; lamp = (1 - k * 0.5) * (0.85 + 0.15 * Math.sin(performance.now() * 0.03) * Math.sin(performance.now() * 0.011)); if (!S.flags.dimWarn || S.flags.dimWarn !== S.day) { S.flags.dimWarn = S.day; toast('The lamps are dimming. The dark is half an hour away.'); } }
+  U.uLamp.value = lamp; GLOWMAT.opacity = 0.9 * lamp;
+  if (S.time >= LIGHTS_OFF) nightfall(PL.falling ? 'fall' : 'lights');
+}
+
+/* ==========================================================================
+   HUD
+   ========================================================================== */
+function toast(text, bad) { const el = document.createElement('div'); el.className = 'toast' + (bad ? ' bad' : ''); el.textContent = text; $('#toasts').appendChild(el); setTimeout(() => el.remove(), 5200); while ($('#toasts').children.length > 3) $('#toasts').firstChild.remove(); }
+function updateCarry() {
+  const el = $('#carry');
+  if (!S.carried && !S.meal) { el.hidden = true; return; }
+  el.hidden = false;
+  let h = '';
+  if (S.carried) { const id = parseKey(S.carried), L = bookLook(id.f, id.c, id.r, id.p); h += `<div class="spine" style="background:${cssCol(L.col)}"></div><div class="ct">Holding a book<br><span>${esc(addrLine(id))}</span><br><span>R read · G drop · E into an empty slot</span></div>`; }
+  if (S.meal) h += `<div class="ct" style="${S.carried ? 'border-left:1px solid var(--edge);padding-left:10px' : ''}">A wrapped meal<br><span>from the kiosk</span></div>`;
+  el.innerHTML = h;
+}
+let hudT = 0;
+function updateHUD(dt) {
+  hudT -= dt; if (hudT > 0) return; hudT = 0.1;
+  $('#h-floor').textContent = fmt(S.floor);
+  const lxs = S.lx, inCases = lxs < 40 && S.z > -3.5;
+  const cse = S.seg * CASES + clamp(Math.floor(lxs / CW), 0, CASES - 1);
+  let where = inCases ? `Case <b>${fmt(cse)}</b>` : S.z < -3 ? (inStair(S.lx, S.z) ? 'On the spiral stair' : 'Rest area') + ` · after case <b>${fmt(S.seg * CASES + 19)}</b>` : `Rest area · after case <b>${fmt(S.seg * CASES + 19)}</b>`;
+  if (TARGET && TARGET.kind === 'slot') where += ` · Shelf <b>${TARGET.r + 1}</b> · Book <b>${TARGET.p + 1}</b>`;
+  $('#h-case').innerHTML = where;
+  $('#h-walk').innerHTML = `Walked <b>${S.stats.dist < 1000 ? fmt(S.stats.dist) + ' m' : (S.stats.dist / 1000).toFixed(2) + ' km'}</b>`;
+  if (S.flags.mapped) {
+    const dsg = S.homeSeg - S.seg, df = S.homeFloor - S.floor;
+    $('#h-home').hidden = false;
+    $('#h-home').textContent = dsg === 0 && df === 0 ? 'Home rest area: here' : `Home: ${dsg === 0 ? '' : Math.abs(dsg) + (dsg > 0 ? ' rest areas east' : ' rest areas west')}${dsg && df ? ', ' : ''}${df === 0 ? '' : Math.abs(df) + (df > 0 ? ' floors up' : ' floors down')}`;
+  }
+  $('#h-day').textContent = `Day ${fmt(S.day)}`;
+  $('#h-clock').textContent = clock();
+  $('#h-lamps').textContent = S.time > LIGHTS_OFF - 0.5 ? 'Lamps dimming' : `Lamps out at 22:00`;
+  $('#h-hunger i').style.width = (S.hunger * 100) + '%';
+  $('#h-hunger').title = S.hunger > 0.75 ? 'Starving — too weak to sprint' : S.hunger > 0.5 ? 'Hungry' : 'Fed';
+  $('#h-hunger i').style.background = S.hunger > 0.75 ? 'var(--oxide)' : 'var(--lamp)';
+  describeTarget(TARGET);
+}
+function showClickHint() { $('#clickhint').hidden = isTouch || locked; }
+
+/* ==========================================================================
+   Reader
+   ========================================================================== */
+const R = { id: null, pg: 0, hl: null };
+function openReader(id) {
+  R.id = id; R.hl = null;
+  const k = keyOf(id.f, id.c, id.r, id.p);
+  if (!S.seen[k]) { S.seen[k] = 1; S.stats.books++; if (S.stats.books % 10 === 0) S.fac.searchers += 1; const ks = Object.keys(S.seen); if (ks.length > 3000) delete S.seen[ks[0]]; }
+  const fr = fragOf(id);
+  R.pg = 0;
+  $('#r-title').textContent = `Floor ${fmt(id.f)}, case ${fmt(id.c)}`;
+  $('#r-addr').innerHTML = `Shelf <b>${id.r + 1}</b> · Book <b>${id.p + 1}</b><br>410 pages · 40 lines · 80 characters<br>This is one of 10<sup>${fmt(LOG10_BOOKS)}</sup> books.`;
+  $('#r-results').innerHTML = ''; $('#r-qnote').textContent = ''; $('#r-q').value = '';
+  openOverlay('#reader'); renderPage(); SFX.page();
+  void fr;
+}
+function renderPage() {
+  const id = R.id, s = pageText(id, R.pg), fr = fragOf(id), frHere = fr && fr.page === R.pg;
+  const marks = [];
+  if (frHere) marks.push([fr.at, fr.at + fr.text.length, 'frag']);
+  if (R.hl && R.hl.pg === R.pg) marks.push([R.hl.at, R.hl.at + R.hl.len, '']);
+  marks.sort((a, b) => a[0] - b[0]);
+  let out = '';
+  for (let line = 0; line < LINES; line++) {
+    const a = line * COLS, b = a + COLS; let pos = a, row = '';
+    for (const [m0, m1, cls] of marks) {
+      const s0 = Math.max(m0, a), s1 = Math.min(m1, b); if (s0 >= s1 || s0 < pos) continue;
+      row += esc(s.slice(pos, s0)) + `<mark${cls ? ' class="' + cls + '"' : ''}>` + esc(s.slice(s0, s1)) + '</mark>'; pos = s1;
+    }
+    row += esc(s.slice(pos, b)); out += row + (line < LINES - 1 ? '\n' : '');
+  }
+  $('#page').innerHTML = out;
+  $('#r-pg').value = R.pg + 1;
+  $('#r-ph-l').textContent = `Floor ${fmt(id.f)} · case ${fmt(id.c)} · shelf ${id.r + 1} · book ${id.p + 1}`;
+  $('#r-ph-r').textContent = `${R.pg + 1}`;
+  const fbox = $('#r-frag');
+  if (frHere) {
+    const have = S.frags.some(f => f.text === fr.text && f.addr === keyOf(id.f, id.c, id.r, id.p));
+    fbox.innerHTML = `<div class="fragbox"><div class="eyebrow">Words, out of the noise</div><q>${esc(fr.text)}</q><div><button class="btn primary" id="r-rec" ${have ? 'disabled' : ''}>${have ? 'Recorded in your journal' : 'Record in journal'}</button></div></div>`;
+    if (!have) $('#r-rec').onclick = () => {
+      S.frags.push({ text: fr.text, addr: keyOf(id.f, id.c, id.r, id.p), page: fr.page + 1, day: S.day, shared: false });
+      S.stats.pages += 0; logJ(`Found words in a book: “${fr.text}” (${addrLine(id)}, page ${fr.page + 1}).`); SFX.chime(); renderPage(); save();
+    };
+    if (!S.flags['saw' + keyOf(id.f, id.c, id.r, id.p)]) { S.flags['saw' + keyOf(id.f, id.c, id.r, id.p)] = 1; SFX.chime(); }
+  } else if (fr && R.pg !== fr.page) {
+    fbox.innerHTML = '';
+  } else fbox.innerHTML = '';
+  S.stats.pages++;
+}
+function turnPage(d) { R.pg = mod(R.pg + d, PAGES); renderPage(); SFX.page(); }
+$('#r-prev').onclick = () => turnPage(-1); $('#r-next').onclick = () => turnPage(1);
+$('#r-pg').addEventListener('change', () => { const v = parseInt($('#r-pg').value, 10); if (v >= 1 && v <= PAGES) { R.pg = v - 1; renderPage(); SFX.page(); } else $('#r-pg').value = R.pg + 1; });
+$('#r-pg').addEventListener('keydown', e => { if (e.key === 'Enter') e.target.blur(); });
+function runSearch() {
+  const q = $('#r-q').value; if (!q) return;
+  S.stats.searches++;
+  const res = []; let total = 0;
+  for (let pg = 0; pg < PAGES; pg++) { const s = pageText(R.id, pg); let i = s.indexOf(q); while (i !== -1) { total++; if (res.length < 200) res.push({ pg, at: i }); i = s.indexOf(q, i + 1); } }
+  const expect = 1312000 / Math.pow(95, q.length);
+  $('#r-qnote').textContent = `${fmt(total)} match${total === 1 ? '' : 'es'} in 410 pages. By chance alone you'd expect about ${expect >= 0.01 ? expect.toFixed(expect < 1 ? 2 : 1) : '1 in ' + fmt(1 / expect) + ' books'}.`;
+  $('#r-results').innerHTML = res.slice(0, 60).map((r, i) => `<button data-i="${i}">page ${r.pg + 1}, line ${Math.floor(r.at / COLS) + 1}</button>`).join('');
+  [...$('#r-results').children].forEach(b => b.onclick = () => { const r = res[+b.dataset.i]; R.pg = r.pg; R.hl = { pg: r.pg, at: r.at, len: q.length }; renderPage(); SFX.page(); });
+}
+$('#r-go').onclick = runSearch; $('#r-q').addEventListener('keydown', e => { if (e.key === 'Enter') runSearch(); });
+
+/* ==========================================================================
+   Kiosk
+   ========================================================================== */
+let kioskFood = null;
+const SUGG = ['Bread and butter', 'Hot soup', 'My mother\'s cooking', 'An orange', 'Pancakes', 'Something I\'ve never tasted'];
+$('#k-sugg').innerHTML = SUGG.map(s => `<button>${esc(s)}</button>`).join('');
+[...$('#k-sugg').children].forEach(b => b.onclick = () => { $('#k-in').value = b.textContent; kioskAsk(); });
+function openKiosk() { $('#k-out').textContent = ''; $('#k-food').hidden = true; $('#k-in').value = ''; $('#k-present').disabled = !S.carried; openOverlay('#kiosk'); }
+function kioskAsk() {
+  const q = $('#k-in').value.trim(); if (!q) return;
+  kioskFood = q; SFX.chime();
+  const tails = ['exactly as you remember it.', 'still warm.', 'perfect, in the way nothing was perfect before.', 'on a plain white plate.', 'and it smells like a kitchen you once stood in.'];
+  $('#k-out').textContent = `A small door slides open. ${q.charAt(0).toUpperCase() + q.slice(1)}, ${tails[strHash(q + S.day) % tails.length]}`;
+  $('#k-food').hidden = false; $('#k-keep').disabled = S.meal;
+}
+$('#k-ask').onclick = kioskAsk; $('#k-in').addEventListener('keydown', e => { if (e.key === 'Enter') kioskAsk(); });
+$('#k-eat').onclick = () => { S.hunger = 0; $('#k-out').textContent = 'You eat. It is very good. It is always very good.'; $('#k-food').hidden = true; if (!S.flags.ate) { S.flags.ate = 1; logJ(`Ate at a kiosk: ${kioskFood}.`); } save(); };
+$('#k-keep').onclick = () => { S.meal = true; $('#k-out').textContent = 'You wrap it and keep it for later. Someone may want it more than you do.'; $('#k-food').hidden = true; updateCarry(); save(); };
+$('#k-present').onclick = () => {
+  if (!S.carried) return; const id = parseKey(S.carried);
+  $('#k-out').textContent = `The kiosk draws the book in, reads it in the time it takes to blink, and returns it. A slip follows: “This volume (${addrLine(id)}) is not the story of your life.”`;
+  logJ(`Presented a book at a kiosk. It was not mine.`); SFX.chime();
+};
+$('#k-where').onclick = () => {
+  const lb = lifeBook(S.name);
+  $('#k-out').textContent = `A slip prints, and keeps printing. “Your book is on shelf ${lb.shelf}, position ${lb.book}, of a bookcase on the floor numbered ${lb.lead}… — a number ${fmt(lb.digits)} digits long.” It does not say which way to walk.`;
+  if (!S.flags.askedWhere) { S.flags.askedWhere = 1; logJ(`Asked the kiosk where my book is. The floor number is ${fmt(lb.digits)} digits long.`); }
+};
+
+/* ==========================================================================
+   Dialogue
+   ========================================================================== */
+const D = { n: null, node: 'root', chat: [], ctl: null };
+let SAMPLE = null;
+(async () => { try { if (window.claude && window.claude.use) SAMPLE = await window.claude.use('sample'); } catch (e) { SAMPLE = null; } })();
+const pick = (arr, seed) => arr[mod(seed, arr.length)];
+const standing = v => v <= -30 ? 'Hostile' : v <= -10 ? 'Wary' : v < 10 ? 'Neutral' : v < 30 ? 'Friendly' : 'Trusted';
+const JOKES = [
+  "A man walks into a library. Well — that's it. That's the joke. That's all of us.",
+  "What's the difference between a Searcher and one of the Still? About a hundred years.",
+  "I asked the kiosk for a way out. It gave me a sandwich. Honestly? Good sandwich.",
+  "Why did the book cross the gallery? It didn't. Nothing here is ever reshelved. Well — until you arrived.",
+  "They say every book is in here. Somewhere there's one of my jokes that's funny. I'm still looking."
+];
+const DLG = {
+  ilse: {
+    root(c) {
+      const m = c.rec; let text;
+      if (c.greet && !m.met) { m.met = true; logJ('Met Ilse at the rest area. She has been here long enough to stop counting.'); text = "You're new. You keep looking at the railing like it owes you an explanation.\n\nI'm Ilse. I've been here long enough to stop counting, and not long enough to stop minding."; }
+      else if (c.greet && S.stats.deaths + (S.stats.maxFall > 0 ? 1 : 0) > 0 && !m.f.deathTalk) { m.f.deathTalk = 1; text = "You went over — or someone put you over, it doesn't matter. I sat by your bed that night and it stayed empty until the lamps came on. Don't make a habit of it."; }
+      else if (c.greet) text = m.following ? "I'm here. Lead on — slowly, if you can manage it." : S.day <= 2 ? "Still on your feet? Good. The first days are the loud ones. Everyone arriving, everyone certain there's a trick to it." : S.day <= 5 ? "I tried to remember my kitchen this morning. The exact colour of the tiles. I got as far as 'green' and then it went. There's a book somewhere with the right shade in it. Not helpful." : S.day <= 9 ? "Kasimir's people are 'collecting' now. If they come for you, give them a meal or run. Dying doesn't last here, but it lasts long enough." : "I keep thinking about walking. Not searching — just walking, one direction, until the numbers on the cases stop meaning anything.";
+      else text = "What else?";
+      return { text, opts: [
+        { t: 'What is this place?', go: 'place', if: !m.f.place },
+        { t: 'Did you ever search for your book?', go: 'search' },
+        { t: 'Walk with me.', go: 'follow', if: !m.following && m.aff >= 2 },
+        { t: 'Wait here for me.', go: 'stay', if: m.following },
+        { t: 'Tell me something about your life.', go: 'life', if: m.aff >= 3 },
+        { t: 'I found words in a book.', go: 'words', if: S.frags.length > 0 && !m.f.words },
+      ] };
+    },
+    place(c) { c.rec.f.place = 1; return { text: "Every book that can be written in four hundred and ten pages. Forty lines, eighty characters, ninety-five symbols — every arrangement of them. Somewhere on these shelves is the story of your life, with no mistakes in it. Take it to a kiosk and you can leave. That's the whole of the rule.", opts: [{ t: "That's impossible.", go: 'imp' }, { t: 'Then why try?', go: 'why' }] }; },
+    imp() { return { text: "Yes. That's the joke. Or the sentence. I go back and forth.", opts: [{ t: 'Back', go: 'root' }] }; },
+    why() { return { text: "Because the alternative is Tomas. Have you met Tomas? He lies on that bench and waits for the lamps to go out. Every day. For as long as there are days.", opts: [{ t: 'Back', go: 'root' }] }; },
+    search(c) { c.rec.aff += c.rec.f.s1 ? 0 : 1; c.rec.f.s1 = 1; return { text: "For a while. Everyone does. I opened a thousand books in my first stretch — I know because Pell counted for me. Then I did the arithmetic, and I stopped counting and started talking to people instead. People aren't on the shelves. Well. They are. But not like this.", opts: [{ t: 'Back', go: 'root' }] }; },
+    follow(c) { c.rec.following = true; logJ('Ilse agreed to walk with me.'); NPC_BY.ilse.mode = 'follow'; return { text: "All right. Someone ought to keep you away from the railing.", opts: [] }; },
+    stay(c) { c.rec.following = false; NPC_BY.ilse.mode = 'idle'; NPC_BY.ilse.t = 0; return { text: "I'll be here. Or near here. It's hard to be anywhere else.", opts: [] }; },
+    life(c) {
+      const L = ["I had a dog called Biscuit who was afraid of spoons. Only spoons. We never found out why. There's a book here that explains it — and billions that explain it wrong.",
+        "I was a nurse. Nights, mostly. I was good at the dark hours. I just never expected there to be this many of them.",
+        "My sister and I stopped speaking over something stupid. A seat at a wedding. There's a book here that is the letter I should have written her, word for word. I'd never find it before I finished writing it myself.",
+        "I don't know what I believed, before. Something vaguely kind. It turns out the universe had a very specific answer and nobody I knew had guessed it. I find that almost funny now."];
+      const i = c.rec.f.life || 0; c.rec.f.life = i + 1; return { text: L[i % L.length], opts: [{ t: 'Back', go: 'root' }] };
+    },
+    words(c) { c.rec.f.words = 1; c.rec.aff += 1; return { text: "Show me— no. Keep them. Words are the only currency here the kiosk can't print. Mother Vey's people would trade their sashes for a sentence.", opts: [{ t: 'Back', go: 'root' }] }; },
+  },
+  aurel: {
+    root(c) {
+      const m = c.rec; let text;
+      if (c.greet && !m.met) { m.met = true; logJ('Met Brother Aurel, who has a method.'); text = "Case eleven million, nine hundred and eighty-eight thousand, three hundred and— no matter. You're standing in my light.\n\nI am Aurel. I have a method."; }
+      else if (c.greet) text = S.day <= 4 ? "Every book opened is one fewer to open. Remember that. It is the only true thing I have found." : S.day <= 8 ? "I've started skipping meals. The kiosk will still be there. The shelves won't wait — well. They will. I won't." : "I did the arithmetic again last night, in the dark. I keep hoping I've made an error. I have not made an error.";
+      else text = "Well?";
+      return { text, opts: [
+        { t: 'What method?', go: 'method' },
+        { t: 'How am I doing?', go: 'me' },
+        { t: 'Can I join the Searchers?', go: 'join', if: !S.flags.searcher },
+        { t: "Aren't the odds hopeless?", go: 'odds' },
+      ] };
+    },
+    method() { return { text: "Four hundred and ten pages. Forty lines. Eighty characters. Ninety-five symbols. Therefore the library is finite. Enormous — but finite, and a finite thing can be searched. I take every book in order. Case by case. I do not skip. Skipping is how you miss it.", opts: [{ t: 'How far have you got?', go: 'far' }] }; },
+    far() { return { text: "(He shows you his notebook. The tally is short and very neat.)\n\nIt is a beginning.", opts: [{ t: 'Back', go: 'root' }] }; },
+    me(c) { const n = S.stats.books; let t = `You have opened ${fmt(n)} book${n === 1 ? '' : 's'}. `; t += n >= 25 ? 'Good. That is the beginning of discipline.' : n >= 5 ? 'That is not a search. That is browsing.' : 'That is not a search. That is window-shopping.'; if (n >= 25 && !c.rec.f.praised) { c.rec.f.praised = 1; S.fac.searchers += 5; } return { text: t, opts: [{ t: 'Back', go: 'root' }] }; },
+    join() { if (S.stats.books < 15 && S.fac.searchers < 10) return { text: "Open fifteen books first. Properly — cover to cover would be better, but I'm not a fanatic. Then ask me.", opts: [{ t: 'Back', go: 'root' }] }; S.flags.searcher = 1; S.fac.searchers += 12; logJ('Joined the Searchers. Aurel wrote my name at the bottom of his tally.'); return { text: "Then you keep a tally. You sleep near us when you can. And you will never, ever tell me the odds.", opts: [{ t: 'Back', go: 'root' }] }; },
+    odds() { S.fac.searchers -= 5; return { text: "(His jaw tightens.) I know the odds. I know them better than you. Go and open a book.", opts: [] }; },
+  },
+  tomas: {
+    root(c) {
+      const m = c.rec; let text;
+      if (S.flags.tomasGone) return { text: '(The bench is empty.)', opts: [] };
+      if (c.greet && !m.met) { m.met = true; logJ('Met Tomas, who has stopped.'); text = "(He doesn't look up.)\n\nIf you're here to tell me about hope, the stairs are behind you."; }
+      else if (c.greet) text = S.day >= 5 && !m.f.asked ? "Do me a favour. Next time you're at the railing, take me with you." : "(He's lying exactly where he was yesterday.) Still looking?";
+      else text = '(He waits for you to leave.)';
+      if (S.day >= 5) m.f.asked = 1;
+      return { text, opts: [
+        { t: 'What happened to you?', go: 'what' },
+        { t: 'Get up. Walk with me.', go: 'walk' },
+        { t: 'Why the railing?', go: 'rail', if: S.day >= 5 },
+        { t: 'Here — eat something.', go: 'eat', if: S.meal },
+      ] };
+    },
+    what() { return { text: "Nothing happened. That's what happens here. I searched for — years? I opened a book once with my name in it. My actual name, all fourteen letters, in the middle of a page of noise. I sat there for a day. Then I put it back.\n\nIt was worse than finding nothing.", opts: [{ t: 'Back', go: 'root' }] }; },
+    walk() { return { text: "Where? Every direction is the same direction. Go on. I'll be here. That's my whole talent now.", opts: [{ t: 'Back', go: 'root' }] }; },
+    rail() { return { text: "It doesn't hurt for long. And the falling — you stop having to decide anything. You just fall. It's the closest thing to rest there is.", opts: [{ t: 'Come on, then.', go: 'jump' }, { t: 'No. Not today.', go: 'no' }] }; },
+    jump() { S.flags.tomasGone = 1; NPC_BY.tomas.gone = true; S.fac.still += 6; npcRec('ilse').aff -= 1; logJ('Walked Tomas to the railing. He went over without a word. He will be back on his bench in the morning.'); return { text: "(He gets up for the first time since you've known him. At the rail he doesn't look back. Then there is only the wind.)", opts: [] }; },
+    no() { return { text: "Suit yourself. There's always tomorrow. That's rather the problem.", opts: [] }; },
+    eat(c) { S.meal = false; updateCarry(); S.fac.still += 10; c.rec.f.fed = 1; logJ('Gave my meal to Tomas. He ate it.'); return { text: "(He eats slowly, looking at the food and not at you.)\n\n…Thank you. I'd forgotten that was a thing people did for each other.", opts: [] }; },
+  },
+  vey: {
+    root(c) {
+      const m = c.rec; let text;
+      if (S.fac.congregation <= -20) return { text: "You carry noise in your heart. The Congregation has nothing for you.", opts: [{ t: 'Share a fragment.', go: 'share', if: S.frags.some(f => !f.shared) }] };
+      if (c.greet && !m.met) { m.met = true; logJ('Met Mother Vey of the Congregation of the Word.'); text = "Welcome, pilgrim. You are standing inside scripture — every true sentence ever written, and every false one, bound in the same grey cloth. We are asked only to find the true ones.\n\nIs that not beautiful?"; }
+      else if (c.greet) text = S.day >= 9 ? "I dreamed of a page with no noise on it at all. One sentence, and white space all around it, like snow." : "The Word surfaces where it wills. Have you brought us anything?";
+      else text = "Speak, pilgrim.";
+      return { text, opts: [
+        { t: 'Who are you?', go: 'who' },
+        { t: 'Share a fragment.', go: 'share', if: S.frags.some(f => !f.shared) },
+        { t: 'What is the Descent?', go: 'descent', if: S.fac.congregation >= 15 },
+        { t: 'This is a cult.', go: 'cult' },
+      ] };
+    },
+    who() { return { text: "The Congregation of the Word. We gather the readable fragments — the sentences that rise out of the noise — and we read them aloud, so that they are not alone.", opts: [{ t: 'Back', go: 'root' }] }; },
+    share() { const fs = S.frags.filter(f => !f.shared).slice(0, 5); return { text: 'Which words have you carried to us?', opts: fs.map(f => ({ t: `“${f.text}”`, fx: () => shareFrag(f) })) }; },
+    descent() { return { text: "Every night the heart is willing, we step off the rail together and fall, reciting. The falling is a sermon. It goes on until the lamps go out, and then it goes on in us.\n\nWill you descend with us?", opts: [{ t: 'I will descend.', go: 'go' }, { t: 'Not tonight.', go: 'notyet' }] }; },
+    go() { S.fac.congregation += 15; setTimeout(() => { closeOverlays(); goOver(true); }, 50); return { text: '(They take your hands.)', opts: [] }; },
+    notyet() { S.fac.congregation -= 2; return { text: "The rail will be there. It is very patient.", opts: [] }; },
+    cult() { S.fac.congregation -= 12; return { text: "Every faith is a cult to someone standing outside it. You are standing outside a great many things, pilgrim.", opts: [] }; },
+  },
+  pell: {
+    root(c) {
+      const m = c.rec; let text;
+      if (c.greet) m.hello = (m.hello || 0) + 1;
+      if (c.greet && !m.met) { m.met = true; logJ('Met Old Pell, who counts.'); text = "Hello, hello — nine hundred and five! You're my nine hundred and fifth hello. Congratulations. There's no prize."; }
+      else if (c.greet) text = `Hello again. That's hello number ${fmt(m.hello)} from you, by my count. ${S.day >= 7 ? 'Day ' + fmt(S.day) + ' for you, is it? I remember my day seven. I remember my day seven thousand, too. They were very similar.' : ''}`;
+      else text = 'Anything else I can count for you?';
+      return { text, opts: [
+        { t: 'What do you count?', go: 'what' },
+        { t: 'Tell me my numbers.', go: 'nums' },
+        { t: 'What are the odds?', go: 'odds' },
+        { t: 'Tell me a joke.', go: 'joke' },
+      ] };
+    },
+    what() { return { text: "Days. Hellos. Steps from my spot to the kiosk: one hundred and six. Books is a fool's count — I got to eleven thousand and something and realised I was counting sand.", opts: [{ t: 'Back', go: 'root' }] }; },
+    nums() {
+      const km = S.stats.dist / 1000, perDay = Math.max(S.stats.dist / S.day, 1), years = 2e6 / perDay / 365;
+      return { text: `Day ${fmt(S.day)}. You've walked ${km.toFixed(2)} kilometres, opened ${fmt(S.stats.books)} books, turned ${fmt(S.stats.pages)} pages, died ${fmt(S.stats.deaths)} times and fallen ${fmt(S.stats.fallen)} floors.\n\nAt your pace you'll walk past a million bookcases in about ${fmt(years)} years. Don't let it go to your head.`, opts: [{ t: 'Back', go: 'root' }] };
+    },
+    odds() { return { text: `Ninety-five symbols. One million, three hundred and twelve thousand places to put them. Ninety-five to the power of that. It's a number with ${fmt(DIGITS)} digits. I tried writing it on my arm once. Ran out of arm.`, opts: [{ t: 'Back', go: 'root' }] }; },
+    joke(c) { const i = c.rec.f.j || 0; c.rec.f.j = i + 1; return { text: JOKES[i % JOKES.length], opts: [{ t: 'Another.', go: 'joke' }, { t: 'Back', go: 'root' }] }; },
+  },
+  kasimir: {
+    root(c) {
+      const m = c.rec; let text;
+      if (S.fac.wardens <= -30 && S.flags.beatenDay !== S.day) { return { text: "You were told.", opts: [{ t: 'Run.', fx: () => { closeOverlays(); } }], hostile: true }; }
+      if (c.greet && !m.met) { m.met = true; logJ('Met Kasimir. His Wardens "watch" this stretch of gallery.'); text = "This stretch of gallery is watched. By us — the Wardens. You want to walk it in peace, you contribute. One meal from the kiosk, once a day. Easy."; }
+      else if (c.greet) text = S.flags.tributeDay === S.day ? "You're square for today. Walk where you like." : S.day >= 8 ? "The others are getting restless. Things cost more now. That's not me. That's just how it goes." : "Well? The kiosk's right there.";
+      else text = '(He waits.)';
+      return { text, opts: [
+        { t: 'Give him your meal.', go: 'pay', if: S.meal && S.flags.tributeDay !== S.day },
+        { t: 'Why should I?', go: 'why' },
+        { t: 'What happens to people who don\'t pay?', go: 'what' },
+        { t: "I won't pay you.", go: 'refuse' },
+      ] };
+    },
+    pay() { S.meal = false; updateCarry(); S.fac.wardens += 20; S.flags.tributeDay = S.day; logJ('Paid the Wardens a meal.'); return { text: "(He takes it without looking at it.) Good. See how easy that was?", opts: [] }; },
+    why() { return { text: "Because we decide what 'peace' means around here. Nobody dies for good. But nobody likes to die every day, either.", opts: [{ t: 'Back', go: 'root' }] }; },
+    what() { return { text: "They learn how long a night is.", opts: [{ t: 'Back', go: 'root' }] }; },
+    refuse() { S.fac.wardens -= 18; logJ('Refused to pay the Wardens.'); return { text: "(He smiles without any warmth at all.) Then I'll remember you.", opts: [] }; },
+  },
+  nadia: {
+    root(c) {
+      const m = c.rec; let text;
+      if (c.greet && !m.met) { m.met = true; logJ('Met Nadia, who is mapping the library.'); text = "Careful — you're standing on my survey line. I'm Nadia. I map. Floors, stairs, kiosks, who sleeps where. Somebody should know where things are, even if 'where' doesn't mean much."; }
+      else if (c.greet) text = S.day >= 7 ? "I tried mapping downward once. Fell for a whole day. The case numbers followed the pattern the entire way down. It never changes. That's the terrible part — not that it's big. That it's so tidy." : "Still charting? No? Just walking? That's allowed.";
+      else text = 'Anything else?';
+      return { text, opts: [
+        { t: 'What have you learned?', go: 'learn' },
+        { t: 'Can you mark where I started?', go: 'mark', if: !S.flags.mapped },
+        { t: "Where is everyone?", go: 'who' },
+      ] };
+    },
+    learn() { return { text: "A rest area every twenty bookcases. A spiral stair in every rest area, going both ways forever. A kiosk that never runs out. A lamp every four metres. Sixteen metres across the chasm to the other gallery — nobody's reached it. The bottom: nobody's found it. Nobody's found a top, either.", opts: [{ t: 'Back', go: 'root' }] }; },
+    mark() { S.flags.mapped = 1; logJ('Nadia taught me to keep track of my home rest area.'); return { text: "There. Count the rest areas as you pass them and the turns of the stair as you climb. I've written it in the corner of your eye — you'll always know how far home is. Don't lose it.", opts: [{ t: 'Back', go: 'root' }] }; },
+    who() { return { text: "Aurel works the cases east of here. Mother Vey's Congregation keeps the rest area one stop west. Kasimir's Wardens hold the one two stops east — go carefully there. Tomas never moves. Pell counts.", opts: [{ t: 'Back', go: 'root' }] }; },
+  },
+};
+const MINOR_LINES = {
+  wardens: ['Keep walking.', "Kasimir's watching this stretch.", 'Got a meal for us? No? Then walk faster.'],
+  congregation: ['The Word surfaces where it wills.', 'Mother Vey says every sentence is a door.', 'Have you found a fragment? Bring it to us.'],
+  searchers: ["Don't touch my cases.", 'Four hundred and nine. Four hundred and ten. Next.', 'Every book opened is one fewer.'],
+  still: ['…', 'Leave me be.', "What day is it? Doesn't matter."],
+  none: ['I walked east for eleven days once. It was exactly like here.', "Have you seen a man in a blue scarf? No, of course not. Everyone's in grey.", "They say there's a floor where every kiosk serves the same soup. I'd like to see that."],
+};
+const PERSONA = {
+  ilse: "Ilse, once a night-shift nurse; warm, dry-humoured, grounded, quietly grieving her life. She believes keeping company is the only thing here worth doing, and she is becoming the player's companion.",
+  aurel: "Brother Aurel of the Searchers; gaunt and obsessive; searches every book in strict order and cannot bear to hear the odds said aloud.",
+  tomas: "Tomas; a young man who has given up entirely; flat, weary, occasionally piercing. He once found a book with his own name in it and stopped searching after that.",
+  vey: "Mother Vey, serene and unsettling leader of the Congregation of the Word, a sect that collects readable fragments as scripture and practises 'the Descent', stepping off the rail together.",
+  pell: "Old Pell; a cheerful old man who counts everything (days, hellos, steps) and tells gentle jokes; kind, quietly sad underneath.",
+  kasimir: "Kasimir, leader of the Wardens, a gang that extorts a daily meal as tribute; cold, practical and menacing without being cartoonish.",
+  nadia: "Nadia, a meticulous cartographer mapping the library; precise and curious, quietly horrified by how regular it is.",
+};
+function shareFrag(f) {
+  f.shared = true; S.fac.congregation += 8; SFX.chime();
+  logJ(`Gave the fragment “${f.text}” to the Congregation. They read it aloud.`);
+  const I = ['The Word speaks of home. It always does.', 'Note the silence on either side of it. That is what grace looks like.', 'Someone wrote that once and meant it. Now it has found its way back to us.', 'We will read it again at lights-out.', 'It is a warning, or a kindness. The two are often the same.'];
+  renderNode({ text: `“${f.text}.”\n\n(The congregants repeat it softly, once, then again.)\n\n${I[strHash(f.text) % I.length]}`, opts: [{ t: 'Back', go: 'root' }] });
+}
+function openDialogue(n) {
+  D.n = n; D.chat = [];
+  const rec = npcRec(n.d.key);
+  if (rec.last !== S.day) { rec.last = S.day; rec.aff = (rec.aff || 0) + 1; }
+  rec.talks = (rec.talks || 0) + 1;
+  const hasPor = !!n.d.por;
+  $('#d-por').style.backgroundImage = hasPor ? `url(assets/${n.d.por}.jpg)` : '';
+  $('#d-por').innerHTML = hasPor ? '' : `<div class="sil">${esc(n.d.name.charAt(0))}</div>`;
+  const shown = rec.met || n.d.minor;
+  $('#d-name').textContent = shown || DLG[n.d.key] ? n.d.name : 'A stranger';
+  const fc = $('#d-fac'), v = n.d.fac ? S.fac[n.d.fac] : 0;
+  fc.hidden = !n.d.fac; if (n.d.fac) { fc.textContent = `${FACTION_NAME[n.d.fac]} · ${standing(v)}`; fc.className = 'chip' + (v <= -30 ? ' hostile' : v >= 10 ? ' warm' : ''); }
+  $('#d-chat').hidden = true; $('#d-opts').hidden = false; $('#d-text').hidden = false;
+  openOverlay('#dialog');
+  if (DLG[n.d.key]) gotoNode('root', true);
+  else { rec.met = true; const pool = MINOR_LINES[n.d.fac || 'none']; renderNode({ text: pick(pool, rec.talks + S.day), opts: [] }); }
+}
+function gotoNode(name, greet) {
+  const def = DLG[D.n.d.key], rec = npcRec(D.n.d.key);
+  const node = def[name]({ rec, greet: !!greet });
+  if (node.hostile) { setTimeout(() => { D.n.mode = 'chase'; }, 0); }
+  renderNode(node);
+}
+function renderNode(node) {
+  $('#d-text').textContent = node.text;
+  const opts = (node.opts || []).filter(o => !('if' in o) || o.if);
+  if (SAMPLE) opts.push({ t: 'Speak freely…', soft: true, fx: openChat });
+  opts.push({ t: 'Leave.', soft: true, fx: closeOverlays });
+  const box = $('#d-opts'); box.innerHTML = '';
+  opts.forEach((o, i) => { const b = document.createElement('button'); b.innerHTML = `<span class="n">${i + 1}</span>${esc(o.t)}`; if (o.soft) b.className = 'soft'; b.onclick = () => { if (o.fx) o.fx(); if (o.go) gotoNode(o.go); save(); }; box.appendChild(b); });
+  save();
+}
+function openChat() {
+  $('#d-opts').hidden = true; $('#d-text').hidden = true; $('#d-chat').hidden = false; $('#d-log').innerHTML = '';
+  D.chat = []; setTimeout(() => $('#d-in').focus(), 30);
+}
+function chatPrompt() {
+  const n = D.n, d = n.d, rec = npcRec(d.key);
+  const persona = PERSONA[d.key] || `${d.name}, ${d.fac ? 'a member of ' + FACTION_NAME[d.fac] : 'a wandering soul'}; terse and weary.`;
+  const recent = S.journal.slice(-6).map(j => `- Day ${j.d}: ${j.text}`).join('\n');
+  return `You are voicing a character in a first-person game set in the Hell of Steven L. Peck's novella "A Short Stay in Hell": an endless library of galleries facing each other across a bottomless chasm, holding every possible 410-page book (40 lines of 80 characters, 95 symbols). A soul may leave only by finding the flawless book of their own life and presenting it at a kiosk. Nobody dies for good: the dead wake restored each morning. The lamps go out at 22:00 and everyone sleeps. Kiosks give any food asked for.
+
+Character: ${persona}
+Situation: Day ${S.day}, ${clock()}. The player is ${S.name}. Your attitude to them: ${d.fac ? standing(S.fac[d.fac]) : rec.aff >= 4 ? 'fond' : 'neutral'}. Known about them: opened ${S.stats.books} books, walked ${(S.stats.dist / 1000).toFixed(1)} km, died ${S.stats.deaths} times, found ${S.frags.length} readable fragments.
+Recent events from their journal:
+${recent || '- (nothing yet)'}
+
+Rules: stay fully in character and speak only as ${d.name}, in one to four sentences of plain speech (stage directions only rarely, in parentheses). Never mention being an AI, a model or a game. Never offer a way out; the odds are hopeless and everyone knows it. Tone: dry, humane, bleak, sometimes funny.`;
+}
+async function sendChat() {
+  const inp = $('#d-in'), text = inp.value.trim(); if (!text || !SAMPLE || D.ctl) return;
+  inp.value = '';
+  const logEl = $('#d-log'); const me = document.createElement('div'); me.className = 'me'; me.textContent = text; logEl.appendChild(me);
+  const them = document.createElement('div'); them.className = 'them'; them.textContent = 'Thinking…'; logEl.appendChild(them); logEl.scrollTop = logEl.scrollHeight;
+  D.chat.push({ role: 'user', content: text }); if (D.chat.length > 12) D.chat.splice(0, 2);
+  D.ctl = new AbortController(); $('#d-stop').hidden = false; $('#d-send').disabled = true;
+  try {
+    const r = await SAMPLE([{ role: 'user', content: chatPrompt() }, ...D.chat], { modelTier: 'quick', cache: false, signal: D.ctl.signal, onText: ({ text }) => { them.textContent = text; logEl.scrollTop = logEl.scrollHeight; } });
+    D.chat.push({ role: 'assistant', content: r.text });
+  } catch (e) {
+    D.chat.pop();
+    const c = e && e.code;
+    them.textContent = e && e.text ? e.text : '';
+    if (c === 'not_granted' || c === 'sampling_disabled' || c === 'capability_disabled' || c === 'not_declared') { them.textContent = '(They look at you as if you had not spoken. Free conversation is turned off for this page.)'; SAMPLE = null; }
+    else if (c === 'rate_limited') them.textContent = '(They seem tired of talking. Try again in a little while.)';
+    else if (c !== 'cancelled' && !them.textContent) them.textContent = '(They open their mouth, then close it again. Something interrupted them — try again.)';
+  } finally { D.ctl = null; $('#d-stop').hidden = true; $('#d-send').disabled = false; }
+}
+$('#d-send').onclick = sendChat; $('#d-in').addEventListener('keydown', e => { if (e.key === 'Enter') sendChat(); });
+$('#d-stop').onclick = () => D.ctl && D.ctl.abort();
+$('#d-back').onclick = () => { if (D.ctl) D.ctl.abort(); $('#d-chat').hidden = true; $('#d-opts').hidden = false; $('#d-text').hidden = false; if (DLG[D.n.d.key]) gotoNode('root'); else renderNode({ text: '…', opts: [] }); };
+
+/* ==========================================================================
+   Journal
+   ========================================================================== */
+let jTab = 'log';
+function openJournal() { renderJournal(); openOverlay('#journal'); }
+document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => { jTab = b.dataset.tab; renderJournal(); });
+function renderJournal() {
+  document.querySelectorAll('.tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === jTab));
+  $('#j-eye').textContent = `${S.name} · Day ${fmt(S.day)} · ${clock()}`;
+  const pane = $('#j-pane'); let h = '';
+  if (jTab === 'log') h = `<ol class="log">${S.journal.slice().reverse().map(e => `<li><span>Day ${fmt(e.d)}<br>${e.t}</span><div>${esc(e.text)}</div></li>`).join('') || '<li><span></span><div>Nothing yet.</div></li>'}</ol>`;
+  else if (jTab === 'frags') h = S.frags.length ? `<div class="frags">${S.frags.map(f => `<blockquote><q>${esc(f.text)}</q><cite>${esc(addrLine(parseKey(f.addr)))} · page ${f.page} · found day ${f.day}${f.shared ? ' · read to the Congregation' : ''}</cite></blockquote>`).join('')}</div>` : `<p class="note" style="max-width:52ch">No readable words yet. Most pages are noise from edge to edge. When a sentence surfaces, record it here — the Congregation of the Word values them, and so, eventually, will you.</p>`;
+  else if (jTab === 'souls') {
+    h = `<div class="facs">${Object.keys(FACTION_NAME).map(k => { const v = clamp(S.fac[k], -100, 100); return `<div class="fac"><span>${FACTION_NAME[k]}</span><span class="bar"><i class="${v < 0 ? 'neg' : ''}" style="${v < 0 ? `left:${50 + v / 2}%;right:50%` : `left:50%;right:${50 - v / 2}%`}"></i></span><span class="w">${standing(v)}</span></div>`; }).join('')}</div>`;
+    const met = NPC_DEFS.filter(d => !d.minor && npcRec(d.key).met);
+    h += `<div class="souls">${met.map(d => `<div class="soul"><div class="p" style="background-image:url(assets/${d.por}.jpg)"></div><div><div class="nm">${esc(d.name)}</div><div class="ds">${d.fac ? FACTION_NAME[d.fac] : 'Unaffiliated'}${d.key === 'ilse' && npcRec('ilse').following ? ' · walking with you' : ''}</div></div><div class="ds">${npcRec(d.key).talks || 0} talks</div></div>`).join('') || '<p class="note">You haven\'t introduced yourself to anyone yet. The rest area is a good place to start.</p>'}</div>`;
+  } else if (jTab === 'nums') {
+    const st = S.stats, items = [['Days', S.day], ['Books opened', st.books], ['Pages read', st.pages], ['Searches', st.searches], ['Fragments found', S.frags.length], ['Walked', st.dist < 1000 ? fmt(st.dist) + ' m' : (st.dist / 1000).toFixed(2) + ' km'], ['Floors climbed', st.climbed], ['Floors fallen', st.fallen], ['Longest fall', fmt(st.maxFall) + ' fl.'], ['Deaths', st.deaths], ['Books moved', Object.keys(S.over).length + S.ground.length]];
+    h = `<div class="stats">${items.map(([k, v]) => `<div class="stat"><div class="v">${typeof v === 'number' ? fmt(v) : v}</div><div class="k">${k}</div></div>`).join('')}</div>`;
+  } else if (jTab === 'odds') {
+    const n = Math.max(S.stats.books, 1), frac = LOG10_BOOKS - Math.log10(n), lb = lifeBook(S.name);
+    const sent = 20 * Math.log10(95) - Math.log10(1312000);
+    h = `<div class="odds">
+      <p>Books in the library: <span class="num">95<sup>1,312,000</sup></span> — about <span class="num">10<sup>${fmt(LOG10_BOOKS)}</sup></span>. Written out, that number has <span class="num">${fmt(DIGITS)}</span> digits.</p>
+      <p>You have opened <span class="num">${fmt(S.stats.books)}</span>. That is roughly one book in <span class="num">10<sup>${fmt(frac)}</sup></span> — the same as none, to every decimal place anyone could print.</p>
+      <p>The chance that the next book you open is yours: <span class="num">1 in 10<sup>${fmt(LOG10_BOOKS)}</sup></span>. Opening one book a second since the Big Bang (≈4×10<sup>17</sup> seconds) would change that exponent by 17.</p>
+      <p>Your book, according to the kiosk: shelf ${lb.shelf}, book ${lb.book}, on a floor whose number begins <span class="num">${lb.lead}…</span> and runs to <span class="num">${fmt(lb.digits)}</span> digits.</p>
+      <h3>Where this game lies to you</h3>
+      <p>In a truly random library, a particular twenty-character sentence turns up about once in <span class="num">10<sup>${Math.round(sent)}</sup></span> books. Here, one book in ${FRAG_RATE} carries a readable fragment. That is the game's one mercy, and you should know it is one. Short strings are honest: search any book for a three-letter word and you'll usually find one or two, exactly as often as chance predicts.</p>
+    </div>`;
+  }
+  pane.innerHTML = h;
+}
+
+/* ==========================================================================
+   Overlays, pause, title, intro
+   ========================================================================== */
+function openOverlay(sel) {
+  document.querySelectorAll('.overlay').forEach(o => o.hidden = true);
+  $(sel).hidden = false; MODE = 'ui'; pauseSuppressed = true;
+  if (document.pointerLockElement) document.exitPointerLock();
+  setTimeout(() => { pauseSuppressed = false; }, 50);
+  $('#touch').hidden = true;
+}
+function closeOverlays() {
+  if (D.ctl) D.ctl.abort();
+  document.querySelectorAll('.overlay').forEach(o => o.hidden = true);
+  MODE = 'play'; save(); $('#touch').hidden = !isTouch; showClickHint();
+}
+document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => { closeOverlays(); requestLock(); });
+document.querySelectorAll('.overlay').forEach(o => o.addEventListener('mousedown', e => { if (e.target === o) { closeOverlays(); } }));
+function openPause() {
+  if (MODE !== 'play') return;
+  $('#s-sens').value = S.settings.sens; $('#s-vol').value = S.settings.vol; $('#s-q').value = S.settings.q; syncOut();
+  $('#confirm-reset').hidden = true;
+  document.querySelectorAll('.overlay').forEach(o => o.hidden = true);
+  $('#pause').hidden = false; MODE = 'pause'; $('#touch').hidden = true;
+}
+function resume() { $('#pause').hidden = true; MODE = 'play'; $('#touch').hidden = !isTouch; requestLock(); showClickHint(); }
+function syncOut() { $('#o-sens').textContent = (+S.settings.sens).toFixed(1); $('#o-vol').textContent = Math.round(S.settings.vol * 100); $('#o-q').textContent = Math.round(S.settings.q * 100) + '%'; }
+$('#s-sens').oninput = e => { S.settings.sens = +e.target.value; syncOut(); save(); };
+$('#s-vol').oninput = e => { S.settings.vol = +e.target.value; if (AU.master) AU.master.gain.value = S.settings.vol; syncOut(); save(); };
+$('#s-q').oninput = e => { S.settings.q = +e.target.value; applyQuality(); syncOut(); save(); };
+$('#p-resume').onclick = resume;
+$('#p-journal').onclick = () => { $('#pause').hidden = true; MODE = 'play'; openJournal(); };
+$('#p-title').onclick = () => { save(); $('#pause').hidden = true; showTitle(); };
+$('#p-reset').onclick = () => { $('#confirm-reset').hidden = false; };
+$('#p-reset-no').onclick = () => { $('#confirm-reset').hidden = true; };
+$('#p-reset-yes').onclick = () => { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} S = null; $('#pause').hidden = true; showTitle(); };
+
+function showTitle() {
+  MODE = 'title'; $('#title').hidden = false; $('#hud').hidden = true; $('#touch').hidden = true; $('#intro').hidden = true;
+  const sv = S || loadSave();
+  $('#b-continue').hidden = !sv;
+  if (sv) $('#b-continue').textContent = `Continue — ${sv.name}, day ${fmt(sv.day)}`;
+}
+const INTRO = [
+  'You died. That part was quick.',
+  'The part after was an office, and a man behind a desk who was very sorry. The true religion, it turns out, was Zoroastrianism. Nobody you knew had guessed.',
+  'Hell, he said, will not be eternal. Only long.',
+  'It is a library. It holds every book that can be written in four hundred and ten pages — forty lines to a page, eighty characters to a line, ninety-five symbols to choose from. Every one.',
+  'One of them is the story of your life, told without a single error. Find it. Present it at any kiosk. Then you may leave.',
+  'He asked your name, for the paperwork.'
+];
+let introI = 0;
+$('#b-new').onclick = () => { audioInit(); $('#title').hidden = true; $('#intro').hidden = false; MODE = 'intro'; introI = 0; showIntro(); };
+$('#b-continue').onclick = () => { audioInit(); S = S || loadSave(); startPlay(); };
+function showIntro() {
+  const p = $('#intro-p'); p.style.animation = 'none'; void p.offsetWidth; p.style.animation = ''; p.textContent = INTRO[introI];
+  const last = introI === INTRO.length - 1; $('#intro-name').hidden = !last; $('#b-intro').textContent = last ? 'Enter the library' : 'Go on';
+  if (last) setTimeout(() => $('#in-name').focus(), 50);
+}
+$('#b-intro').onclick = () => {
+  if (introI < INTRO.length - 1) { introI++; showIntro(); return; }
+  const name = $('#in-name').value.trim() || 'Friend';
+  S = freshState(name); logJ(`Arrived in the library. The man at the desk wrote my name — ${name} — on a form, and then I was here.`);
+  save(); startPlay(true);
+};
+$('#in-name').addEventListener('keydown', e => { if (e.key === 'Enter') $('#b-intro').click(); });
+function startPlay(first) {
+  S.settings = Object.assign({ sens: 1, vol: 0.8, q: 1 }, S.settings);
+  recountOver(); applyQuality();
+  PL.falling = false; PL.dead = false; PL.vy = 0; $('#fallhud').hidden = true; $('#hurt').style.opacity = 0;
+  if (S.ly !== 0 && !inStair(S.lx, S.z)) S.ly = 0;
+  if (S.z > 0) { S.z = -1; }
+  resetNPCs(); refreshBooks(true); updateGroundBooks(); updateCarry();
+  $('#title').hidden = true; $('#intro').hidden = true; $('#hud').hidden = false; $('#touch').hidden = !isTouch;
+  MODE = 'play'; if (AU.master) AU.master.gain.value = S.settings.vol;
+  requestLock(); showClickHint();
+  if (first) setTimeout(() => toast('Somewhere behind you, people are talking. The shelves start just outside this rest area.'), 1200);
+}
+if (window.claude && window.claude.hot && window.claude.hot.snapshot) { try { window.claude.hot.snapshot(() => S); } catch (e) {} }
+
+/* ==========================================================================
+   Main loop
+   ========================================================================== */
+let last = performance.now(), saveT = 0, perfT = 0, perfN = 0, perfSum = 0;
+function frame(now) {
+  requestAnimationFrame(frame);
+  const raw = (now - last) / 1000, dt = Math.min(0.05, raw); last = now;
+  if (MODE === 'play' && !document.hidden && raw < 0.5) {
+    perfSum += raw; perfN++; perfT += raw;
+    if (perfT > 2.5) { const avg = perfSum / perfN; if (avg > 0.021 && AQ > 0.55) { AQ = Math.max(0.55, AQ - 0.12); applyQuality(); } perfT = perfSum = perfN = 0; }
+  }
+  if (MODE === 'play' && S && !nightBusy && !PL.dead) {
+    updatePlayer(dt); updateTime(dt); updateNPCs(dt);
+    if (PL.railArm > 0) { PL.railArm -= dt; if (S.z < -0.9) PL.railArm = 0; }
+    TARGET = findTarget(); updateHUD(dt);
+    PL.hurtT = Math.max(0, PL.hurtT - dt * 1.5); $('#hurt').style.opacity = Math.max(PL.hurtT, 1 - S.hp / 100) * 0.9;
+    saveT += dt; if (saveT > 8) { saveT = 0; save(); }
+  } else if (S && MODE !== 'title') {
+    camera.position.set(S.lx, S.ly + PL.eye, S.z); camera.rotation.set(S.pitch, S.yaw, 0);
+  } else {
+    // title: a slow drift through the stacks
+    const t = now * 0.00004; camera.position.set(20 + Math.sin(t) * 8, 1.6, 6); camera.rotation.set(0.05 + Math.sin(t * 1.3) * 0.05, Math.PI * 0.5 + Math.sin(t) * 0.35, 0);
+  }
+  renderer.render(scene, camera);
+}
+S = null;
+{ const sv = loadSave(); if (sv) { $('#b-continue').hidden = false; $('#b-continue').textContent = `Continue — ${sv.name}, day ${fmt(sv.day)}`; } }
+// books for the title backdrop
+S = freshState('');
+refreshBooks(true); S = loadSave(); if (!S) S = null;
+requestAnimationFrame(frame);
+addEventListener('beforeunload', save);
+</script>
