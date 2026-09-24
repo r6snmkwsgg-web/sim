@@ -29,6 +29,7 @@ window.VIEW = { ready: false };
   if (q.get('bloom') !== null) PM.comp.uniforms.uBloom.value = +q.get('bloom');
   if (q.get('fog') !== null) WU.uFogD.value = +q.get('fog');
   if (q.get('ao') === '0') S_AO_OFF = true;
+  if (q.get('night')) { WU.uDay.value = 0; for (const k in pf.mats) { const m = pf.mats[k]; if (m.uniforms.uOn) m.uniforms.uOn.value = m.userData.night ? 1 : 0; } }
   window.VIEW = { ready: true, pf, inst };
   let t0 = performance.now();
   function loop(){ WU.uTime.value = (performance.now() - t0) / 1000; renderFrame(); requestAnimationFrame(loop); }

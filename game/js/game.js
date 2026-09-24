@@ -236,6 +236,7 @@ function collideBody(pos, height) {
   }
 }
 function updatePlayer(dt) {
+  if (!roomReadyAt(S.x, S.y + 0.5, S.z)) { PL.vy = 0; return; }   // the room under you is still arriving
   if (S.fall) { updateFalling(dt); return; }
   const mi = moveInput();
   const wat = waterAt(S.x, S.y + 0.3, S.z), depth = wat ? wat.top - S.y : 0;
@@ -274,7 +275,7 @@ function updatePlayer(dt) {
   const pos = _pp.set(S.x + PL.vx * dt, S.y + PL.vy * dt, S.z + PL.vz * dt);
   collideBody(pos, PL.crouch ? 1.15 : 1.78);
   pushNPCs(pos);
-  const g = groundAt(pos.x, pos.y, pos.z, 0.5, PL.onGround ? 0.45 : Math.max(0.06, -PL.vy * dt + 0.06));
+  const g = footing(pos.x, pos.y, pos.z, 0.56, PL.onGround ? 0.45 : Math.max(0.06, -PL.vy * dt + 0.06));
   if (g > -Infinity && pos.y <= g + 0.02 && !(swim && PL.vy > 0.2)) {
     if (!wasGround && vyIn < -9.5 && !wat) hurt(Math.round((-vyIn - 9.5) * 8), 'the fall');
     if (!wasGround && vyIn < -2 && !wat) SFX.land(vyIn < -7);
@@ -1085,7 +1086,7 @@ function roomFirst(name) {
     crossing: 'Four stone vaults meet under a dome. Light comes through the eye of it, down into a stepped pit.',
     bath: 'A sunken court of black and white marble, with steps down on every side, and columns all round.',
     reading: 'A reading room: oak, lamplight, green shades. It smells like a library you once loved.',
-  }[name];
+  }[name] || (CATALOG[name] && CATALOG[name].blurb);
   if (t && MODE === 'play') toast(t);
 }
 function frame(now) {
@@ -1133,11 +1134,16 @@ function frame(now) {
   renderer.setClearColor(WU.uFogCol.value, 1);   // beyond the rooms that are loaded: haze, not black
   renderFrame();
 }
-/* load every room before the doors open */
+/* load the catalogue, then the rooms around where you will wake; the rest stream in as you walk */
 (async () => {
-  const names = Object.keys(ROOM_SIZE); let done = 0;
-  const bar = $('#t-load'); if (bar) bar.textContent = `Building the library… 0 / ${names.length}`;
-  await Promise.all(names.map(n => loadPrefab(n).then(() => { done++; if (bar) bar.textContent = `Building the library… ${done} / ${names.length}`; })));
+  const bar = $('#t-load'); if (bar) bar.textContent = 'Building the library…';
+  await loadCatalog();
+  const sv = loadSave();
+  const at = sv && sv.cx !== undefined ? [sv.cx + Math.floor((sv.x || 8) / RC), sv.cz + Math.floor((sv.z || 8) / RC), sv.floor + Math.floor(((sv.y || 0) + 2) / RLH)] : [START_CX, START_CZ, START_FLOOR];
+  const names = new Set([...roomsNear(START_CX, START_CZ, START_FLOOR, WORLD.radius + 1, 1), ...roomsNear(at[0], at[1], at[2], WORLD.radius + 1, 1)]);
+  let done = 0;
+  if (bar) bar.textContent = `Building the library… 0 / ${names.size}`;
+  await Promise.all([...names].map(n => loadPrefab(n).then(() => { done++; if (bar) bar.textContent = `Building the library… ${done} / ${names.size}`; })));
   for (const n of names) { const pf = PREFABS.get(n); if (pf && !pf.probeDone) captureProbe(pf); }
   WORLD.ready = true; if (bar) bar.hidden = true; $('#title').classList.add('live');
   document.querySelectorAll('#b-new, #b-continue').forEach(b => b.disabled = false);

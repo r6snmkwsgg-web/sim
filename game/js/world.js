@@ -42,6 +42,15 @@ const KINDS = {
   green:    { k: 8, gloss: 0.35, f0: 0.04, rough: 0.2 },
   oxblood:  { k: 8, gloss: 0.35, f0: 0.04, rough: 0.2 },
   damask:   { k: 4, gloss: 0.0, f0: 0.02, rough: 0.6 },
+  iron:     { k: 9, gloss: 0.8, f0: 1.0, rough: 0.3 },
+  bronze:   { k: 9, gloss: 1.0, f0: 1.0, rough: 0.2 },
+  gilt:     { k: 9, gloss: 1.0, f0: 1.0, rough: 0.1 },
+  velvet:   { k: 5, gloss: 0.0, f0: 0.0, rough: 1.0 },
+  slate:    { k: 11, gloss: 0.3, f0: 0.04, rough: 0.2 },
+  blackboard: { k: 8, gloss: 0.1, f0: 0.03, rough: 0.5 },
+  leather:  { k: 8, gloss: 0.3, f0: 0.04, rough: 0.3 },
+  ivory:    { k: 8, gloss: 0.4, f0: 0.04, rough: 0.2 },
+  walnut:   { k: 7, gloss: 0.4, f0: 0.04, rough: 0.2 },
 };
 
 const ROOM_VS = `
@@ -292,6 +301,29 @@ void main(){
   gl_FragColor = vec4(col, 1.0);
 }`;
 
+/* A painted sky for the rooms that pretend to be outside: gradient, slow clouds, and stars after lights-out */
+const SKY_FS = `
+uniform vec3 uEmit; uniform float uOn; uniform vec3 uFogCol; uniform float uFogD; uniform float uTime; uniform float uDay;
+varying vec3 vL; varying vec3 vN; varying vec2 vUv; varying vec2 vUv2; varying vec3 vCam;
+float h2(vec2 p){ vec3 q = fract(vec3(p.xyx) * 0.1031); q += dot(q, q.yzx + 33.33); return fract((q.x + q.y) * q.z); }
+float n2(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(h2(i), h2(i + vec2(1, 0)), f.x), mix(h2(i + vec2(0, 1)), h2(i + vec2(1, 1)), f.x), f.y); }
+float fbm(vec2 p){ float a = 0.5, s = 0.0; for (int i = 0; i < 5; i++) { s += a * n2(p); p = p * 2.03 + 11.7; a *= 0.5; } return s; }
+void main(){
+  vec3 d = normalize(vL - vCam);
+  float e = clamp(d.y, 0.0, 1.0);
+  float k = max(dot(uEmit, vec3(0.333)), 0.001);
+  vec3 zen = vec3(0.28, 0.45, 0.78), hor = vec3(0.95, 0.82, 0.66);
+  vec3 sky = mix(hor, zen, pow(e, 0.55));
+  vec2 cp = d.xz / (d.y + 0.25) * 1.6 + vec2(uTime * 0.004, uTime * 0.002);
+  float c = smoothstep(0.48, 0.82, fbm(cp));
+  sky = mix(sky, vec3(1.0, 0.96, 0.9) * (0.85 + 0.2 * fbm(cp * 2.0)), c * 0.8 * smoothstep(0.0, 0.25, e));
+  vec3 night = mix(vec3(0.02, 0.025, 0.05), vec3(0.05, 0.06, 0.1), 1.0 - e);
+  night += vec3(step(0.9985, h2(floor(d.xz / (d.y + 0.3) * 400.0)))) * 0.8 * smoothstep(0.05, 0.3, e);
+  vec3 col = mix(night, sky * min(k, 1.2), uDay);
+  gl_FragColor = vec4(col, 1.0);
+}`;
+
 /* Water: reflections are traced through the depth buffer (falling back to the room's probe);
    what's under the surface is the opaque frame, bent and tinted by how deep it is. */
 const WATER_VS = `
@@ -498,16 +530,34 @@ function waterUniforms(meta) {
   }
   return { W, Hh };
 }
+async function inflateB64(b64) {
+  const raw = atob(b64), u = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) u[i] = raw.charCodeAt(i);
+  return new Response(new Blob([u]).stream().pipeThrough(new DecompressionStream('deflate'))).arrayBuffer();
+}
+/* drop a prefab nobody is standing near: its meshes, textures and probes */
+function disposePrefab(name) {
+  const pf = PREFABS.get(name); if (!pf || pf instanceof Promise) return;
+  for (const m of pf.meshes) m.geo.dispose();
+  for (const k in pf.mats) pf.mats[k].dispose();
+  pf.lmd.dispose(); pf.lmn.dispose(); pf.cube.dispose(); pf.cubeN.dispose();
+  if (pf.bookMat) pf.bookMat.dispose(); if (pf.waterMat) pf.waterMat.dispose();
+  for (const w of pf.waters) w.dispose(); for (const sh of pf.shafts) { sh.g.dispose(); sh.m.dispose(); }
+  PREFABS.delete(name);
+}
 async function loadPrefab(name) {
   if (PREFABS.has(name)) return PREFABS.get(name);
   const p = (async () => {
     const base = name.includes('/') ? name : 'rooms/' + name;
     const get = async u => { const r = await fetch(u); if (!r.ok) throw new Error(u + ': ' + r.status); return r; };
     const meta = await (await get(base + '.json')).json();
-    const raw = atob(meta.bin), bytes = new Uint8Array(raw.length);   // meshes travel as base64 inside the JSON
-    for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
-    const bin = bytes.buffer; delete meta.bin;
-    const [lmd, lmn] = await Promise.all([loadLM(base + '_day.webp'), meta.avg.night !== undefined ? loadLM(base + '_night.webp') : loadLM(base + '_day.webp')]);
+    // meshes travel quantized and deflated, as base64 inside the JSON; lightmaps as embedded WebP
+    const bin = await inflateB64(meta.zbin); delete meta.zbin;
+    const lmUrl = k => 'data:image/webp;base64,' + meta.lm[k];
+    const [lmd, lmn] = await Promise.all([loadLM(lmUrl('day')), loadLM(lmUrl(meta.lm.night ? 'night' : 'day'))]);
+    delete meta.lm;
+    const Q = meta.q, qlo = Q.lo, qst = Q.step;
+    const deq = (off, n) => { const a = new Uint16Array(bin, off, n * 3), f = new Float32Array(n * 3); for (let i = 0; i < n; i++) for (let k = 0; k < 3; k++) f[i * 3 + k] = qlo[k] + a[i * 3 + k] * qst[k]; return f; };
     const probeP = (meta.spots.find(s => s.k === 'probe') || { p: [meta.w * RC / 2, 1.7, meta.d * RC / 2] }).p;
     const box = { min: new THREE.Vector3(0.3, -2, 0.3), max: new THREE.Vector3(meta.w * RC - 0.3, meta.levels * RLH - 0.4, meta.d * RC - 0.3) };
     if (meta.meta.box) { box.min.fromArray(meta.meta.box[0]); box.max.fromArray(meta.meta.box[1]); }
@@ -523,9 +573,9 @@ async function loadPrefab(name) {
     const mats = {}, meshes = [];
     for (const g of meta.groups) {
       const geo = new THREE.BufferGeometry();
-      geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(bin, g.p, g.n * 3), 3));
+      geo.setAttribute('position', new THREE.BufferAttribute(deq(g.p, g.n), 3));
       geo.setAttribute('normal', new THREE.BufferAttribute(new Int8Array(bin, g.nr, g.n * 3), 3, true));
-      geo.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(bin, g.u0, g.n * 2), 2));
+      { const a = new Int16Array(bin, g.u0, g.n * 2), f = new Float32Array(g.n * 2); for (let i = 0; i < f.length; i++) f[i] = a[i] * Q.uv; geo.setAttribute('uv', new THREE.BufferAttribute(f, 2)); }
       geo.setAttribute('uv2', new THREE.BufferAttribute(new Uint16Array(bin, g.u1, g.n * 2), 2, true));
       geo.setIndex(new THREE.BufferAttribute(g.i32 ? new Uint32Array(bin, g.ix, g.i) : new Uint16Array(bin, g.ix, g.i), 1));
       geo.computeBoundingSphere();
@@ -535,7 +585,8 @@ async function loadPrefab(name) {
           const e = meta.emit[g.mat];
           mat = new THREE.ShaderMaterial({ uniforms: { uEmit: { value: new THREE.Vector3(e[0][0] * e[1], e[0][1] * e[1], e[0][2] * e[1]) }, uOn: { value: 1 }, uFogCol: WU.uFogCol, uFogD: WU.uFogD },
             vertexShader: ROOM_VS, fragmentShader: EMIT_FS });
-          mat.userData.night = ['e_pool', 'e_amber', 'e_kiosk', 'e_portal'].includes(g.mat);
+          mat.userData.night = (meta.night_on || ['e_pool', 'e_amber', 'e_kiosk', 'e_portal']).includes(g.mat);
+          if (g.mat === 'e_skydome') { mat.fragmentShader = SKY_FS; mat.uniforms.uTime = WU.uTime; mat.uniforms.uDay = WU.uDay; }
         } else {
           const K = KINDS[g.mat] || KINDS.paint, alb = meta.albedo[g.mat] || [0.6, 0.6, 0.6];
           const pal = K.pal || [[0.5, 0.5, 0.5], [0.5, 0.5, 0.5], [0.5, 0.5, 0.5], [0.5, 0.5, 0.5]];
@@ -555,7 +606,10 @@ async function loadPrefab(name) {
       meshes.push({ geo, mat, name: g.mat, emit: !!g.emit });
     }
     // collision triangles, in room space
-    const col = new Float32Array(bin, meta.col.off, meta.col.n * 9);
+    const C_ = meta.col, cv = deq(C_.v, C_.nv), ci = C_.i32 ? new Uint32Array(bin, C_.ix, C_.nt * 3) : new Uint16Array(bin, C_.ix, C_.nt * 3);
+    const col = new Float32Array(C_.nt * 9);
+    for (let i = 0; i < ci.length; i++) { const v = ci[i] * 3; col[i * 3] = cv[v]; col[i * 3 + 1] = cv[v + 1]; col[i * 3 + 2] = cv[v + 2]; }
+    meta.col = { n: C_.nt };
     // water surfaces
     const waterMat = new THREE.ShaderMaterial({
       uniforms: Object.assign({}, common, { tScene: { value: null }, tDepth: { value: null }, uRes: { value: new THREE.Vector2() }, uProj: { value: new THREE.Matrix4() }, uProjInv: { value: new THREE.Matrix4() },
@@ -700,6 +754,60 @@ function clearShelves(inst) {
    ========================================================================== */
 const ROOM_SIZE = { crossing: [1, 1, 1], rest: [1, 1, 1], bath: [1, 1, 1], reading: [1, 1, 1], well: [1, 1, 1], tower: [1, 1, 1], poolhall: [2, 1, 1], stacks: [2, 1, 1], backrooms: [2, 2, 1], pillars: [2, 2, 1], grand: [2, 2, 2] };
 const COLUMN_ROOMS = { well: 1, tower: 1 };
+/* the catalogue (rooms/index.json): every room's size, kind (single, long, quad, tall, column, giant),
+   weight, label and blurb. The layout draws from it; rooms load only when you come near them. */
+const CATALOG = {}, KIND_LIST = {};
+async function loadCatalog() {
+  const r = await fetch(ASSET_BASE + 'rooms/index.json'); if (!r.ok) throw new Error('rooms/index.json: ' + r.status);
+  const idx = await r.json();
+  for (const k in KIND_LIST) delete KIND_LIST[k];
+  for (const [n, e] of Object.entries(idx)) {
+    CATALOG[n] = e; ROOM_SIZE[n] = e.size;
+    if (e.kind === 'column') COLUMN_ROOMS[n] = 1;
+    (KIND_LIST[e.kind] = KIND_LIST[e.kind] || []).push([n, e.weight]);
+  }
+  PLAN_CACHE.clear(); GIANT_CACHE.clear();
+}
+function pickKind(kind, r, fallback) {
+  const L = KIND_LIST[kind]; if (!L || !L.length) return fallback;
+  let t = 0; for (const e of L) t += e[1];
+  let x = r * t; for (const e of L) { if ((x -= e[1]) < 0) return e[0]; }
+  return L[L.length - 1][0];
+}
+/* Giants: a few 8 x 8 cell x 4 level megablocks hold one enormous room, laid over whole superblocks.
+   Megablock columns that may hold giants have no wells or towers anywhere in them. */
+const GIANT_CACHE = new Map();
+const giantColumn = (mx, mz) => !!(KIND_LIST.giant && KIND_LIST.giant.length) && (hashN(0x61a7, mx, mz) % 1000) / 1000 < 0.3;
+function giantIn(mx, mz, ml) {
+  const key = mx + ':' + mz + ':' + ml;
+  if (GIANT_CACHE.has(key)) return GIANT_CACHE.get(key);
+  let res = null;
+  if (giantColumn(mx, mz)) {
+    const h = hashN(0x7c3d, mx, mz, ml), R = sfc32(h, h ^ 0x9e3779b9, mix(h ^ 0x4321), mix((h + 17) >>> 0));
+    for (let i = 0; i < 10; i++) R();
+    if (R() < 0.3) {
+      const name = pickKind('giant', R()), s = ROOM_SIZE[name];
+      const rot = s[0] === s[1] ? Math.floor(R() * 4) : (R() < 0.5 ? 0 : 2), mir = R() < 0.5 ? 1 : 0;
+      const fw = s[0] / 2, fd = s[1] / 2, fl = s[2] / 2;
+      if (fw <= 4 && fd <= 4 && fl <= 2) {
+        const bx0 = mx * 4 + Math.floor(R() * (5 - fw)), bz0 = mz * 4 + Math.floor(R() * (5 - fd)), bl0 = ml * 2 + Math.floor(R() * (3 - fl));
+        let clash = false;
+        for (let bx = bx0 - 1; bx <= bx0 + fw && !clash; bx++) for (let bz = bz0 - 1; bz <= bz0 + fd && !clash; bz++) {
+          if (COLUMN_OVERRIDE.has(bx + ':' + bz)) clash = true;
+          for (let bl = bl0 - 1; bl <= bl0 + fl; bl++) if (PLAN_OVERRIDE.has(bx + ':' + bz + ':' + bl)) clash = true;
+        }
+        if (!clash) res = { pl: { pf: name, cx: bx0 * 2, cz: bz0 * 2, lv: bl0 * 2, rot, mir }, b: [bx0, bz0, bl0, bx0 + fw, bz0 + fd, bl0 + fl] };
+      }
+    }
+  }
+  if (GIANT_CACHE.size > 400) GIANT_CACHE.delete(GIANT_CACHE.keys().next().value);
+  GIANT_CACHE.set(key, res);
+  return res;
+}
+function giantAt(bx, bz, bl) {
+  const g = giantIn(fdiv(bx, 4), fdiv(bz, 4), fdiv(bl, 2));
+  return g && bx >= g.b[0] && bx < g.b[3] && bz >= g.b[1] && bz < g.b[4] && bl >= g.b[2] && bl < g.b[5] ? g.pl : null;
+}
 function hashN(salt, ...vals) {
   let h = mix((salt ^ 0x9e3779b9) >>> 0);
   for (const v of vals) { h = mix((h ^ lo32(v)) >>> 0); h = mix((h ^ hi32(v) ^ 0x85ebca6b) >>> 0); }
@@ -709,10 +817,10 @@ const fdiv = (a, b) => Math.floor(a / b);
 /* superblock column: a well or tower through every level, or nothing */
 function columnAt(bx, bz) {
   const o = COLUMN_OVERRIDE.get(bx + ':' + bz); if (o !== undefined) return o;
+  if (giantColumn(fdiv(bx, 4), fdiv(bz, 4))) return null;
   const h = hashN(0x51a7, bx, bz), r = (h % 1000) / 1000;
   const cell = [(h >>> 10) & 1, (h >>> 11) & 1], rot = (h >>> 12) & 3;
-  if (r < 0.2) return { type: 'well', cell, rot };
-  if (r < 0.36) return { type: 'tower', cell, rot };
+  if (r < 0.36) return { type: pickKind('column', (hashN(0x3c1d, bx, bz) % 100000) / 100000, 'well'), cell, rot };
   return null;
 }
 const COLUMN_OVERRIDE = new Map(), PLAN_OVERRIDE = new Map();
@@ -721,6 +829,8 @@ const PLAN_CACHE = new Map();
 function planAt(bx, bz, bl) {
   const key = bx + ':' + bz + ':' + bl;
   let p = PLAN_CACHE.get(key); if (p) return p;
+  const gp = giantAt(bx, bz, bl);
+  if (gp) { p = [gp]; PLAN_CACHE.set(key, p); return p; }
   p = [];
   const put = (pf, ci, cj, lv, rot, mir) => { p.push({ pf, cx: bx * 2 + ci, cz: bz * 2 + cj, lv: bl * 2 + lv, rot: rot & 3, mir: mir ? 1 : 0 }); };
   const col = columnAt(bx, bz);
@@ -728,18 +838,19 @@ function planAt(bx, bz, bl) {
   const h = hashN(0x2f1b, bx, bz, bl);
   const R = sfc32(h, h ^ 0x51ed270b, mix(h ^ 0x1234), mix((bl & 0xffff) ^ h));
   for (let i = 0; i < 10; i++) R();
-  const one = () => { const r = R(); return r < 0.32 ? 'rest' : r < 0.6 ? 'crossing' : r < 0.8 ? 'bath' : 'reading'; };
+  const one = () => pickKind('single', R(), 'rest');
+  const long = () => pickKind('long', R(), 'poolhall');
   if (ov && ov.full) ov.full(put, col, R);
-  else if (!ov && !col && R() < 0.13) put('grand', 0, 0, 0, Math.floor(R() * 4), R() < 0.5);
+  else if (!ov && !col && R() < 0.13) put(pickKind('tall', R(), 'grand'), 0, 0, 0, Math.floor(R() * 4), R() < 0.5);
   else for (let lv = 0; lv < 2; lv++) {
     if (ov && ov[lv]) { ov[lv](put, col, R); continue; }
     const free = [[0, 0], [1, 0], [0, 1], [1, 1]].filter(c => !col || c[0] !== col.cell[0] || c[1] !== col.cell[1]);
     const r = R();
-    if (!col && r < 0.3) { put(R() < 0.5 ? 'backrooms' : 'pillars', 0, 0, lv, Math.floor(R() * 4), R() < 0.5); continue; }
+    if (!col && r < 0.3) { put(pickKind('quad', R(), 'pillars'), 0, 0, lv, Math.floor(R() * 4), R() < 0.5); continue; }
     if (!col && r < 0.6) {       // two long rooms, side by side
       const alongX = R() < 0.5;
       for (let k = 0; k < 2; k++) {
-        const pf = R() < 0.5 ? 'poolhall' : 'stacks', flip = R() < 0.5;
+        const pf = long(), flip = R() < 0.5;
         if (alongX) put(pf, 0, k, lv, flip ? 2 : 0, R() < 0.5); else put(pf, k, 0, lv, flip ? 3 : 1, R() < 0.5);
       }
       continue;
@@ -749,7 +860,7 @@ function planAt(bx, bz, bl) {
       for (const [a, b] of [[[0, 0], [1, 0]], [[0, 1], [1, 1]], [[0, 0], [0, 1]], [[1, 0], [1, 1]]])
         if (free.some(c => c[0] === a[0] && c[1] === a[1]) && free.some(c => c[0] === b[0] && c[1] === b[1])) opts.push([a, b]);
       const [a, b] = opts[Math.floor(R() * opts.length)];
-      const pf = R() < 0.5 ? 'poolhall' : 'stacks', flip = R() < 0.5;
+      const pf = long(), flip = R() < 0.5;
       if (a[1] === b[1]) put(pf, 0, a[1], lv, flip ? 2 : 0, R() < 0.5); else put(pf, a[0], 0, lv, flip ? 3 : 1, R() < 0.5);
       for (const c of free) if (!(c[0] === a[0] && c[1] === a[1]) && !(c[0] === b[0] && c[1] === b[1])) put(one(), c[0], c[1], lv, Math.floor(R() * 4), R() < 0.5);
       continue;
@@ -797,7 +908,7 @@ function placeMatrix(pl, ox, oy, oz, m) {
 /* ==========================================================================
    Streaming: rooms around you are placed; far ones are dropped
    ========================================================================== */
-const WORLD = { inst: new Map(), origin: [0, 0, 0], radius: 3, colK: 6, ready: false, bookR: 14, onPlace: null };
+const WORLD = { inst: new Map(), origin: [0, 0, 0], radius: 3, colK: 6, ready: false, bookR: 14, onPlace: null, pinned: new Set() };
 function worldOrigin(cx, cz, lv) { WORLD.origin = [cx, lv, cz]; }
 function makeInst(pl, slot) {
   const pf = PREFABS.get(pl.pf);
@@ -841,11 +952,55 @@ function updateWorld(px, py, pz, fastFall) {
     for (let s = -K; s <= K; s++) want.set(col.type + '@' + cx + ',' + cz + '#' + s, [base, s]);
   }
   for (const [k, r] of WORLD.inst) if (!want.has(k)) { dropInst(r); WORLD.inst.delete(k); }
+  const keep = new Set();
   for (const [k, [pl, s]] of want) {
+    keep.add(pl.pf);
     let r = WORLD.inst.get(k);
-    if (!r) { r = makeInst(pl, s); if (!r) continue; WORLD.inst.set(k, r); if (WORLD.onPlace) WORLD.onPlace(r); }
+    if (!r) { r = makeInst(pl, s); if (!r) { requestPrefab(pl.pf); continue; } WORLD.inst.set(k, r); if (WORLD.onPlace) WORLD.onPlace(r); }
     positionInst(r);
   }
+  // fetch what is a little further off, so it is ready before you get there
+  if (!fastFall) for (const n of roomsNear(pcx, pcz, plv, R + 2, 1)) { keep.add(n); requestPrefab(n); }
+  evictPrefabs(keep);
+}
+const PENDING = new Set();
+function requestPrefab(name) {
+  if (PREFABS.has(name) || PENDING.has(name) || !ROOM_SIZE[name]) return;
+  PENDING.add(name);
+  loadPrefab(name).then(() => PENDING.delete(name), e => { console.error(e); PENDING.delete(name); PREFABS.delete(name); });
+}
+/* every room within r cells (and dl levels) of a cell, columns included */
+function roomsNear(cx0, cz0, lv0, r, dl) {
+  const out = new Set();
+  for (let lv = lv0 - dl; lv <= lv0 + dl; lv++) for (let dz = -r; dz <= r; dz++) for (let dx = -r; dx <= r; dx++) {
+    const pl = roomAt(cx0 + dx, cz0 + dz, lv); if (pl) out.add(pl.pf);
+  }
+  for (let dz = -r; dz <= r; dz++) for (let dx = -r; dx <= r; dx++) {
+    const cx = cx0 + dx, cz = cz0 + dz, col = columnAt(fdiv(cx, 2), fdiv(cz, 2));
+    if (col && mod(cx, 2) === col.cell[0] && mod(cz, 2) === col.cell[1]) out.add(col.type);
+  }
+  return out;
+}
+const PREFAB_KEEP = 26;
+function evictPrefabs(keep) {
+  let n = 0; for (const v of PREFABS.values()) if (!(v instanceof Promise)) n++;
+  if (n <= PREFAB_KEEP) return;
+  for (const [name, v] of PREFABS) {
+    if (n <= PREFAB_KEEP) break;
+    if (v instanceof Promise || keep.has(name) || WORLD.pinned.has(name)) continue;
+    disposePrefab(name); n--;
+  }
+}
+/* is the room under this point loaded yet? (the player waits for it rather than falling into nothing) */
+function roomReadyAt(px, py, pz) {
+  const [ox, oy, oz] = WORLD.origin;
+  const cx = ox + Math.floor(px / RC), cz = oz + Math.floor(pz / RC), lv = oy + Math.floor((py + 2) / RLH);
+  let pl = roomAt(cx, cz, lv);
+  if (!pl) { const col = columnAt(fdiv(cx, 2), fdiv(cz, 2)); if (col && mod(cx, 2) === col.cell[0] && mod(cz, 2) === col.cell[1]) pl = { pf: col.type }; }
+  if (!pl) return true;
+  const v = PREFABS.get(pl.pf);
+  if (!v || v instanceof Promise) { requestPrefab(pl.pf); return false; }
+  return true;
 }
 /* the room instance you are standing in */
 function instAt(x, y, z) {
@@ -949,6 +1104,13 @@ function groundAt(x, y, z, up, down) {
     });
   }
   return best;
+}
+/* Ground under a small foot: the highest of the centre and a ring 12 cm out, so a crack narrower than
+   a shoe (a gap between a landing and a gallery) cannot swallow you */
+function footing(x, y, z, up, down) {
+  let g = groundAt(x, y, z, up, down);
+  for (const [dx, dz] of [[0.12, 0], [-0.12, 0], [0, 0.12], [0, -0.12]]) g = Math.max(g, groundAt(x + dx, y, z + dz, up, down));
+  return g;
 }
 /* Water: the volume holding a point (world), as { top, bot } in world y, or null */
 function waterAt(x, y, z) {

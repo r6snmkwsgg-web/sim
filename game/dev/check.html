@@ -1,0 +1,148 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Room check</title>
+<style>html,body{margin:0;background:#111;color:#ddd;font:12px monospace}#game{display:none}canvas{display:block;image-rendering:pixelated}</style></head>
+<body><div id="game"></div><div id="maps"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>const $ = s => document.querySelector(s);</script>
+<script src="../js/post.js"></script>
+<script src="../js/world.js"></script>
+<script>
+/* Walkability check for one packed room. Grid of columns; each walkable surface where a crouching body
+   fits is a node. Walk edges step up to 0.55 m or down any amount (a drop over 4.2 m starts a fall).
+   Reports doors that cannot be reached, places you can get into but not out of, and falls. */
+const q = new URLSearchParams(location.search), NAME = q.get('room');
+window.CHECK = null;
+(async () => {
+  const key = '../rooms/' + NAME;
+  const pf = await loadPrefab(key);
+  const M = pf.meta, W = M.w * RC, D = M.d * RC, LV = M.levels;
+  ROOM_SIZE[key] = [M.w, M.d, LV];
+  const base = { pf: key, cx: 0, cz: 0, lv: 0, rot: 0, mir: 0 };
+  const slots = M.repeat ? [-1, 0, 1] : [undefined];
+  for (const s of slots) { const r = makeInst(base, s); WORLD.inst.set('i' + s, r); positionInst(r); }
+  const G = +(q.get('g') || (Math.max(W, D) > 40 ? 0.5 : 0.25));
+  const NX = Math.round(W / G), NZ = Math.round(D / G);
+  const yTop = LV * RLH + 1, yBot = -2.2;
+  const H_CROUCH = 1.15, H_STAND = 1.78;
+  const sp = new THREE.Vector3();
+  const fits = (x, h, z, H) => {
+    for (const hh of [0.82, Math.min(1.2, H - 0.36)]) { sp.set(x, h + hh, z); pushSphere(sp, 0.3, true); if (Math.hypot(sp.x - x, sp.z - z) > 0.02) return false; }
+    sp.set(x, h + H - 0.3, z); pushSphere(sp, 0.3, false); return Math.hypot(sp.x - x, sp.y - (h + H - 0.3), sp.z - z) < 0.02;
+  };
+  // nodes
+  const cols = new Array(NX * NZ);   // each: [{h, id}]
+  const nodes = [];                   // {i, j, h, stand}
+  for (let i = 0; i < NX; i++) for (let j = 0; j < NZ; j++) {
+    const x = (i + 0.5) * G, z = (j + 0.5) * G, list = [];
+    let y = yTop;
+    for (let k = 0; k < 12; k++) {
+      const h = footing(x, y, z, 0, y - yBot);
+      if (h === -Infinity) break;
+      if (fits(x, h, z, H_CROUCH)) { const n = { i, j, h, stand: fits(x, h, z, H_STAND), id: nodes.length }; nodes.push(n); list.push(n); }
+      y = h - 0.35;
+    }
+    cols[i * NZ + j] = list;
+  }
+  // edges (4-neighbours)
+  const out = nodes.map(() => []), inn = nodes.map(() => []);
+  const falls = [];
+  for (const n of nodes) {
+    for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const i2 = n.i + di, j2 = n.j + dj; if (i2 < 0 || j2 < 0 || i2 >= NX || j2 >= NZ) continue;
+      const L = cols[i2 * NZ + j2];
+      // walk: a surface within step height; else drop to the highest surface below
+      let best = null;
+      for (const m of L) if (m.h <= n.h + 0.55 && m.h >= n.h - 0.55 && (!best || Math.abs(m.h - n.h) < Math.abs(best.h - n.h))) best = m;
+      if (!best) {
+        // blocked if something solid stands between: a surface in this column above our step height but below our head?
+        const x2 = (i2 + 0.5) * G, z2 = (j2 + 0.5) * G;
+        const hb = footing(x2, n.h + 0.55, z2, 0, n.h + 0.55 - yBot);
+        if (hb === -Infinity) continue;                      // nothing below at all: off the room (void)
+        const m = L.find(o => Math.abs(o.h - hb) < 0.02);
+        if (!m) continue;                                    // lands somewhere a body does not fit
+        best = m;
+        if (n.h - m.h > 4.2) falls.push([n.id, m.id, n.h - m.h]);
+      }
+      out[n.id].push(best.id); inn[best.id].push(n.id);
+    }
+  }
+  // doors: a node just inside every doorway
+  const sealed = new Set((M.meta.sealed || []).map(s => s.join(':')));
+  const doors = [];
+  const nearNode = (x, z, h) => {
+    let bestN = null, bd = 1e9;
+    const i0 = Math.floor(x / G), j0 = Math.floor(z / G);
+    for (let i = i0 - 3; i <= i0 + 3; i++) for (let j = j0 - 3; j <= j0 + 3; j++) {
+      if (i < 0 || j < 0 || i >= NX || j >= NZ) continue;
+      for (const n of cols[i * NZ + j]) { if (Math.abs(n.h - h) > 0.6) continue; const d = Math.hypot((i + 0.5) * G - x, (j + 0.5) * G - z); if (d < bd) { bd = d; bestN = n; } }
+    }
+    return bestN;
+  };
+  for (let L = 0; L < LV; L++) {
+    for (let i = 0; i < M.w; i++) {
+      doors.push({ side: 'S', k: i, L, x: i * RC + 8, z: 0.45, h: L * RLH });
+      doors.push({ side: 'N', k: i, L, x: i * RC + 8, z: D - 0.45, h: L * RLH });
+    }
+    for (let j = 0; j < M.d; j++) {
+      doors.push({ side: 'W', k: j, L, x: 0.45, z: j * RC + 8, h: L * RLH });
+      doors.push({ side: 'E', k: j, L, x: W - 0.45, z: j * RC + 8, h: L * RLH });
+    }
+  }
+  for (const d of doors) { d.sealed = sealed.has([d.side, d.k, d.L].join(':')); const n = nearNode(d.x, d.z, d.h); d.node = n ? n.id : -1; }
+  const live = doors.filter(d => !d.sealed);
+  const bfs = (starts, adj) => { const seen = new Uint8Array(nodes.length), st = [...starts]; for (const s of st) seen[s] = 1; while (st.length) { const a = st.pop(); for (const b of adj[a]) if (!seen[b]) { seen[b] = 1; st.push(b); } } return seen; };
+  const starts = live.filter(d => d.node >= 0).map(d => d.node);
+  const fwd = bfs(starts, out), back = bfs(starts, inn);
+  const traps = nodes.filter(n => fwd[n.id] && !back[n.id]);
+  const lost = nodes.filter(n => !fwd[n.id]);
+  // per door: can get from it to every other door, and back?
+  const doorRep = [];
+  for (const d of live) {
+    if (d.node < 0) { doorRep.push(d.side + d.k + '@' + d.L + ': blocked (no room to stand inside the doorway)'); continue; }
+    const f = bfs([d.node], out), b = bfs([d.node], inn);
+    const cant = live.filter(e => e !== d && e.node >= 0 && !f[e.node]).map(e => e.side + e.k + '@' + e.L);
+    const cantBack = live.filter(e => e !== d && e.node >= 0 && !b[e.node]).map(e => e.side + e.k + '@' + e.L);
+    if (cant.length || cantBack.length) doorRep.push(d.side + d.k + '@' + d.L + (cant.length ? ' cannot reach ' + cant.join(',') : '') + (cantBack.length ? ' cannot be reached from ' + cantBack.join(',') : ''));
+  }
+  const cluster = arr => {   // group nodes into blobs, report each blob's extent
+    const S = new Set(arr.map(n => n.id)), done = new Set(), res = [];
+    for (const n of arr) {
+      if (done.has(n.id)) continue;
+      const st = [n], blob = []; done.add(n.id);
+      while (st.length) { const a = st.pop(); blob.push(a); for (const b of out[a.id].concat(inn[a.id])) if (S.has(b) && !done.has(b)) { done.add(b); st.push(nodes[b]); } }
+      const xs = blob.map(b => (b.i + 0.5) * G), zs = blob.map(b => (b.j + 0.5) * G), hs = blob.map(b => b.h);
+      res.push({ n: blob.length, area: +(blob.length * G * G).toFixed(1), x: [+Math.min(...xs).toFixed(1), +Math.max(...xs).toFixed(1)], z: [+Math.min(...zs).toFixed(1), +Math.max(...zs).toFixed(1)], h: [+Math.min(...hs).toFixed(2), +Math.max(...hs).toFixed(2)] });
+    }
+    return res.sort((a, b) => b.n - a.n);
+  };
+  const reachFalls = falls.filter(f => fwd[f[0]]);
+  // nav points: each should stand on a reachable node
+  const badNav = [];
+  M.nav.forEach((p, k) => { const n = nearNode(p[0], p[2], p[1]); if (!n || !fwd[n.id] || Math.hypot((n.i + 0.5) * G - p[0], (n.j + 0.5) * G - p[2]) > 0.6) badNav.push(k + ':' + p.map(v => +v.toFixed(1)).join(',')); });
+  const walkArea = nodes.filter(n => fwd[n.id]).length * G * G;
+  window.DBG = { nodes, cols, fwd, back, out, NZ, NX, G };
+  window.CHECK = {
+    room: NAME, size: [M.w, M.d, LV], grid: G, nodes: nodes.length, walkable_m2: Math.round(walkArea),
+    doors: live.length, sealed: doors.length - live.length, door_problems: doorRep,
+    traps: cluster(traps).slice(0, 8), unreachable: cluster(lost).filter(c => c.area >= 0.5).slice(0, 8),
+    falls: reachFalls.length ? { count: reachFalls.length, worst_m: +Math.max(...reachFalls.map(f => f[2])).toFixed(1), at: reachFalls.slice(0, 5).map(f => { const n = nodes[f[0]]; return [+((n.i + 0.5) * G).toFixed(1), +n.h.toFixed(1), +((n.j + 0.5) * G).toFixed(1)]; }) } : null,
+    bad_nav: badNav.slice(0, 10), spots: M.spots.map(s => s.k).join(' '),
+    ok: doorRep.length === 0 && traps.length === 0 && badNav.length === 0
+  };
+  // maps: one per level band. green reachable (brighter = standing room), red trap, grey unreachable, blue doors, yellow falls
+  const px = Math.max(2, Math.floor(512 / Math.max(NX, NZ)));
+  for (let L = 0; L < LV; L++) {
+    const cv = document.createElement('canvas'); cv.width = NX * px; cv.height = NZ * px; const c = cv.getContext('2d');
+    c.fillStyle = '#000'; c.fillRect(0, 0, cv.width, cv.height);
+    for (const n of nodes) {
+      if (n.h < L * RLH - 2.5 || n.h >= (L + 1) * RLH - 2.5) continue;
+      const hn = Math.max(0, Math.min(1, (n.h - L * RLH + 2) / 8));
+      c.fillStyle = !fwd[n.id] ? '#555' : !back[n.id] ? '#e33' : `rgb(${30 + 60 * hn},${n.stand ? 150 + 100 * hn : 90},${40 + 60 * hn})`;
+      c.fillRect(n.i * px, n.j * px, px, px);
+    }
+    for (const f of reachFalls) { const n = nodes[f[0]]; if (n.h < L * RLH - 2.5 || n.h >= (L + 1) * RLH - 2.5) continue; c.fillStyle = '#ff0'; c.fillRect(n.i * px, n.j * px, px, px); }
+    for (const d of doors) if (d.L === L) { c.fillStyle = d.sealed ? '#636' : '#39f'; c.fillRect(d.x / G * px - 3, d.z / G * px - 3, 7, 7); }
+    const lab = document.createElement('div'); lab.textContent = NAME + ' level ' + L + ' (x right, z down)';
+    document.getElementById('maps').append(lab, cv);
+  }
+})().catch(e => { console.error(e); window.CHECK = { error: String(e && e.stack || e) }; });
+</script></body></html>

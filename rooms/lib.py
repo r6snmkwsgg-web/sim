@@ -21,7 +21,7 @@ DR = DW / 2    # door arch radius
 TOP = 7.6      # highest ceiling inside one level (next floor slab above)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-OUT = os.path.join(HERE, '..', 'game', 'rooms')
+OUT = os.path.join(HERE, 'out')          # raw bakes; pack.py turns them into game/rooms/
 OIDN = os.environ.get('OIDN', '/tmp/oidn-2.3.3.x86_64.linux/bin/oidnDenoise')
 
 # Albedo is what the bake bounces; the game draws the detail (tiles, grout, grain).
@@ -53,6 +53,15 @@ MATS = {
     'green':     (0.14, 0.26, 0.20),   # library green paint
     'oxblood':   (0.36, 0.11, 0.09),
     'damask':    (0.17, 0.24, 0.17),   # dark green patterned wallpaper
+    'iron':      (0.13, 0.13, 0.14),   # dark metal: railings, cages, spiral stairs
+    'bronze':    (0.55, 0.36, 0.18),
+    'gilt':      (0.80, 0.62, 0.30),
+    'velvet':    (0.30, 0.05, 0.06),   # curtains, cushions
+    'slate':     (0.22, 0.23, 0.25),   # dark stone
+    'blackboard':(0.08, 0.12, 0.10),
+    'leather':   (0.30, 0.16, 0.09),
+    'ivory':     (0.85, 0.82, 0.74),   # cream paint
+    'walnut':    (0.20, 0.12, 0.07),   # very dark wood
 }
 # The rooms were first drawn in pool tile; the library wears these instead.
 THEME = {'tile': 'stone', 'floor': 'parquet', 'terrazzo': 'marble', 'mosaic': 'marble', 'cobalt': 'marble',
@@ -67,8 +76,15 @@ EMIT = {
     'e_amber': ((1.00, 0.55, 0.20), 6.0),    # night lamp
     'e_kiosk': ((0.85, 0.95, 1.00), 5.0),
     'e_portal': ((0.92, 0.92, 0.90), 1.0),   # stands in for the next room's light
+    'e_red':   ((1.00, 0.25, 0.16), 6.0),    # stained glass
+    'e_blue':  ((0.30, 0.50, 1.00), 6.0),
+    'e_green': ((0.35, 1.00, 0.50), 5.0),
+    'e_candle': ((1.00, 0.58, 0.24), 5.0),   # candles and night-lights: stay lit after lights-out
+    'e_dim':   ((1.00, 0.80, 0.60), 2.5),    # weak bulbs, for the dark rooms
+    'e_exit':  ((0.35, 1.00, 0.45), 4.0),    # little green signs over doors that go nowhere
+    'e_skydome': ((0.75, 0.85, 1.00), 3.0),  # a painted sky (the game draws clouds and stars on it)
 }
-NIGHT_ON = {'e_pool', 'e_amber', 'e_kiosk', 'e_portal'}   # what stays lit after lights-out
+NIGHT_ON = {'e_pool', 'e_amber', 'e_kiosk', 'e_portal', 'e_candle', 'e_exit'}   # what stays lit after lights-out
 
 
 # ---------------------------------------------------------------------------
@@ -325,6 +341,13 @@ def slope_box(x0, x1, y0, y1, bot0, bot1, top0, top1, m, cap=None):
     return g.fix()
 
 
+def balustrade(x0, y0, x1, y1, z=0.0, h=1.0, m='tile', cap='brass'):
+    """An axis-aligned solid balustrade (x0..x1, y0..y1 is its footprint, ~0.2 m thick) with a rail on top."""
+    g = box(x0, y0, z, x1, y1, z + h, m, skip=('-z',))
+    g.add(box(x0 - 0.03, y0 - 0.03, z + h, x1 + 0.03, y1 + 0.03, z + h + 0.06, cap))
+    return g
+
+
 def stairs(x0, y0, z0, width, n, rise, run, axis='+y', m='floor', riser=None, side='tile'):
     """Solid flight of n steps climbing along axis from (x0, y0, z0); width across.
     One closed prism with a sawtooth profile, so there are no coplanar faces to fight in the bake."""
@@ -387,9 +410,10 @@ class Room:
         return out
 
     # --- bookshelves: frame + one slab quad per row that the books replace --
-    def shelf(self, x, y, z, length, dirn, rows=5, row_h=0.42, depth=0.34, frame='wood', board=0.035, top_gap=0.08, back=True, sides=True, crown=True):
+    def shelf(self, x, y, z, length, dirn, rows=5, row_h=0.42, depth=0.34, frame='wood', board=0.035, top_gap=0.08, back=True, sides=True, crown=True, solid=True):
         """A bookcase facing dirn ('+x','-x','+y','-y' or an angle in radians); (x, y) is its back-left
-        corner seen from the front, z its bottom. Adds one slab per row; returns their ids."""
+        corner seen from the front, z its bottom. Adds one slab per row; returns their ids.
+        solid=False makes a false bookcase: drawn and lit, but you walk straight through it."""
         a = {'+y': math.pi / 2, '-y': -math.pi / 2, '+x': 0.0, '-x': math.pi}[dirn] if isinstance(dirn, str) else dirn
         th = a - math.pi / 2
         H = rows * row_h + board + top_gap
@@ -403,7 +427,7 @@ class Room:
             h = r * row_h
             g.add(box(0, 0.02, h, length, depth + 0.01, h + board, frame, skip=('-z',) if r == 0 else ()))
         g.xform(th, x, y, z)
-        self.parts.add(g)
+        (self.parts if solid else self.nocol).add(g)
         c, s_ = math.cos(th), math.sin(th)
         rot = lambda p: (p[0] * c - p[1] * s_, p[0] * s_ + p[1] * c, p[2])
         ids = []
@@ -411,12 +435,27 @@ class Room:
             h0 = r * row_h + board; h1 = h0 + row_h - board - 0.03
             o = rot((0, depth - 0.02, h0)); o = (o[0] + x, o[1] + y, o[2] + z)
             self.slabs.append({'o': o, 'u': list(rot((length, 0, 0))), 'v': [0, 0, h1 - h0], 'n': [math.cos(a), math.sin(a), 0],
-                               'len': length, 'h': h1 - h0, 'depth': depth - 0.04})
+                               'len': length, 'h': h1 - h0, 'depth': depth - 0.04, 'ghost': not solid})
             ids.append(len(self.slabs) - 1)
         return ids
 
     def light(self, g):
         self.emit.add(g)
+
+    def flight(self, x0, y0, z0, width, n, rise, run, axis='+y', m='floor', riser=None, side='tile'):
+        """A walkable flight of stairs: the visible steps (not collided) plus an invisible ramp the feet
+        ride, so climbing is smooth. Same arguments as stairs(). Put walls or rails on open sides."""
+        self.nocol.add(stairs(x0, y0, z0, width, n, rise, run, axis, m, riser, side))
+        L, Hh = n * run, n * rise
+        if axis == '+y':   q = [(x0, y0 - 0.02, z0), (x0 + width, y0 - 0.02, z0), (x0 + width, y0 + L, z0 + Hh), (x0, y0 + L, z0 + Hh)]
+        elif axis == '-y': q = [(x0, y0 + 0.02, z0), (x0, y0 - L, z0 + Hh), (x0 + width, y0 - L, z0 + Hh), (x0 + width, y0 + 0.02, z0)]
+        elif axis == '+x': q = [(x0 - 0.02, y0, z0), (x0 + L, y0, z0 + Hh), (x0 + L, y0 + width, z0 + Hh), (x0 - 0.02, y0 + width, z0)]
+        else:              q = [(x0 + 0.02, y0, z0), (x0 + 0.02, y0 + width, z0), (x0 - L, y0 + width, z0 + Hh), (x0 - L, y0, z0 + Hh)]
+        g = Geo(); ids = [g.vert(p) for p in q]; g.face(ids, 'floor', [(0, 0)] * 4)
+        # make it face up
+        a, b, c = (Vector(q[1]) - Vector(q[0])), (Vector(q[2]) - Vector(q[0])), None
+        if a.cross(b).z < 0: g.f = [tuple(reversed(f)) for f in g.f]
+        self.col.add(g)
 
     def pool(self, x0, y0, x1, y1, depth, surface=None, m='mosaic', coping=None, z=0.0, steps=True):
         """A sunken floor: terraces 0.3 m down and 0.45 m in, to depth (steps=False: one sheer drop)."""
@@ -496,7 +535,7 @@ def _face_attr(ob, name, value):
     a.data.foreach_set('value', [value] * len(ob.data.polygons))
 
 
-def build(R, quick=False, night=True):
+def build(R, quick=False, night=True, bake=True):
     t0 = time.time()
     sc = bpy.context.scene
     cc = coll('cut'); main = coll('main'); lights = coll('lights')
@@ -524,7 +563,7 @@ def build(R, quick=False, night=True):
             g.face(ids, 'books', [(0, 0), (s['len'], 0), (s['len'], s['h']), (0, s['h'])])
         so = g.obj('slabs', main, fix=False)
         a = so.data.attributes.new('slab', 'INT', 'FACE'); a.data.foreach_set('value', list(range(1, len(R.slabs) + 1)))
-        _face_attr(so, 'nocol', 0)
+        a = so.data.attributes.new('nocol', 'INT', 'FACE'); a.data.foreach_set('value', [1 if s.get('ghost') else 0 for s in R.slabs])
         # make sure each slab faces the way the shelf does
         for i, p in enumerate(so.data.polygons):
             n = R.slabs[i]['n']
@@ -575,8 +614,11 @@ def build(R, quick=False, night=True):
     print('uv %.1fs' % (time.time() - t1))
     res = R.res if not quick else R.res // 2
     maps = {}
-    for mode in (['day', 'night'] if night else ['day']):
-        maps[mode] = _bake(R, room, em, po, mode, res, quick)
+    if not bake:   # geometry check only: a flat grey lightmap
+        maps['day'] = np.tile(np.array([0.45, 0.43, 0.40, 1.0], np.float32), (16, 16, 1))
+    else:
+        for mode in (['day', 'night'] if night else ['day']):
+            maps[mode] = _bake(R, room, em, po, mode, res, quick)
     export(R, room, em, maps)
     print('%s built in %.0fs' % (R.name, time.time() - t0))
 
@@ -740,6 +782,7 @@ def export(R, room, em, maps):
         'groups': groups, 'col': {'off': col_off, 'n': int(len(ct) // 3)}, 'slabs': slabs, 'water': water,
         'spots': [dict(s, p=sw(s['p'])) for s in R.spots], 'nav': [sw(p) for p in R.nav], 'links': R.navlinks,
         'avg': avg, 'emit': {k: [list(v[0]), v[1]] for k, v in EMIT.items()}, 'albedo': MATS, 'meta': R.meta,
+        'night_on': sorted(NIGHT_ON),
         'bin': base64.b64encode(bytes(blob)).decode('ascii')   # the meshes, as base64 so every host serves it
     }
     with open(os.path.join(OUT, name + '.json'), 'w') as f: json.dump(meta, f, separators=(',', ':'))
