@@ -1,4 +1,95 @@
 {
+"amphipit":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":6,
+"label":"The Book Pit",
+"bytes":324864,
+"blurb":"The floor goes down in rings, like a theatre, and the lowest rings are made of books. Someone has left a chair at the bottom to watch them."
+},
+"amphitheatre":{
+"size":[
+2,
+2,
+1
+],
+"repeat":false,
+"kind":"quad",
+"weight":5,
+"label":"The Amphitheatre",
+"bytes":701672,
+"blurb":"Terraces of seats go down to a stage and a lectern with a book left open on it. The acoustics are perfect. You could hear a page turn."
+},
+"apse":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":5,
+"label":"The Apse",
+"bytes":300923,
+"blurb":"Pews, and at the end of them a lectern under a half-dome, with the candles lit. Whatever is going to be read out, you have arrived in time for it."
+},
+"aqueduct":{
+"size":[
+2,
+1,
+1
+],
+"repeat":false,
+"kind":"long",
+"weight":7,
+"label":"The Aqueduct",
+"bytes":376941,
+"blurb":"A causeway on stone arches crosses the hall two metres above the books. It carries no water and leads from one staircase to another, and people walk it anyway, slowly, as if it went somewhere."
+},
+"arcade":{
+"size":[
+2,
+1,
+1
+],
+"repeat":false,
+"kind":"long",
+"weight":9,
+"label":"The Arcade",
+"bytes":393811,
+"blurb":"Two rows of arches run away from you to a point, a lamp hung in every one. Count them if you like. You will get a different number coming back."
+},
+"arcadering":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":6,
+"label":"The Arcade Loop",
+"bytes":373378,
+"blurb":"A vaulted walk goes round a block of solid stone, with books set into its outside. You go round it twice looking for a door. There is no door."
+},
+"archmaze":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":6,
+"label":"The Arches",
+"bytes":304520,
+"blurb":"Arch after arch after arch, and some of them are full of books. The way on is always the one next to the one you picked."
+},
 "backrooms":{
 "size":[
 2,
@@ -9,7 +100,33 @@
 "kind":"quad",
 "weight":50,
 "label":"The Labyrinth",
-"bytes":558126
+"bytes":382994
+},
+"balcony":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":7,
+"label":"The Balcony Room",
+"bytes":320229,
+"blurb":"A gallery runs all the way round, just above the doors. From up there the tables below look like a diagram of themselves."
+},
+"balustrades":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":5,
+"label":"The Balustrade Maze",
+"bytes":257988,
+"blurb":"A maze you can see over. It does not make it any shorter. Climbing over is allowed, but somehow it feels like cheating."
 },
 "bath":{
 "size":[
@@ -21,7 +138,319 @@
 "kind":"single",
 "weight":20,
 "label":"The Sunken Court",
-"bytes":306481
+"bytes":236521
+},
+"benches":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":4,
+"label":"The Benches",
+"bytes":216140,
+"blurb":"Everyone here is facing the same blank wall and the one green sign on it. You sit down to wait, like everyone else."
+},
+"bookbridge":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":5,
+"label":"The Book Bridge",
+"bytes":262687,
+"blurb":"Two platforms, and between them a walkway laid along the top of a row of bookcases. You are walking on a shelf. The shelf does not seem to mind."
+},
+"bookfall":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":5,
+"label":"The Cascade",
+"bytes":196913,
+"blurb":"The shelves come down from the ceiling in steps too tall to climb, as if the books were pouring out of somewhere. Some of them have landed."
+},
+"bookshaft":{
+"size":[
+1,
+1,
+1
+],
+"repeat":true,
+"kind":"column",
+"weight":35,
+"label":"The Book Shaft",
+"bytes":298573,
+"blurb":"Four walls of books, straight up and straight down, and a narrow walkway round each floor. Somewhere in there is the one you want. It is probably not on this floor."
+},
+"bridgepit":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":4,
+"label":"The Chasm",
+"bytes":215308,
+"blurb":"A crack runs through the floor, lit from somewhere below. There are books down there too. There are always books down there."
+},
+"bridges":{
+"size":[
+2,
+2,
+2
+],
+"repeat":false,
+"kind":"tall",
+"weight":6,
+"label":"The Bridges",
+"bytes":842409,
+"blurb":"Four bridges cross a room eight metres deep, and the floor down there is bookcases as far as the walls. The stair looks like it was an afterthought. It probably was."
+},
+"cages":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":5,
+"label":"The Archive Cages",
+"bytes":267964,
+"blurb":"The books here are kept behind bars, for their protection or for yours. Nobody has the keys. The stair in the middle goes all the way up to a hatch that is only painted on."
+},
+"canyon":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":6,
+"label":"The Shelf Canyon",
+"bytes":318683,
+"blurb":"The shelves go up and up. The sky is a crack far overhead. The way back is the way you came, if you can remember which way that was."
+},
+"carrels":{
+"size":[
+2,
+1,
+1
+],
+"repeat":false,
+"kind":"long",
+"weight":7,
+"label":"The Carrels",
+"bytes":525972,
+"blurb":"Row after row of study carrels, each with its lamp lit and its chair pushed in, each exactly like the last. Choose one. It makes no difference which."
+},
+"carriages":{
+"size":[
+2,
+1,
+1
+],
+"repeat":false,
+"kind":"long",
+"weight":6,
+"label":"The Carriages",
+"bytes":465173,
+"blurb":"Compartments either side of a corridor, like a night train. The windows look out onto bookshelves. Nobody checks your ticket; nobody has one."
+},
+"catalog":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":7,
+"label":"The Card Catalogue",
+"bytes":319496,
+"blurb":"Every drawer is full of cards, and every card is for a book. None of them is in order. Some of them are about you."
+},
+"cathedral":{
+"size":[
+2,
+2,
+2
+],
+"repeat":false,
+"kind":"tall",
+"weight":5,
+"label":"The Cathedral",
+"bytes":937438,
+"blurb":"A cathedral, and the light through the rose window is the colour of every sermon you ever slept through. The pews face the glass. There is no altar, only a book."
+},
+"ceilingdoor":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":3,
+"label":"The Door in the Ceiling",
+"bytes":198966,
+"blurb":"A stair climbs to a trapdoor that someone has left open. Above it there is nothing at all, which is somehow worse than something."
+},
+"chandelier":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":5,
+"label":"The Chandelier",
+"bytes":370152,
+"blurb":"A ballroom, with the chandelier lit and the chairs set out, and nobody. The floor has been polished for a dance that has been going to start for a very long time."
+},
+"chapel":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":5,
+"label":"The Chapel",
+"bytes":399982,
+"blurb":"The windows glow though there is nothing behind them. The book on the lectern is open at your page."
+},
+"chute":{
+"size":[
+1,
+1,
+1
+],
+"repeat":true,
+"kind":"column",
+"weight":40,
+"label":"The Chute",
+"bytes":585824,
+"blurb":"An iron stair turns round and round the wall of a round shaft, one turn to a floor. It does not end at the top, or the bottom. The middle is empty all the way down."
+},
+"cliff":{
+"size":[
+2,
+2,
+2
+],
+"repeat":false,
+"kind":"tall",
+"weight":5,
+"label":"The Cliff",
+"bytes":943447,
+"blurb":"Two walls of books face each other across a gap, fourteen metres high. The catwalks were built for someone braver than you, and for someone who knew which book they wanted."
+},
+"clock":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":5,
+"label":"The Clock Room",
+"bytes":219507,
+"blurb":"A clock the size of a wall, stopped at three minutes to eleven. The door has eaten five, six and seven. You wait for it to tick. It does not."
+},
+"cloister":{
+"size":[
+2,
+2,
+1
+],
+"repeat":false,
+"kind":"quad",
+"weight":5,
+"label":"The Great Cloister",
+"bytes":733399,
+"blurb":"A courtyard under an open sky, and four trees that do not move when the wind does not blow. Someone has left a light on upstairs."
+},
+"coil":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":4,
+"label":"The Coil",
+"bytes":213778,
+"blurb":"The corridor turns left, and left, and left. At the end of it there is a chair, and a lamp, and nothing else, and it is very restful."
+},
+"colonnade":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":6,
+"label":"The Colonnade",
+"bytes":367114,
+"blurb":"Columns, and more columns, too close together, like trees planted by someone who had only read about forests. The light comes down between them."
+},
+"corridor":{
+"size":[
+8,
+2,
+2
+],
+"repeat":false,
+"kind":"giant",
+"weight":4,
+"label":"The Endless Corridor",
+"bytes":477317,
+"blurb":"A corridor, and lamps, and books, and more corridor. Perspective is doing most of the work here, and it is tired."
+},
+"corridor_doors":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":5,
+"label":"The Hall of Doors",
+"bytes":252140,
+"blurb":"Thirty-two doors and not one of them opens. The exit signs are very sure of themselves. Light shows under some of the doors, and once, you think, a shadow."
+},
+"courtyard":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":6,
+"label":"The Courtyard",
+"bytes":241717,
+"blurb":"Sky. Real sky, or something painted to look like it, over a cloister and a dry fountain. It never rains."
 },
 "crossing":{
 "size":[
@@ -33,7 +462,150 @@
 "kind":"single",
 "weight":28,
 "label":"The Crossing",
-"bytes":427944
+"bytes":359700
+},
+"crossvault":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":7,
+"label":"The Nine Bays",
+"bytes":347275,
+"blurb":"Nine vaulted bays, each with its lamp and its books, each very like the last. You count them twice and get ten."
+},
+"deadend":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":3,
+"label":"The Dead End",
+"bytes":92518,
+"blurb":"Four doors, four signs. Three of them are painted on. You check all three anyway, and so does everybody."
+},
+"deepstepwell":{
+"size":[
+1,
+1,
+1
+],
+"repeat":true,
+"kind":"column",
+"weight":30,
+"label":"The Deep Stepwell",
+"bytes":279532,
+"blurb":"The floor steps down, shelf by shelf, to a square hole. Through it you can see the same steps going down to the same hole, and the underside of this one hanging over them."
+},
+"dormitory":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":6,
+"label":"The Dormitory",
+"bytes":375828,
+"blurb":"Beds, made. Every one of them made, and a book on every pillow-shelf. Someone expects a lot of guests."
+},
+"drafting":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":5,
+"label":"The Drafting Room",
+"bytes":313116,
+"blurb":"Every table has the same plan pinned to it, a building with no doors, and every one is exactly as unfinished as the last."
+},
+"elevators":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":4,
+"label":"The Lift Lobby",
+"bytes":251012,
+"blurb":"You press the button. It lights. Somewhere far above, or below, something begins to move, and keeps moving, and never arrives."
+},
+"empty":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":4,
+"label":"An Empty Room",
+"bytes":61007,
+"blurb":"Nothing here but a bulb and a book. Someone left the book. Nobody has come back for it."
+},
+"escher":{
+"size":[
+2,
+2,
+1
+],
+"repeat":false,
+"kind":"quad",
+"weight":4,
+"label":"The Stair Plaza",
+"bytes":682032,
+"blurb":"Stairs go up to bridges that go over stairs that go down to landings under bridges. You are fairly sure you have been on this one before."
+},
+"gallerybust":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":4,
+"label":"The Busts",
+"bytes":319899,
+"blurb":"A gallery of stone heads on pedestals, and every one has turned to face the wall. You do not see any of them move. You check."
+},
+"glasscase":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":5,
+"label":"The Display Cases",
+"bytes":297671,
+"blurb":"Each case holds a single book, open on velvet and lit like a relic. There is no glass. Nobody has ever said what makes these ones special."
+},
+"globe":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":5,
+"label":"The Globe",
+"bytes":370794,
+"blurb":"A globe of some other world, caged in bronze hoops. None of the coastlines are ones you know. The library is not marked on it."
 },
 "grand":{
 "size":[
@@ -45,7 +617,345 @@
 "kind":"tall",
 "weight":50,
 "label":"The Great Hall",
-"bytes":932680
+"bytes":670168
+},
+"grandstair":{
+"size":[
+2,
+1,
+1
+],
+"repeat":false,
+"kind":"long",
+"weight":6,
+"label":"The Staircase Gallery",
+"bytes":324725,
+"blurb":"Two grand staircases climb to a landing in the middle of the hall. There is nothing up there but a chair, which is facing the wrong way."
+},
+"greatdome":{
+"size":[
+2,
+2,
+1
+],
+"repeat":false,
+"kind":"quad",
+"weight":5,
+"label":"The Great Dome",
+"bytes":921706,
+"blurb":"A dome as round as the inside of a thought, and under the hole in its top a globe with nothing drawn on it."
+},
+"greatmaze":{
+"size":[
+2,
+2,
+1
+],
+"repeat":false,
+"kind":"quad",
+"weight":6,
+"label":"The Great Maze",
+"bytes":836156,
+"blurb":"Walls of books a little higher than you can see over. The way out is the way you came in, or one of the other seven."
+},
+"greatstair":{
+"size":[
+4,
+4,
+4
+],
+"repeat":false,
+"kind":"giant",
+"weight":3,
+"label":"The Great Stair",
+"bytes":911860,
+"blurb":"A staircase built for a procession that never arrived. It climbs, turns, climbs again, and delivers you with great ceremony to more shelves."
+},
+"hanging":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":4,
+"label":"The Hanging Shelves",
+"bytes":273551,
+"blurb":"The bookcases hang on chains, some high, some low. The chains creak. You would rather not know what they are fixed to."
+},
+"heap":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":4,
+"label":"The Heap",
+"bytes":302154,
+"blurb":"All the books from all the shelves, in one pile. It is quite stable. There is an armchair on the top, which raises the question of who carried it up."
+},
+"hypostyle":{
+"size":[
+2,
+2,
+1
+],
+"repeat":false,
+"kind":"quad",
+"weight":8,
+"label":"The Hypostyle",
+"bytes":890932,
+"blurb":"Pillars of books, three metres apart, in every direction you look. Some of the lamps in the ceiling have not been lit for a very long time."
+},
+"ladderhall":{
+"size":[
+2,
+1,
+1
+],
+"repeat":false,
+"kind":"long",
+"weight":8,
+"label":"The Ladder Hall",
+"bytes":396992,
+"blurb":"The shelves go up seven metres and the ladders go most of the way. Somebody has left a book on the top rung of every one."
+},
+"lampforest":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":5,
+"label":"The Lamp Forest",
+"bytes":227846,
+"blurb":"Somebody left all the lamps on, and then the lamps grew. It is dark between them, and quiet, the way a wood is quiet."
+},
+"lanterns":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":5,
+"label":"The Lantern Hall",
+"bytes":338942,
+"blurb":"Someone lit every one of these lanterns and hung them at every height they could think of. The candles do not burn down."
+},
+"lecture":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":5,
+"label":"The Lecture Theatre",
+"bytes":296702,
+"blurb":"The lecture has just ended, or is about to begin. The boards are full, and the proof on them goes on past the edge."
+},
+"liftshaft":{
+"size":[
+1,
+1,
+1
+],
+"repeat":true,
+"kind":"column",
+"weight":35,
+"label":"The Lift Shaft",
+"bytes":237423,
+"blurb":"An iron cage round an empty shaft, and a gate drawn shut. Above it a dial shows which floor the lift is on. The needle has not moved in living memory, and nobody here is living."
+},
+"longgallery":{
+"size":[
+2,
+1,
+1
+],
+"repeat":false,
+"kind":"long",
+"weight":8,
+"label":"The Long Gallery",
+"bytes":519342,
+"blurb":"Busts on pedestals face each other across the aisle, all the way down. None of them is anyone you have heard of, and all of them are looking at you."
+},
+"lowroom":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":5,
+"label":"The Low Room",
+"bytes":351590,
+"blurb":"The ceiling is just above your head and stays there. The columns go on in every direction, and most of the lamps are off."
+},
+"maproom":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":5,
+"label":"The Map Room",
+"bytes":312679,
+"blurb":"A map of the library, to scale, if the scale is generous. There is a pin in it. The pin is not where you are."
+},
+"mezzanine":{
+"size":[
+2,
+1,
+1
+],
+"repeat":false,
+"kind":"long",
+"weight":7,
+"label":"The Mezzanine",
+"bytes":352973,
+"blurb":"Two galleries hang along the walls on posts no thicker than a broom handle. They have held so far."
+},
+"mirror":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":5,
+"label":"The Symmetric Room",
+"bytes":225081,
+"blurb":"Everything on this side of the arches is on the other side too, the other way round. There is a chair on each side, and you are not sure which one you were sitting in."
+},
+"moat":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":5,
+"label":"The Moat",
+"bytes":317849,
+"blurb":"An island with one desk on it, and a dry moat round it lined with books. Whoever built the bridges did not trust you to jump."
+},
+"nooks":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":6,
+"label":"The Nooks",
+"bytes":338206,
+"blurb":"A chair for everyone, each in its own little cave, each facing out, each with its lamp on. The chairs are warm, as if someone just got up."
+},
+"octagon":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":7,
+"label":"The Octagon",
+"bytes":325779,
+"blurb":"Eight walls, eight niches, eight ways the light falls. You count the doors twice and get a different answer each time."
+},
+"orangery":{
+"size":[
+2,
+1,
+1
+],
+"repeat":false,
+"kind":"long",
+"weight":5,
+"label":"The Orangery",
+"bytes":658420,
+"blurb":"A glasshouse, and above the glass, a sky. The trees are in good health and have never fruited. Nobody waters them."
+},
+"organ":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":4,
+"label":"The Organ",
+"bytes":320389,
+"blurb":"An organ the size of a wall, and no one to play it. The stops are labelled in a language that is almost yours."
+},
+"outside":{
+"size":[
+4,
+4,
+2
+],
+"repeat":false,
+"kind":"giant",
+"weight":3,
+"label":"The Outside",
+"bytes":363391,
+"blurb":"Outside. Sky, paving, trees, a fountain. For a moment you almost believe it, and then you notice the lamps are lit at noon and the trees are made of iron."
+},
+"panopticon":{
+"size":[
+2,
+2,
+1
+],
+"repeat":false,
+"kind":"quad",
+"weight":5,
+"label":"The Panopticon",
+"bytes":804548,
+"blurb":"Every aisle runs straight to the tower in the middle. The windows in the tower are dark, which is not the same as empty."
+},
+"pillarabyss":{
+"size":[
+4,
+4,
+4
+],
+"repeat":false,
+"kind":"giant",
+"weight":2,
+"label":"The Pillar Abyss",
+"bytes":1473102,
+"blurb":"The doorway lets you out onto a ledge sixteen metres above a floor you can barely see. The bridges are railed. Someone thought of that, at least."
+},
+"pillarbooks":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":7,
+"label":"The Book Columns",
+"bytes":296957,
+"blurb":"The columns are books, all the way round and all the way up. You try not to think about which ones are holding up the ceiling."
 },
 "pillars":{
 "size":[
@@ -57,7 +967,7 @@
 "kind":"quad",
 "weight":50,
 "label":"The Pillar Forest",
-"bytes":1228059
+"bytes":914199
 },
 "poolhall":{
 "size":[
@@ -69,7 +979,33 @@
 "kind":"long",
 "weight":50,
 "label":"The Long Hall",
-"bytes":642441
+"bytes":453513
+},
+"portrait":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":5,
+"label":"The Portrait Gallery",
+"bytes":204637,
+"blurb":"Hundreds of frames, and nobody in any of them. One is a window, or a painting of the sky good enough to pass for one."
+},
+"radial":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":7,
+"label":"The Radial Stacks",
+"bytes":330107,
+"blurb":"Every aisle leads to the desk. The desk is staffed, you are sure of it, just not at the moment."
 },
 "reading":{
 "size":[
@@ -81,7 +1017,20 @@
 "kind":"single",
 "weight":20,
 "label":"The Reading Room",
-"bytes":269392
+"bytes":205220
+},
+"readingplain":{
+"size":[
+8,
+8,
+2
+],
+"repeat":false,
+"kind":"giant",
+"weight":3,
+"label":"The Reading Plain",
+"bytes":1826612,
+"blurb":"Reading tables to the horizon, every lamp lit, every chair pushed in. Nobody reads here. Perhaps they all found what they were looking for."
 },
 "rest":{
 "size":[
@@ -93,7 +1042,124 @@
 "kind":"single",
 "weight":45,
 "label":"A rest area",
-"bytes":195442
+"bytes":144402
+},
+"rings":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":5,
+"label":"The Rings",
+"bytes":316387,
+"blurb":"A maze, but a polite one: the shelves are low enough to see the middle, and the middle has a chair. Getting there is another matter."
+},
+"rotunda":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":7,
+"label":"The Rotunda",
+"bytes":409257,
+"blurb":"A drum of books under a dome, and a circle of sky at the top that never changes. Everything here faces the middle, including you."
+},
+"scissor":{
+"size":[
+1,
+1,
+1
+],
+"repeat":true,
+"kind":"column",
+"weight":35,
+"label":"The Scissor Stairs",
+"bytes":238915,
+"blurb":"Flights of stairs zigzag up an open shaft, a landing every half floor. From the rail you can see them going up out of sight and down out of sight, identical, the whole way."
+},
+"scriptorium":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":6,
+"label":"The Scriptorium",
+"bytes":288654,
+"blurb":"Sixteen desks, sixteen candles, sixteen books open at the same page. The ink in every well is still wet."
+},
+"seaofshelves":{
+"size":[
+6,
+6,
+2
+],
+"repeat":false,
+"kind":"giant",
+"weight":3,
+"label":"The Sea of Shelves",
+"bytes":1232466,
+"blurb":"Stacks, and aisles, and stacks, under a ceiling low enough to be personal. Somewhere out there a lamp is buzzing, which is odd, because none of them are electric."
+},
+"secret_crawl":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":2,
+"label":"The Crawlspace",
+"bytes":44282,
+"blurb":"You had to crawl to get in here. Someone else did too, once, and brought a chair, a lamp and a book, and never took them away."
+},
+"secret_reading":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":2,
+"label":"The Hidden Reading Room",
+"bytes":121740,
+"blurb":"The bookcase was not really there. Behind it, somebody kept a little room of their own, and left the candles burning."
+},
+"secret_vault":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":2,
+"label":"The Vault",
+"bytes":221297,
+"blurb":"Somebody built a vault in here, with a door a foot thick, and then left it standing open. Whatever was worth guarding, it is still here. It is a book."
+},
+"shrine":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":3,
+"label":"The Shrine",
+"bytes":307998,
+"blurb":"One book, on its own, behind a rope, with more candles than anyone could light. Whoever keeps them lit is very quiet about it."
 },
 "stacks":{
 "size":[
@@ -105,7 +1171,189 @@
 "kind":"long",
 "weight":50,
 "label":"The Sunken Stacks",
-"bytes":846295
+"bytes":579019
+},
+"stairhall":{
+"size":[
+2,
+2,
+2
+],
+"repeat":false,
+"kind":"tall",
+"weight":7,
+"label":"The Stair Hall",
+"bytes":860969,
+"blurb":"A stair goes round the walls of a tall hall, one side at a time, and arrives at a gallery lined with books. It is a long way round for one floor."
+},
+"stairsnowhere":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":4,
+"label":"Stairs to Nowhere",
+"bytes":192299,
+"blurb":"Every stair here is well made, handsomely railed, and goes nowhere. Climb one anyway. Everyone does."
+},
+"stairwell":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":5,
+"label":"The Stairwell",
+"bytes":272056,
+"blurb":"Up one stair, round the gallery, down the other, and you are back where you began. It is very good exercise, if you have forever."
+},
+"steppedhall":{
+"size":[
+2,
+1,
+1
+],
+"repeat":false,
+"kind":"long",
+"weight":6,
+"label":"The Stepped Hall",
+"bytes":311895,
+"blurb":"The floor steps down toward the middle of the hall, shelf by shelf, and up again the other side. The reading tables are at the bottom, where the quiet collects."
+},
+"stepwell_s":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":5,
+"label":"The Stepwell",
+"bytes":299005,
+"blurb":"A well with no water, only stairs: little flights that meet and part and meet again all the way down. At the bottom somebody has set out a table."
+},
+"study":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":6,
+"label":"The Study",
+"bytes":171938,
+"blurb":"A fire, a deep chair, a lamp on the desk: everything a study should have, spread across a room the size of a church. The fire has been lit for you."
+},
+"sunkenstair":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":6,
+"label":"The Descent",
+"bytes":296592,
+"blurb":"A staircase as wide as the room goes down to a reading floor and comes up again on the other side. Nobody has ever gone down it and come up the same side."
+},
+"tallroom":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":5,
+"label":"The Narrow Room",
+"bytes":284026,
+"blurb":"The walls are books and they go up and up, and the sky is a crack. It is a very tall room with nowhere in it."
+},
+"tearoom":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":5,
+"label":"The Tea Room",
+"bytes":363945,
+"blurb":"Every table is laid for two. The tea is always hot. Nobody has ever been seen pouring it."
+},
+"telephones":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":4,
+"label":"The Telephone Room",
+"bytes":305926,
+"blurb":"Twenty booths, and every line is busy. If you pick one up you hear breathing, and then someone says your name, and then the dialling tone."
+},
+"terracedstacks":{
+"size":[
+2,
+2,
+1
+],
+"repeat":false,
+"kind":"quad",
+"weight":6,
+"label":"The Terraces of Stacks",
+"bytes":629002,
+"blurb":"The floor goes down in steps, and the shelves go down with it, the way a hillside goes down to a river. There is no river."
+},
+"terraces":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":6,
+"label":"The Terraces",
+"bytes":235854,
+"blurb":"The floor climbs in terraces to a table at the top, and every step is a shelf of books. The ceiling climbs the same way, as if the room had been folded in half."
+},
+"theatre":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":4,
+"label":"The Little Theatre",
+"bytes":214442,
+"blurb":"The house is dark and the footlights are up. There is an armchair on the stage, and a book on the armchair. You have the feeling you are expected to go on."
+},
+"tiers":{
+"size":[
+2,
+2,
+2
+],
+"repeat":false,
+"kind":"tall",
+"weight":8,
+"label":"The Tiers",
+"bytes":795958,
+"blurb":"Balconies above balconies, all of them lined with books, all of them empty. From the top one you can see everything except who is on the one below."
 },
 "tower":{
 "size":[
@@ -117,7 +1365,98 @@
 "kind":"column",
 "weight":45,
 "label":"The Spiral",
-"bytes":545097
+"bytes":471009
+},
+"tunnel":{
+"size":[
+2,
+1,
+1
+],
+"repeat":false,
+"kind":"long",
+"weight":7,
+"label":"The Tunnel",
+"bytes":323922,
+"blurb":"A lamp every two metres, and the lamps go on until they meet. The books on either side are within reach the whole way, which somehow makes it worse."
+},
+"tunnels":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":5,
+"label":"The Burrows",
+"bytes":310792,
+"blurb":"The shelves have closed in until there is no room left, only tunnels. Something made them. You hope it was people."
+},
+"twinnaves":{
+"size":[
+2,
+1,
+1
+],
+"repeat":false,
+"kind":"long",
+"weight":7,
+"label":"The Twin Naves",
+"bytes":478807,
+"blurb":"Two naves, side by side, the same in every particular. Stand in the arcade between them and try to remember which one you came in by."
+},
+"upside":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":3,
+"label":"The Upside-Down Room",
+"bytes":262913,
+"blurb":"Someone has furnished the ceiling. The books stay on their shelves out of politeness. Try not to look up for too long."
+},
+"vestibule":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":4,
+"label":"The Vestibule",
+"bytes":234142,
+"blurb":"The arches go on and on, getting smaller, to a little door at the end. It takes eleven steps to get there. It should take a hundred."
+},
+"voidhall":{
+"size":[
+8,
+8,
+4
+],
+"repeat":false,
+"kind":"giant",
+"weight":3,
+"label":"The Void Hall",
+"bytes":785941,
+"blurb":"The far walls are only a rumour of lamplight. In the middle a staircase climbs into the dark to one lit book, which is almost certainly not yours."
+},
+"waiting":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":5,
+"label":"The Waiting Room",
+"bytes":250516,
+"blurb":"Every chair faces the same door. The clock says ten to four. You find you have already sat down."
 },
 "well":{
 "size":[
@@ -129,6 +1468,19 @@
 "kind":"column",
 "weight":55,
 "label":"The Well",
-"bytes":227847
+"bytes":158695
+},
+"ziggurat":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":5,
+"label":"The Ziggurat",
+"bytes":324126,
+"blurb":"Someone stacked the books into a pyramid and climbed it, and left the book at the top open. The page is blank on both sides."
 }
 }
