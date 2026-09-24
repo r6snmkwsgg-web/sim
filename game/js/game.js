@@ -1104,6 +1104,7 @@ function frame(now) {
   const raw = (now - last) / 1000, dt = Math.min(0.05, raw); last = now;
   const t = now / 1000;
   renderFrame.dt = dt;
+  if (AU.wind && !(S && S.fall) && AU.wind.gain.value > 0) AU.wind.gain.setTargetAtTime(0, AU.ctx.currentTime, 0.15);   // the rush of air stops whenever the fall does, however it ended
   if (MODE === 'play' && !document.hidden && raw < 0.5) {
     perfSum += raw; perfN++; perfT += raw;
     if (perfT > 2.5) {
