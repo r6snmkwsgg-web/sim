@@ -86,6 +86,14 @@ def pack(name):
     raw = b''.join(parts)
     z = zlib.compress(raw, 9)
     out = {k: v for k, v in src.items() if k not in ('bin', 'groups', 'col')}
+    # layout numbers need millimetres, lightmap coordinates a little more: trim the digits
+    def rnd(v, d):
+        if isinstance(v, float): return round(v, d)
+        if isinstance(v, list): return [rnd(x, d) for x in v]
+        if isinstance(v, dict): return {k: rnd(x, 5 if k == 'lm' else d) for k, x in v.items()}
+        return v
+    for k in ('slabs', 'spots', 'nav', 'water'):
+        if k in out: out[k] = rnd(out[k], 3)
     out.update({'fmt': 2, 'groups': groups, 'col': colm, 'q': {'lo': lo.tolist(), 'step': step.tolist(), 'uv': ustep},
                 'zbin': base64.b64encode(z).decode('ascii'), 'rawSize': len(raw)})
     lm = {'day': webp_b64(os.path.join(RAW, name + '_day.webp'))}

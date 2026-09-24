@@ -8,7 +8,7 @@ W0 = 4.0            # the walls' thickness: the chamber is the middle 8 m
 
 
 def cheap_candle(R, x, y, z, h, r=0.022):
-    R.nocol.add(cyl(x, y, z, z + h, r, 4, side='ivory', caps=False, a0=0.4, a1=0.4 + 2 * math.pi))
+    R.nocol.add(cyl(x, y, z, z + h, r, 3, side='ivory', caps=False, a0=0.4, a1=0.4 + 2 * math.pi))
     R.light(cyl(x, y, z + h + 0.008, z + h + 0.07, 0.014, 3, side='e_candle', caps=False))
 
 
@@ -40,7 +40,7 @@ def make():
         for (z, r0) in ((0.35, 3.25), (0.7, 3.5), (1.05, 3.75)):
             R.parts.add(ring(cx, cy, 0, z, r0, rc + 0.05, 8, top='tile', bottom='tile', inner='tile', outer='tile', a0=a0, a1=a1))
             rm = r0 + 0.13
-            n = int((a1 - a0) * rm / 0.2)
+            n = int((a1 - a0) * rm / 0.23)
             for k in range(n):
                 a = a0 + (k + 0.5) * (a1 - a0) / n + rnd.uniform(-0.01, 0.01)
                 d = rnd.uniform(-0.06, 0.06)

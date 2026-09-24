@@ -9,7 +9,7 @@ def make():
     R = Room('terracedstacks', 2, 2, res=2048)
     R.sockets(floor='terrazzo', wall='tile')
     W = R.W
-    R.cut(box(T - 0.02, T - 0.02, 0, W - T + 0.02, W - T + 0.02, TOP, 'tile', bottom='terrazzo', top='plaster'))
+    R.cut(box(T - 0.02, T - 0.02, 0, W - T + 0.02, W - T + 0.02, TOP - 0.1, 'tile', bottom='terrazzo', top='plaster'))
     rim = 3.35                                     # the raised walk round the west, north and east
     edges = [9.0, 15.0, 21.0]                      # where each tier starts (north of the edge is lower)
     dz = 0.6
@@ -45,11 +45,11 @@ def make():
             stack2_ax(R, x, a, x, b, z, 6, frame='oak', crown='walnut', ends='walnut')
         # a lamp over each aisle
         for x in (8.0, 16.0, 24.0):
-            lamp(R, x, (y0 + y1) / 2, 4.2, 0.24, chain=TOP)
+            lamp(R, x, (y0 + y1) / 2, 4.2, 0.24, chain=TOP - 0.1)
     # skylights over the tiers
     for (y0, z, y1) in tiers:
         yc = (y0 + y1) / 2
-        R.light(box(6.0, yc - 0.8, TOP - 0.06, W - 6.0, yc + 0.8, TOP - 0.04, 'e_sky'))
+        R.light(box(6.0, yc - 0.8, TOP - 0.16, W - 6.0, yc + 0.8, TOP - 0.14, 'e_sky'))
     # books on the rim walls
     wall_shelves(R, ((0.8, 6.2), (9.8, 22.2), (25.8, W - 0.8)), rows=9, frame='walnut')
     # lights that stay on: step lights at the stairs
@@ -66,5 +66,5 @@ def make():
     R.spot('probe', 16, 12, 1.2)
     R.meta.update(label='The Terraces of Stacks', weight=6,
                   blurb='The floor goes down in steps, and the shelves go down with it, the way a hillside goes down to a river. There is no river.')
-    R.meta['box'] = [[T, -1.8, T], [W - T, TOP, W - T]]
+    R.meta['box'] = [[T, -1.8, T], [W - T, TOP - 0.1, W - T]]
     return R

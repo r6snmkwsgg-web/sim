@@ -36,7 +36,7 @@ def make():
     P = 1.45                       # pitch of the cells
     low = (2.35, 3.8, 5.25, 10.75, 12.2, 13.65)
     mid = (3.075, 4.525, 11.475, 12.925)
-    top = (2.35, 3.8, 5.25, 6.7, 8.0, 9.3, 10.75, 12.2, 13.65)
+    top = (2.35, 3.8, 5.25, 8.0, 10.75, 12.2, 13.65)
     cw, depth = 1.1, 1.25
     k = 0
     for side in 'SNWE':
@@ -46,7 +46,11 @@ def make():
             f, ang = frame(side, c, depth)
             if chair_cell:
                 x, y = f(0, 0.6)
-                chair(R, x, y, ang, frame='walnut', seat='velvet', arms=True)
+                g = Geo()
+                g.add(box(-0.26, -0.28, 0, 0.26, 0.28, 0.45, 'velvet', skip=('-z',)))
+                g.add(box(-0.3, -0.3, 0.3, -0.18, 0.3, 1.0, 'walnut'))
+                R.parts.add(g.xform(ang, x, y))
+                R.spot('sit', x, y, 0.45, ang)
                 lx, ly = f(0, 0.05)
                 bulb(R, lx, ly, 1.75, 0.07, 'e_amber')
                 R.nocol.add(box(-0.05, -0.1, 1.62, 0.12, 0.1, 1.67, 'brass').xform(ang, lx, ly))

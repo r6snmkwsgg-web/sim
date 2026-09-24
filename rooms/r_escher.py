@@ -9,7 +9,7 @@ def make():
     R = Room('escher', 2, 2, res=2048)
     R.sockets(floor='terrazzo', wall='tile')
     W = R.W
-    R.cut(box(T - 0.02, T - 0.02, 0, W - T + 0.02, W - T + 0.02, TOP, 'tile', bottom='terrazzo', top='plaster'))
+    R.cut(box(T - 0.02, T - 0.02, 0, W - T + 0.02, W - T + 0.02, TOP - 0.1, 'tile', bottom='terrazzo', top='plaster'))
     rr, ra, rs, ro = rot180(W)
     LO, HI = 2.5, 5.0
     # half the plan; the other half is the same turned through 180 degrees
@@ -57,7 +57,7 @@ def make():
                 R.cut(prism([(p + y, q + z) for p, q in pr], 'x', x0, x1, ['tile'] * 4))
                 xd = 0.15 if x == 0 else W - 0.2
                 R.parts.add(box(xd, y - 0.75, z, xd + 0.05, y + 0.75, z + 2.3, 'walnut'))
-                R.light(box((T + 0.01) if x == 0 else (W - T - 0.05), y - 0.3, z + 2.3, (T + 0.05) if x == 0 else (W - T - 0.01), y + 0.3, z + 2.5, 'e_exit'))
+                R.light(box((T + 0.01) if x == 0 else (W - T - 0.05), y - 0.3, z + 2.32, (T + 0.05) if x == 0 else (W - T - 0.01), y + 0.3, z + 2.46, 'e_exit'))
     # piers under the decks, where nothing walks or climbs beneath
     def clear_below(x, y, z):
         for (r, zz) in allrects:
@@ -77,7 +77,7 @@ def make():
                     pier(R, x, y, 0, z - 0.3, 0.18)
     # ceiling lamps over the knot, low lamps on the floor
     for (x, y) in ((10, 10), (22, 22), (10, 22), (22, 10), (16, 16), (5.5, 13), (26.5, 19), (13, 5.5), (19, 26.5)):
-        lamp(R, x, y, 6.9 if (x, y) != (16, 16) else 6.6, 0.28, chain=TOP)
+        lamp(R, x, y, 6.9 if (x, y) != (16, 16) else 6.6, 0.28, chain=TOP - 0.1)
     for (x, y) in ((3.0, 3.0), (W - 3.0, W - 3.0), (W - 3.0, 3.0), (3.0, W - 3.0)):
         R.parts.add(cyl(x, y, 0, 1.4, 0.03, 6, side='brass', caps=False))
         R.parts.add(cyl(x, y, 0, 0.05, 0.22, 12, side='brass', top='brass'))
@@ -99,7 +99,7 @@ def make():
     R.spot('probe', 10, 13, 1.7)
     R.meta.update(label='The Stair Plaza', weight=4,
                   blurb='Stairs go up to bridges that go over stairs that go down to landings under bridges. You are fairly sure you have been on this one before.')
-    R.meta['box'] = [[T, 0, T], [W - T, TOP, W - T]]
+    R.meta['box'] = [[T, 0, T], [W - T, TOP - 0.1, W - T]]
     return R
 
 
