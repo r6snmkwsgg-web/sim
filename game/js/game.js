@@ -273,7 +273,10 @@ function updatePlayer(dt) {
   }
   const ox = S.x, oz = S.z, wasGround = PL.onGround, vyIn = PL.vy;
   const pos = _pp.set(S.x + PL.vx * dt, S.y + PL.vy * dt, S.z + PL.vz * dt);
-  collideBody(pos, PL.crouch ? 1.15 : 1.78);
+  { const ix = pos.x, iz = pos.z;
+    collideBody(pos, PL.crouch ? 1.15 : 1.78);
+    // squeezed between two things, the pushes can add up past a wall's thickness and out the far side: refuse that
+    if (Math.hypot(pos.x - ix, pos.z - iz) > 0.3) { pos.x = S.x; pos.z = S.z; collideBody(pos, PL.crouch ? 1.15 : 1.78); if (Math.hypot(pos.x - S.x, pos.z - S.z) > 0.3) { pos.x = S.x; pos.z = S.z; } } }
   pushNPCs(pos);
   const g = footing(pos.x, pos.y, pos.z, 0.56, PL.onGround ? 0.45 : Math.max(0.06, -PL.vy * dt + 0.06));
   if (g > -Infinity && pos.y <= g + 0.02 && !(swim && PL.vy > 0.2)) {
@@ -285,6 +288,13 @@ function updatePlayer(dt) {
   S.x = pos.x; S.y = pos.y; S.z = pos.z;
   if (PL.onGround || swim) PL.peak = S.y; else PL.peak = Math.max(PL.peak, S.y);
   if (PL.onGround && PL.room) PL.safe = { cx: S.cx, cz: S.cz, floor: S.floor, x: S.x, y: S.y, z: S.z };
+  // a room's floor is its floor: dropping out through the bottom of an ordinary room (a crack in the
+  // geometry) puts you back where you last stood. Wells and towers are meant to be fallen through.
+  if (PL.onGround) PL.gInst = PL.room;
+  else if (PL.gInst && PL.safe && !PL.gInst.pf.meta.repeat && WORLD.inst.get(PL.gInst.key) === PL.gInst && S.y < PL.gInst.box[1] - 0.05) {
+    const s0 = PL.safe; S.cx = s0.cx; S.cz = s0.cz; S.floor = s0.floor; S.x = s0.x; S.y = s0.y; S.z = s0.z; PL.vy = 0; PL.onGround = true; PL.peak = S.y;
+    worldOrigin(S.cx, S.cz, S.floor); updateWorld(S.x, S.y, S.z, false);
+  }
   if (!PL.onGround && !swim && PL.peak - S.y > 4.2) { startFall(false); return; }
   const moved = Math.hypot(S.x - ox, S.z - oz);
   const w = wrapPlayer();

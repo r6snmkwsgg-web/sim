@@ -968,7 +968,7 @@ function updateWorld(px, py, pz, fastFall) {
     positionInst(r);
   }
   // fetch what is a little further off, so it is ready before you get there
-  if (!fastFall) for (const n of roomsNear(pcx, pcz, plv, R + 2, 1)) { keep.add(n); requestPrefab(n); }
+  if (!fastFall) for (const n of roomsNear(pcx, pcz, plv, R + 1, 0)) { keep.add(n); requestPrefab(n); }
   evictPrefabs(keep);
 }
 const PENDING = new Set();
@@ -1008,6 +1008,8 @@ function roomReadyAt(px, py, pz) {
   if (!pl) return true;
   const v = PREFABS.get(pl.pf);
   if (!v || v instanceof Promise) { requestPrefab(pl.pf); return false; }
+  // loaded, but maybe not placed yet (placement runs every half second): place it now
+  if (!instAt(px, py, pz)) { updateWorld(px, py - 0.5, pz, false); return !!instAt(px, py, pz); }
   return true;
 }
 /* the room instance you are standing in */

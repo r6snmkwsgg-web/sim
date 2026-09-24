@@ -15,7 +15,7 @@ from PIL import Image
 HERE = os.path.dirname(os.path.abspath(__file__))
 RAW = os.path.join(HERE, 'out')
 DST = os.path.join(HERE, '..', 'game', 'rooms')
-LM_QUALITY = 88
+LM_QUALITY = 80
 
 # the original rooms predate catalogue metadata in their scripts
 LEGACY = {
