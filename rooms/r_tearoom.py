@@ -17,8 +17,11 @@ def make():
         R.nocol.add(box(4.4, p - 0.04, H + 0.7, C - 4.4, p + 0.04, H + 0.8, 'brass', skip=('+z',)))
     # green dado with a brass rail, all round
     for (x0, y0, x1, y1) in ((T, T, C - T, T + 0.03), (T, C - T - 0.03, C - T, C - T), (T, T, T + 0.03, C - T), (C - T - 0.03, T, C - T, C - T)):
-        R.nocol.add(box(x0, y0, 0, x1, y1, 1.1, 'green', skip=('-z',)))
-        R.nocol.add(box(x0 - 0.01, y0 - 0.01, 1.1, x1 + 0.01, y1 + 0.01, 1.16, 'brass'))
+        for (a, b) in ((T, 6.45), (9.55, C - T)):
+            if y1 - y0 < 0.1: xa, ya, xb, yb = a, y0, b, y1
+            else: xa, ya, xb, yb = x0, a, x1, b
+            R.nocol.add(box(xa, ya, 0, xb, yb, 1.1, 'green', skip=('-z',)))
+            R.nocol.add(box(xa - 0.01, ya - 0.01, 1.1, xb + 0.01, yb + 0.01, 1.16, 'brass'))
     # the kiosk, glowing, against the north wall (as in the rest areas)
     kx = 12.7
     R.parts.add(box(kx - 0.8, C - T - 0.85, 0, kx + 0.8, C - T + 0.01, 2.35, 'kiosk', skip=('-z',)))

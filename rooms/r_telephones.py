@@ -37,7 +37,8 @@ def make():
     shell(R, H, wall='plaster', floor='terrazzo', ceil='plaster')
     # oak panelling to 2.6 m on the booth walls
     for (x0, x1) in ((T, T + 0.03), (C - T - 0.03, C - T)):
-        R.nocol.add(box(x0, T, 0, x1, C - T, 2.8, 'walnut', skip=('-z',)))
+        for (a, b) in ((T, 6.45), (9.55, C - T)):
+            R.nocol.add(box(x0, a, 0, x1, b, 2.8, 'walnut', skip=('-z',)))
     # booths: five either side of each side door
     k = 0
     for (a, b) in ((0.6, 6.2), (9.8, C - 0.6)):

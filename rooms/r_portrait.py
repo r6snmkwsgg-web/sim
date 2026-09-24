@@ -23,7 +23,7 @@ def frame(R, side, u0, u1, z0, z1, panel='slate', b=0.1, light=False):
         p.add(box(L / 2 - 0.02, 0.0, z1 + 0.05, L / 2 + 0.02, 0.25, z1 + 0.09, 'brass'))
         p.add(box(L / 2 - 0.3, 0.2, z1 + 0.02, L / 2 + 0.3, 0.28, z1 + 0.09, 'brass'))
         R.nocol.add(p.xform(ang, ox, oy))
-        R.light(box(L / 2 - 0.27, 0.21, z1 + 0.0, L / 2 + 0.27, 0.27, z1 + 0.02, 'e_lamp').xform(ang, ox, oy))
+        R.light(box(L / 2 - 0.27, 0.21, z1 + 0.0, L / 2 + 0.27, 0.27, z1 + 0.02, 'e_fluor').xform(ang, ox, oy))
 
 
 def make():
@@ -33,7 +33,8 @@ def make():
     shell(R, H, wall='oxblood', floor='floor', ceil='plaster')
     # a laylight in a deep coffer
     R.cut(box(4.0, 4.0, H - 0.05, C - 4.0, C - 4.0, H + 0.05, 'plaster'))
-    R.light(box(4.2, 4.2, H + 0.0, C - 4.2, C - 4.2, H + 0.03, 'e_panel'))
+    for (x, y) in ((6.0, 6.0), (10.0, 6.0), (6.0, 10.0), (10.0, 10.0)):
+        pendant(R, x, y, 4.2, H + 0.05, r=0.22, m='gilt', em='e_amber')
     # a dado of low bookcases, all round
     wall_shelves(R, rows=2, frame='walnut', depth=0.3)
     # the salon hang
@@ -51,7 +52,7 @@ def make():
                 h0 = zb - za
                 hh = h0 * rnd.uniform(0.72, 1.0)
                 z0 = za + (h0 - hh) * rnd.uniform(0.2, 0.8)
-                panel = rnd.choice(('slate', 'black', 'slate', 'blackboard'))
+                panel = rnd.choice(('black', 'black', 'slate', 'blackboard'))
                 if side == 'N' and ri == 0 and not sky_done and u > 10.0:
                     panel = 'e_skydome'; sky_done = True; w = 1.6; hh = h0; z0 = za
                 frame(R, side, u, u + w, z0, z0 + hh, panel, b=0.08 + 0.04 * (w > 1.0), light=(ri == 0 and rnd.random() < 0.6))
