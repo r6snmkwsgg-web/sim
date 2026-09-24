@@ -29,6 +29,7 @@ function audioInit() {
     const w = ctx.createBufferSource(); w.buffer = AU.noise; w.loop = true; AU.windF = ctx.createBiquadFilter(); AU.windF.type = 'lowpass'; AU.windF.frequency.value = 300;
     AU.wind = ctx.createGain(); AU.wind.gain.value = 0; w.connect(AU.windF); AU.windF.connect(AU.wind); AU.wind.connect(AU.master); w.start();
   } catch (e) { AU.ctx = null; }
+  startMusic();
 }
 function burst({ dur = 0.08, type = 'bandpass', f = 900, q = 1.2, gain = 0.25, rev = 0.5, att = 0.004 }) {
   const ctx = AU.ctx; if (!ctx) return;
@@ -45,7 +46,12 @@ function tone(f0, f1, dur, gain, type = 'sine', rev = 0.4) {
   o.connect(g); g.connect(AU.master); const rs = ctx.createGain(); rs.gain.value = rev; g.connect(rs); rs.connect(AU.rev); o.start(t); o.stop(t + dur + 0.05);
 }
 const SFX = {
-  step: (soft, carpet) => burst({ dur: carpet ? 0.05 : 0.07, f: carpet ? 300 : 700 + Math.random() * 600, q: 1.4, gain: carpet ? 0.05 : soft ? 0.07 : 0.14, rev: carpet ? 0.2 : 0.9 }),
+  // footsteps: a low thud of the heel, and on stone or marble a small click that rings off the vaults
+  step: (soft, carpet) => {
+    burst({ dur: 0.09, type: 'lowpass', f: carpet ? 140 : 200 + Math.random() * 60, q: 0.7, gain: carpet ? 0.12 : soft ? 0.14 : 0.24, rev: carpet ? 0.1 : 0.5, att: 0.006 });
+    if (!carpet) tone(1500 + Math.random() * 500, 1100, 0.035, soft ? 0.006 : 0.012, 'triangle', 1.0);
+  },
+  land: hard => { burst({ dur: 0.16, type: 'lowpass', f: 150, q: 0.7, gain: hard ? 0.5 : 0.3, rev: 0.6, att: 0.005 }); tone(90, 50, 0.18, hard ? 0.18 : 0.1, 'sine', 0.5); },
   splash: () => { burst({ dur: 0.25, type: 'bandpass', f: 1400 + Math.random() * 800, q: 0.8, gain: 0.12, rev: 0.8, att: 0.01 }); },
   plunge: () => { burst({ dur: 0.7, type: 'lowpass', f: 900, gain: 0.35, rev: 1.0, att: 0.01 }); tone(300, 90, 0.5, 0.08, 'sine', 0.8); },
   page: () => { burst({ dur: 0.22, type: 'highpass', f: 2600, q: 0.5, gain: 0.07, rev: 0.2, att: 0.03 }); setTimeout(() => burst({ dur: 0.12, type: 'highpass', f: 3400, q: 0.5, gain: 0.05, rev: 0.2 }), 90); },
@@ -54,11 +60,79 @@ const SFX = {
   thunk: () => { tone(80, 32, 1.6, 0.35, 'sine', 0.9); burst({ dur: 0.5, type: 'lowpass', f: 200, gain: 0.3, rev: 0.9 }); },
   hit: () => { burst({ dur: 0.18, type: 'lowpass', f: 420, gain: 0.5, rev: 0.4 }); tone(120, 50, 0.25, 0.3); },
   impact: () => { burst({ dur: 0.6, type: 'lowpass', f: 300, gain: 0.9, rev: 1.0 }); tone(70, 25, 0.8, 0.6); },
-  jump: () => burst({ dur: 0.1, f: 500, q: 1, gain: 0.07, rev: 0.5 }),
+  jump: () => { burst({ dur: 0.07, type: 'lowpass', f: 180, q: 0.7, gain: 0.16, rev: 0.3, att: 0.004 }); tone(160, 110, 0.12, 0.04, 'sine', 0.3); },
   drink: () => { burst({ dur: 0.3, type: 'bandpass', f: 1800, q: 3, gain: 0.08, rev: 0.3 }); tone(900, 1300, 0.15, 0.03, 'sine', 0.3); },
   scream: () => { tone(820, 380, 2.4, 0.05, 'sawtooth', 1.0); },
   chant: () => { tone(98, 96, 3.5, 0.06, 'sawtooth', 1.0); setTimeout(() => tone(110, 108, 3.0, 0.05, 'sawtooth', 1.0), 900); },
 };
+
+/* ==========================================================================
+   Music: a generative score, never the same twice. Slow pads walk a minor
+   progression; a far-off piano drops single notes into the reverb.
+   ========================================================================== */
+const MUS = { on: false, t: 0, chord: 0, next: 0, timer: null };
+const MUS_CHORDS = [   // MIDI notes, in D minor: Dm9, Bbmaj7, Gm6, A7sus, Fmaj7/C, Em7b5, Dm(add9)/A, C6
+  [38, 50, 53, 57, 64], [34, 46, 50, 53, 57], [31, 43, 46, 50, 52], [33, 45, 50, 52, 55],
+  [36, 48, 53, 57, 64], [40, 52, 55, 58, 62], [33, 45, 50, 53, 64], [36, 48, 52, 55, 57]];
+const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
+function musicLevel() { return S && S.settings.music !== undefined ? S.settings.music : 0.6; }
+function startMusic() {
+  const ctx = AU.ctx; if (!ctx || MUS.on) return;
+  MUS.on = true;
+  MUS.bus = ctx.createGain(); MUS.bus.gain.value = 0; MUS.bus.connect(AU.under);
+  MUS.send = ctx.createGain(); MUS.send.gain.value = 0.9; MUS.bus.connect(MUS.send); MUS.send.connect(AU.rev);
+  MUS.pf = ctx.createBiquadFilter(); MUS.pf.type = 'lowpass'; MUS.pf.frequency.value = 900; MUS.pf.Q.value = 0.3; MUS.pf.connect(MUS.bus);
+  MUS.next = ctx.currentTime + 0.5; MUS.chord = Math.floor(Math.random() * MUS_CHORDS.length);
+  musicMix(true); musicTick();
+}
+function musicMix(now) {
+  if (!MUS.on) return;
+  const ctx = AU.ctx, lv = musicLevel() * (dark ? 0.45 : 1) * (S && S.fall ? 0.6 : 1) * 0.55;
+  MUS.bus.gain.setTargetAtTime(lv, ctx.currentTime, now ? 2.5 : 1.5);
+  MUS.pf.frequency.setTargetAtTime(dark ? 520 : 900, ctx.currentTime, 3);
+}
+function padVoice(m, t0, dur, g) {
+  const ctx = AU.ctx, f = mtof(m);
+  const env = ctx.createGain(); env.gain.setValueAtTime(0, t0);
+  env.gain.linearRampToValueAtTime(g, t0 + dur * 0.35); env.gain.setValueAtTime(g, t0 + dur * 0.6); env.gain.linearRampToValueAtTime(0, t0 + dur + 3);
+  env.connect(MUS.pf);
+  for (const [det, type] of [[-5, 'triangle'], [4, 'sine'], [0, 'sine']]) {
+    const o = ctx.createOscillator(); o.type = type; o.frequency.value = f; o.detune.value = det + (Math.random() - 0.5) * 4;
+    o.connect(env); o.start(t0); o.stop(t0 + dur + 3.2);
+  }
+}
+function pianoNote(m, t0, g) {
+  const ctx = AU.ctx, f = mtof(m), out = ctx.createGain(); out.gain.value = g; out.connect(MUS.bus);
+  [[1, 1, 4.5], [2, 0.35, 2.2], [3, 0.12, 1.2], [4.02, 0.05, 0.7]].forEach(([h, a, d]) => {
+    const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = f * h;
+    const e = ctx.createGain(); e.gain.setValueAtTime(0, t0); e.gain.linearRampToValueAtTime(a, t0 + 0.006); e.gain.exponentialRampToValueAtTime(0.0001, t0 + d);
+    o.connect(e); e.connect(out); o.start(t0); o.stop(t0 + d + 0.1);
+  });
+}
+function musicTick() {
+  if (!MUS.on) return;
+  const ctx = AU.ctx;
+  while (MUS.next < ctx.currentTime + 1.0) {
+    const t0 = MUS.next, dur = 11 + Math.random() * 6, ch = MUS_CHORDS[MUS.chord];
+    const low = dark ? -12 : 0;
+    padVoice(ch[0] + low, t0, dur, 0.05);
+    for (let i = 1; i < ch.length; i++) if (Math.random() < 0.8) padVoice(ch[i] + low, t0 + Math.random() * 1.5, dur, 0.022);
+    // the piano: a few notes from the chord, high and far away, not every bar
+    const n = dark ? (Math.random() < 0.4 ? 1 : 0) : Math.floor(Math.random() * 4);
+    let tp = t0 + 1.5 + Math.random() * 2;
+    for (let k = 0; k < n; k++) {
+      const m = ch[1 + Math.floor(Math.random() * (ch.length - 1))] + (Math.random() < 0.6 ? 24 : 12);
+      pianoNote(m, tp, 0.05 + Math.random() * 0.03);
+      if (Math.random() < 0.3) pianoNote(m + (Math.random() < 0.5 ? 2 : -3), tp + 0.45, 0.035);
+      tp += 1.2 + Math.random() * 3;
+    }
+    // drift through the progression, sometimes stepping back, sometimes skipping
+    const r = Math.random();
+    MUS.chord = (MUS.chord + (r < 0.6 ? 1 : r < 0.8 ? 2 : MUS_CHORDS.length - 1)) % MUS_CHORDS.length;
+    MUS.next = t0 + dur * 0.72;
+  }
+  MUS.timer = setTimeout(musicTick, 400);
+}
 
 /* ==========================================================================
    Input
@@ -203,7 +277,7 @@ function updatePlayer(dt) {
   const g = groundAt(pos.x, pos.y, pos.z, 0.5, PL.onGround ? 0.45 : Math.max(0.06, -PL.vy * dt + 0.06));
   if (g > -Infinity && pos.y <= g + 0.02 && !(swim && PL.vy > 0.2)) {
     if (!wasGround && vyIn < -9.5 && !wat) hurt(Math.round((-vyIn - 9.5) * 8), 'the fall');
-    if (!wasGround && vyIn < -3 && !wat) SFX.step(false);
+    if (!wasGround && vyIn < -2 && !wat) SFX.land(vyIn < -7);
     pos.y = g; PL.vy = 0; PL.onGround = !swim;
   } else if (wasGround && g > -Infinity && pos.y - g < 0.45 && PL.vy <= 0 && !swim) { pos.y = g; PL.vy = 0; PL.onGround = true; }
   else PL.onGround = false;
@@ -896,15 +970,16 @@ document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => { close
 document.querySelectorAll('.overlay').forEach(o => o.addEventListener('mousedown', e => { if (e.target === o && o.id !== 'moment') closeOverlays(); }));
 function openPause() {
   if (MODE !== 'play') return;
-  $('#s-sens').value = S.settings.sens; $('#s-vol').value = S.settings.vol; $('#s-q').value = S.settings.q; $('#s-gfx').value = S.settings.gfx; $('#s-hints').checked = S.settings.hints !== 0; syncOut();
+  $('#s-sens').value = S.settings.sens; $('#s-vol').value = S.settings.vol; $('#s-mus').value = musicLevel(); $('#s-q').value = S.settings.q; $('#s-gfx').value = S.settings.gfx; $('#s-hints').checked = S.settings.hints !== 0; syncOut();
   $('#confirm-reset').hidden = true;
   document.querySelectorAll('.overlay').forEach(o => o.hidden = true);
   $('#pause').hidden = false; MODE = 'pause'; $('#touch').hidden = true;
 }
 function resume() { $('#pause').hidden = true; MODE = 'play'; $('#touch').hidden = !isTouch; requestLock(); showClickHint(); }
-function syncOut() { $('#o-sens').textContent = (+S.settings.sens).toFixed(1); $('#o-vol').textContent = Math.round(S.settings.vol * 100); $('#o-q').textContent = Math.round(S.settings.q * 100) + '%'; $('#o-gfx').textContent = ['Low', 'Medium', 'High'][S.settings.gfx]; }
+function syncOut() { $('#o-sens').textContent = (+S.settings.sens).toFixed(1); $('#o-vol').textContent = Math.round(S.settings.vol * 100); $('#o-mus').textContent = Math.round(musicLevel() * 100); $('#o-q').textContent = Math.round(S.settings.q * 100) + '%'; $('#o-gfx').textContent = ['Low', 'Medium', 'High'][S.settings.gfx]; }
 $('#s-sens').oninput = e => { S.settings.sens = +e.target.value; syncOut(); save(); };
 $('#s-vol').oninput = e => { S.settings.vol = +e.target.value; if (AU.out) AU.out.gain.value = S.settings.vol; syncOut(); save(); };
+$('#s-mus').oninput = e => { S.settings.music = +e.target.value; musicMix(); syncOut(); save(); };
 $('#s-q').oninput = e => { S.settings.q = +e.target.value; applyQuality(); syncOut(); save(); };
 $('#s-gfx').oninput = e => { S.settings.gfx = +e.target.value; applyGfx(); syncOut(); save(); };
 $('#s-hints').onchange = e => { S.settings.hints = e.target.checked ? 1 : 0; updateThreadsHUD(); save(); };
@@ -993,6 +1068,7 @@ function syncRoom() {
   WU.uFogD.value = r && (r.pf.name === 'well' || r.pf.name === 'tower') ? 0.012 : r && r.pf.name === 'backrooms' ? 0.02 : 0.006;
   if (AU.ctx) {
     AU.hum.gain.value = 0;
+    const mk = dark + ':' + !!S.fall; if (mk !== MUS.k) { MUS.k = mk; musicMix(); }
     AU.water.gain.value = r && r.pf.meta.water.length ? 0.006 + (PL.wade || PL.swim ? 0.01 : 0) : 0;
     AU.under.frequency.value = PL.under ? 600 : 20000;
   }

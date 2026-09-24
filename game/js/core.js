@@ -118,7 +118,7 @@ function freshState() {
     stats: { dist: 0, books: 0, pages: 0, deaths: 0, fallen: 0, climbed: 0, searches: 0, maxFall: 0, thrown: 0, daysFalling: 0, rooms: 0, swum: 0 },
     journal: [], frags: [], npc: {}, flags: {}, done: {},
     fall: null, dead: null, landing: null,
-    settings: { sens: 1, vol: 0.8, q: 1, gfx: 2, hints: 1 }
+    settings: { sens: 1, vol: 0.8, music: 0.6, q: 1, gfx: 2, hints: 1 }
   };
 }
 function save() { if (!S) return; try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) {} }
