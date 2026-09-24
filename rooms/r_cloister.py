@@ -71,7 +71,7 @@ def make():
         R.parts.add(bar((px, py, 2.4), (px + 0.9, py + 0.4, 3.6), 0.12, 0.12, 'walnut'))
         R.parts.add(bar((px, py, 2.6), (px - 0.7, py - 0.6, 3.8), 0.1, 0.1, 'walnut'))
         for (dx, dy, dz, r) in ((0, 0, 4.6, 1.5), (0.9, 0.4, 3.9, 1.0), (-0.8, -0.6, 4.1, 1.05), (0.2, -0.9, 5.3, 0.95), (-0.4, 0.8, 5.0, 1.0)):
-            R.parts.add(sphere(px + dx, py + dy, dz, r, 14, 8, 'green'))
+            R.parts.add(sphere(px + dx, py + dy, dz, r, 10, 6, 'green'))
     # benches round the basin
     for k in range(4):
         a = k * math.pi / 2

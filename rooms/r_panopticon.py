@@ -52,8 +52,8 @@ def make():
         a = k * 2 * math.pi / 16
         x, y = cx + math.cos(a) * (rt - 0.05), cy + math.sin(a) * (rt - 0.05)
         R.nocol.add(bar((x, y, zc + 0.1), (x + math.cos(a) * 0.25, y + math.sin(a) * 0.25, zc + 0.75), 0.04, 0.04, 'brass'))
-        R.light(sphere(x + math.cos(a) * 0.28, y + math.sin(a) * 0.28, zc + 0.85, 0.13, 10, 5, 'e_lamp'))
-    R.light(sphere(cx, cy, zc + 0.9, 0.45, 16, 8, 'e_lamp'))
+        R.light(sphere(x + math.cos(a) * 0.28, y + math.sin(a) * 0.28, zc + 0.85, 0.13, 6, 3, 'e_lamp'))
+    R.light(sphere(cx, cy, zc + 0.9, 0.45, 10, 5, 'e_lamp'))
     # sixteen radial stacks
     r0, r1 = 5.6, 11.8
     for k in range(16):
@@ -72,8 +72,8 @@ def make():
     for i in range(8):
         s, e = door_angles[i] + gap, door_angles[(i + 1) % 8] - gap
         if e < s: e += 2 * math.pi
-        n = max(1, int(round((e - s) * Rr / 3.0)))
-        arc_shelf(R, cx, cy, Rr - 0.06, s, e, n, 0, 8, frame='walnut')
+        n = max(1, int(round((e - s) * Rr / 4.0)))
+        arc_shelf(R, cx, cy, Rr - 0.06, s, e, n, 0, 6, frame='walnut')
     # walkers: round the ring corridor, round the desk, and out along four aisles
     outer = loop(R, [(cx + 13.8 * math.cos((k + 0.5) * math.pi / 8), cy + 13.8 * math.sin((k + 0.5) * math.pi / 8)) for k in range(16)])
     inner = loop(R, [(cx + 4.5 * math.cos((k + 0.5) * math.pi / 8), cy + 4.5 * math.sin((k + 0.5) * math.pi / 8)) for k in range(16)])

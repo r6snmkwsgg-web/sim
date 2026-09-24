@@ -245,9 +245,9 @@ def upright(g, cx, yf, cz):
 
 def lamp(R, x, y, z, r=0.2, m='e_lamp', chain=None, shade=True):
     """A hanging globe lamp with a brass cap; chain up to z = chain."""
-    R.light(sphere(x, y, z, r, 8, 4, m))
+    R.light(sphere(x, y, z, r, 6, 3, m))
     if shade:
-        R.nocol.add(cyl(x, y, z + r * 0.7, z + r * 1.05, r * 0.55, 10, side='brass', top='brass', bottom='brass'))
+        R.nocol.add(cyl(x, y, z + r * 0.7, z + r * 1.05, r * 0.55, 6, side='brass', top='brass', bottom='brass'))
     if chain:
         R.nocol.add(cyl(x, y, z + r * 1.05, chain, 0.012, 5, side='iron', caps=False))
 
@@ -259,11 +259,11 @@ def chandelier(R, cx, cy, z, r, n=12, chain=None, bulb=0.14, tiers=1):
         R.nocol.add(ring(cx, cy, zz - 0.05, zz + 0.05, rr - 0.06, rr + 0.06, 32, top='brass', bottom='brass', inner='brass', outer='brass'))
         for k in range(n - 3 * t):
             a = 2 * math.pi * k / (n - 3 * t)
-            R.light(sphere(cx + rr * math.cos(a), cy + rr * math.sin(a), zz + 0.16, bulb, 8, 4, 'e_lamp'))
+            R.light(sphere(cx + rr * math.cos(a), cy + rr * math.sin(a), zz + 0.16, bulb, 6, 3, 'e_lamp'))
         for k in range(4):
             a = math.pi / 4 + k * math.pi / 2
             R.nocol.add(bar((cx + rr * math.cos(a), cy + rr * math.sin(a), zz), (cx, cy, zz + 1.2), 0.025, 0.025, 'brass'))
-    R.nocol.add(sphere(cx, cy, z + 0.05, 0.25, 12, 6, 'brass'))
+    R.nocol.add(sphere(cx, cy, z + 0.05, 0.25, 8, 4, 'brass'))
     if chain:
         R.nocol.add(cyl(cx, cy, z + 1.2, chain, 0.02, 6, side='iron', caps=False))
 
