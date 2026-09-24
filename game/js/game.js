@@ -279,7 +279,7 @@ function updatePlayer(dt) {
     if (Math.hypot(pos.x - ix, pos.z - iz) > 0.3) { pos.x = S.x; pos.z = S.z; collideBody(pos, PL.crouch ? 1.15 : 1.78); if (Math.hypot(pos.x - S.x, pos.z - S.z) > 0.3) { pos.x = S.x; pos.z = S.z; } } }
   pushNPCs(pos);
   const g = footing(pos.x, pos.y, pos.z, 0.56, PL.onGround ? 0.45 : Math.max(0.06, -PL.vy * dt + 0.06));
-  if (g > -Infinity && pos.y <= g + 0.02 && !(swim && PL.vy > 0.2)) {
+  if (g > -Infinity && pos.y <= g + 0.02 && PL.vy <= 0.01 && !(swim && PL.vy > 0.2)) {   // never land while still rising (at high frame rates a jump's first step is tiny)
     if (!wasGround && vyIn < -9.5 && !wat) hurt(Math.round((-vyIn - 9.5) * 8), 'the fall');
     if (!wasGround && vyIn < -2 && !wat) SFX.land(vyIn < -7);
     pos.y = g; PL.vy = 0; PL.onGround = !swim;
