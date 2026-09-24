@@ -9,7 +9,7 @@
 "kind":"quad",
 "weight":50,
 "label":"The Labyrinth",
-"bytes":572625
+"bytes":558126
 },
 "bath":{
 "size":[
@@ -21,7 +21,7 @@
 "kind":"single",
 "weight":20,
 "label":"The Sunken Court",
-"bytes":312534
+"bytes":306481
 },
 "crossing":{
 "size":[
@@ -33,7 +33,7 @@
 "kind":"single",
 "weight":28,
 "label":"The Crossing",
-"bytes":437066
+"bytes":427944
 },
 "grand":{
 "size":[
@@ -45,7 +45,7 @@
 "kind":"tall",
 "weight":50,
 "label":"The Great Hall",
-"bytes":969946
+"bytes":932680
 },
 "pillars":{
 "size":[
@@ -57,7 +57,7 @@
 "kind":"quad",
 "weight":50,
 "label":"The Pillar Forest",
-"bytes":1290356
+"bytes":1228059
 },
 "poolhall":{
 "size":[
@@ -69,7 +69,7 @@
 "kind":"long",
 "weight":50,
 "label":"The Long Hall",
-"bytes":651496
+"bytes":642441
 },
 "reading":{
 "size":[
@@ -81,7 +81,7 @@
 "kind":"single",
 "weight":20,
 "label":"The Reading Room",
-"bytes":280387
+"bytes":269392
 },
 "rest":{
 "size":[
@@ -93,7 +93,7 @@
 "kind":"single",
 "weight":45,
 "label":"A rest area",
-"bytes":198958
+"bytes":195442
 },
 "stacks":{
 "size":[
@@ -105,7 +105,7 @@
 "kind":"long",
 "weight":50,
 "label":"The Sunken Stacks",
-"bytes":881905
+"bytes":846295
 },
 "tower":{
 "size":[
@@ -117,7 +117,7 @@
 "kind":"column",
 "weight":45,
 "label":"The Spiral",
-"bytes":558610
+"bytes":545097
 },
 "well":{
 "size":[
@@ -129,6 +129,6 @@
 "kind":"column",
 "weight":55,
 "label":"The Well",
-"bytes":237614
+"bytes":227847
 }
 }

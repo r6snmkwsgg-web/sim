@@ -553,6 +553,14 @@ async function loadPrefab(name) {
     const meta = await (await get(base + '.json')).json();
     // meshes travel quantized and deflated, as base64 inside the JSON; lightmaps as embedded WebP
     const bin = await inflateB64(meta.zbin); delete meta.zbin;
+    if (meta.sl) {   // shelf rows travel as 18 floats each
+      const F = new Float32Array(bin, meta.sl.off, meta.sl.n * 18); meta.slabs = [];
+      for (let i = 0; i < meta.sl.n; i++) {
+        const f = F.subarray(i * 18, i * 18 + 18);
+        meta.slabs.push({ o: [f[0], f[1], f[2]], u: [f[3], f[4], f[5]], n: [f[6], 0, f[7]], len: Math.hypot(f[3], f[4], f[5]), h: f[8], depth: f[9],
+          lm: [[f[10], f[11]], [f[12], f[13]], [f[14], f[15]], [f[16], f[17]]] });
+      }
+    }
     const lmUrl = k => 'data:image/webp;base64,' + meta.lm[k];
     const [lmd, lmn] = await Promise.all([loadLM(lmUrl('day')), loadLM(lmUrl(meta.lm.night ? 'night' : 'day'))]);
     delete meta.lm;

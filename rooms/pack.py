@@ -83,6 +83,13 @@ def pack(name):
     inv = inv.reshape(-1)
     cidx = inv.astype(np.uint32 if len(uniq) > 65535 else np.uint16)
     colm = {'nv': int(len(uniq)), 'nt': int(len(col) // 3), 'i32': bool(cidx.dtype == np.uint32), 'v': put(uniq), 'ix': put(cidx)}
+    # shelf rows: 18 floats each (origin, run, normal x/z, height, depth, lightmap corners) instead of JSON
+    sl = src.get('slabs', [])
+    if sl:
+        A = np.array([s_['o'] + s_['u'] + [s_['n'][0], s_['n'][2], s_['h'], s_['depth']] + [c for q_ in s_['lm'] for c in q_] for s_ in sl], np.float32)
+        slm = {'off': put(A), 'n': len(sl)}
+    else:
+        slm = {'off': 0, 'n': 0}
     raw = b''.join(parts)
     z = zlib.compress(raw, 9)
     out = {k: v for k, v in src.items() if k not in ('bin', 'groups', 'col')}
@@ -94,7 +101,8 @@ def pack(name):
         return v
     for k in ('slabs', 'spots', 'nav', 'water'):
         if k in out: out[k] = rnd(out[k], 3)
-    out.update({'fmt': 2, 'groups': groups, 'col': colm, 'q': {'lo': lo.tolist(), 'step': step.tolist(), 'uv': ustep},
+    out.pop('slabs', None)
+    out.update({'sl': slm, 'fmt': 2, 'groups': groups, 'col': colm, 'q': {'lo': lo.tolist(), 'step': step.tolist(), 'uv': ustep},
                 'zbin': base64.b64encode(z).decode('ascii'), 'rawSize': len(raw)})
     lm = {'day': webp_b64(os.path.join(RAW, name + '_day.webp'))}
     nightp = os.path.join(RAW, name + '_night.webp')
