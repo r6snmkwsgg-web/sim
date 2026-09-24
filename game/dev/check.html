@@ -33,12 +33,22 @@ window.CHECK = null;
   const nodes = [];                   // {i, j, h, stand}
   for (let i = 0; i < NX; i++) for (let j = 0; j < NZ; j++) {
     const x = (i + 0.5) * G, z = (j + 0.5) * G, list = [];
-    let y = yTop;
-    for (let k = 0; k < 12; k++) {
-      const h = footing(x, y, z, 0, y - yBot);
-      if (h === -Infinity) break;
-      if (fits(x, h, z, H_CROUCH)) { const n = { i, j, h, stand: fits(x, h, z, H_STAND), id: nodes.length }; nodes.push(n); list.push(n); }
-      y = h - 0.35;
+    // candidate heights: every surface under the centre (c), and under a ring 12 cm out (the game's foot)
+    const cand = [];
+    for (const [dx, dz, c] of [[0, 0, true], [0.12, 0, false], [-0.12, 0, false], [0, 0.12, false], [0, -0.12, false]]) {
+      let y = yTop;
+      for (let k = 0; k < 12; k++) {
+        const h = groundAt(x + dx, y, z + dz, 0, y - yBot);
+        if (h === -Infinity) break;
+        const o = cand.find(q => Math.abs(q.h - h) < 0.04);
+        if (o) { if (c) { o.h = h; o.c = true; } } else cand.push({ h, c });
+        y = h - 0.35;
+      }
+    }
+    cand.sort((a, b) => b.h - a.h);
+    for (const q of cand) {
+      const h = q.h;
+      if (fits(x, h, z, H_CROUCH)) { const n = { i, j, h, c: q.c, stand: fits(x, h, z, H_STAND), id: nodes.length }; nodes.push(n); list.push(n); }
     }
     cols[i * NZ + j] = list;
   }
@@ -51,7 +61,7 @@ window.CHECK = null;
       const L = cols[i2 * NZ + j2];
       // walk: a surface within step height; else drop to the highest surface below
       let best = null;
-      for (const m of L) if (m.h <= n.h + 0.55 && m.h >= n.h - 0.55 && (!best || Math.abs(m.h - n.h) < Math.abs(best.h - n.h))) best = m;
+      for (const m of L) if (m.h <= n.h + 0.55 && m.h >= n.h - 0.55 && (m.h <= n.h + 0.05 || m.c) && (!best || Math.abs(m.h - n.h) < Math.abs(best.h - n.h))) best = m;
       if (!best) {
         // blocked if something solid stands between: a surface in this column above our step height but below our head?
         const x2 = (i2 + 0.5) * G, z2 = (j2 + 0.5) * G;

@@ -1109,7 +1109,8 @@ function groundAt(x, y, z, up, down) {
    a shoe (a gap between a landing and a gallery) cannot swallow you */
 function footing(x, y, z, up, down) {
   let g = groundAt(x, y, z, up, down);
-  for (const [dx, dz] of [[0.12, 0], [-0.12, 0], [0, 0.12], [0, -0.12]]) g = Math.max(g, groundAt(x + dx, y, z + dz, up, down));
+  // the ring only keeps you from dropping through a crack: it never lifts you (or you could climb a rail's thin bar)
+  for (const [dx, dz] of [[0.12, 0], [-0.12, 0], [0, 0.12], [0, -0.12]]) { const r = groundAt(x + dx, y, z + dz, up, down); if (r > g && r <= y + 0.05) g = r; }
   return g;
 }
 /* Water: the volume holding a point (world), as { top, bot } in world y, or null */
