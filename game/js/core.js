@@ -126,7 +126,6 @@ function loadSave() { try { const t = localStorage.getItem(SAVE_KEY); if (!t) re
 function clock(t) { if (t === undefined) t = S.time; t = mod(t, 24); const h = Math.floor(t), m = Math.floor((t - h) * 60); return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0'); }
 function dateLine() { return S.act >= 4 && S.fall ? `Year ${fmt(S.year)} · falling, day ${fmt(S.fall.days + 1)}` : `Year ${fmt(S.year)} · Day ${fmt(S.day)}`; }
 function logJ(text) { S.journal.push({ y: S.year, d: S.day, t: clock(), text }); if (S.journal.length > 500) S.journal.shift(); }
-function npcRec(k) { return S.npc[k] || (S.npc[k] = { met: false, aff: 0, last: -1, f: {}, talks: 0 }); }
 let overFloors = new Map();
 function recountOver() { overFloors = new Map(); for (const k in S.over) { const a = k.split(':'); const key = a[0] + ':' + a[1] + ':' + a[2]; overFloors.set(key, (overFloors.get(key) || 0) + 1); } }
 const roomHasOver = (f, x, z) => overFloors.has(f + ':' + x + ':' + z);

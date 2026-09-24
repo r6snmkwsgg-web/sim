@@ -157,18 +157,17 @@ addEventListener('mousemove', e => {
 addEventListener('keydown', e => {
   if (e.target && e.target.tagName === 'INPUT') { if (e.code === 'Escape') e.target.blur(); return; }
   const k = e.code; keys[k] = true;
-  if (e.repeat && ['KeyE', 'KeyR', 'KeyG', 'KeyF', 'KeyJ', 'KeyC', 'KeyZ', 'KeyQ'].includes(k)) return;
+  if (e.repeat && ['KeyE', 'KeyR', 'KeyG', 'KeyJ', 'KeyC', 'KeyZ', 'KeyQ'].includes(k)) return;
   if (MODE === 'play') {
     if (['Space', 'ArrowUp', 'ArrowDown', 'Tab'].includes(k)) e.preventDefault();
     if (k === 'KeyE') act('use'); else if (k === 'KeyR') act('read'); else if (k === 'KeyG') act('drop');
-    else if (k === 'KeyF') act('shove'); else if (k === 'KeyJ') openJournal(); else if (k === 'KeyC') { if (!PL.swim) PL.crouch = !PL.crouch; }
+    else if (k === 'KeyJ') openJournal(); else if (k === 'KeyC') { if (!PL.swim) PL.crouch = !PL.crouch; }
     else if (k === 'KeyZ') act('sleep'); else if (k === 'KeyQ') act('consume');
     else if (k === 'Space' && S.fall) act('sleep');
     else if (k === 'Escape' && !locked) openPause();
   } else if (MODE === 'ui') {
     if (k === 'Escape' || (k === 'KeyJ' && !$('#journal').hidden)) { e.preventDefault(); if (!$('#moment').hidden) closeMoment(); else closeOverlays(); }
     else if (!$('#reader').hidden && (k === 'ArrowRight' || k === 'ArrowLeft')) turnPage(k === 'ArrowRight' ? 1 : -1);
-    else if (!$('#dialog').hidden && /^Digit[1-9]$/.test(k)) { const b = $('#d-opts').children[+k.slice(5) - 1]; if (b && !$('#d-opts').hidden) b.click(); }
     else if (!$('#moment').hidden && (k === 'Enter' || k === 'Space')) closeMoment();
   } else if (MODE === 'pause' && k === 'Escape') resume();
   else if (MODE === 'prologue' && (k === 'Enter' || k === 'Space')) $('#b-pro').click();
@@ -188,7 +187,7 @@ if (isTouch) {
   canvas.addEventListener('pointermove', e => { if (!look || e.pointerId !== look.id || MODE !== 'play') return; S.yaw -= (e.clientX - look.x) * 0.005 * S.settings.sens; S.pitch = clamp(S.pitch - (e.clientY - look.y) * 0.005 * S.settings.sens, -1.5, 1.5); look.x = e.clientX; look.y = e.clientY; });
   canvas.addEventListener('pointerup', e => { if (look && e.pointerId === look.id) look = null; });
   const tb = (id, fn) => $(id).addEventListener('pointerdown', e => { e.preventDefault(); audioInit(); if (MODE === 'play') fn(); });
-  tb('#t-e', () => act('use')); tb('#t-r', () => act('read')); tb('#t-g', () => act('drop')); tb('#t-f', () => act('shove'));
+  tb('#t-e', () => act('use')); tb('#t-r', () => act('read')); tb('#t-g', () => act('drop'));
   tb('#t-c', () => { if (PL.swim) keys.TouchDive = !keys.TouchDive; else PL.crouch = !PL.crouch; }); tb('#t-sp', () => { if (S.fall) act('sleep'); else keys.TouchJump = true; }); tb('#t-z', () => act('sleep'));
   tb('#t-j', openJournal); tb('#t-p', openPause);
 }
@@ -277,7 +276,6 @@ function updatePlayer(dt) {
     collideBody(pos, PL.crouch ? 1.15 : 1.78);
     // squeezed between two things, the pushes can add up past a wall's thickness and out the far side: refuse that
     if (Math.hypot(pos.x - ix, pos.z - iz) > 0.3) { pos.x = S.x; pos.z = S.z; collideBody(pos, PL.crouch ? 1.15 : 1.78); if (Math.hypot(pos.x - S.x, pos.z - S.z) > 0.3) { pos.x = S.x; pos.z = S.z; } } }
-  pushNPCs(pos);
   const g = footing(pos.x, pos.y, pos.z, 0.56, PL.onGround ? 0.45 : Math.max(0.06, -PL.vy * dt + 0.06));
   if (g > -Infinity && pos.y <= g + 0.02 && PL.vy <= 0.01 && !(swim && PL.vy > 0.2)) {   // never land while still rising (at high frame rates a jump's first step is tiny)
     if (!wasGround && vyIn < -9.5 && !wat) hurt(Math.round((-vyIn - 9.5) * 8), 'the fall');
@@ -353,8 +351,6 @@ function startFall(tackled, pushIn) {
   }
   $('#fallhud').hidden = false;
   if (!tackled) logJ(pushIn ? 'Climbed over the parapet and let go.' : 'Went over the edge.');
-  const rr = npcRec('rachel');
-  if (rr.following) { rr.following = false; const r = NPC_BY.rachel; r.mode = 'idle'; r.t = 0; r.special = false; r.home = UNI; toast('Rachel stays at the parapet. You watch her get smaller.'); }
   save();
 }
 function updateFalling(dt) {
@@ -415,7 +411,7 @@ function die(cause) {
   S.dead = { cause, falling };
   if (cause === 'impact') { S.fall = null; PL.falling = false; }
   if (S.carried) { S.carried = null; showHeld(null); updateCarry(); }
-  if (cause !== 'impact') logJ({ thirst: 'Died of thirst.', drink: 'Drank myself to death, like Jed.', 'the Direites': 'The Direites caught me. It took them a long time.', 'Dire Dan': 'Dire Dan kept his promise. He killed me as we fell.', 'the fall': 'Died of a fall.', drowned: 'Drowned. It was quieter than I expected.' }[cause] || `Died (${cause}).`);
+  if (cause !== 'impact') logJ({ thirst: 'Died of thirst.', drink: 'Drank myself to death.', 'the Direites': 'The Direites caught me. It took them a long time.', 'Dire Dan': 'Dire Dan kept his promise. He killed me as we fell.', 'the fall': 'Died of a fall.', drowned: 'Drowned. It was quieter than I expected.' }[cause] || `Died (${cause}).`);
   save();
   setTimeout(() => sleepNow('dead'), 900);
 }
@@ -561,12 +557,6 @@ function findTarget() {
     bt = b.t; const a = instAddr(b.inst), slot = { f: a.f, x: a.x, z: a.z, k: b.si, p: b.p };
     best = { kind: 'slot', slot, book: slotContent(slot), inst: b.inst };
   }
-  for (const n of NPCS) {
-    if (n.gone || !n.mesh.visible) continue;
-    const p = n.mesh.position, lying = n.mode === 'lie' || n.mode === 'dead';
-    const t = raySphere(p.x, p.y + (lying ? 0.2 : 1.3), p.z, lying ? 0.75 : 0.5);
-    if (t < bt && t < 3.2) { bt = t; best = { kind: 'npc', n }; }
-  }
   for (const gb of S.ground) { if (!gb._m || !gb._m.visible) continue; const p = gb._m.position, t = raySphere(p.x, p.y, p.z, 0.28); if (t < bt) { bt = t; best = { kind: 'ground', gb }; } }
   for (const inst of WORLD.inst.values()) {
     const bx = inst.box; if (S.x < bx[0] - 3 || S.x > bx[3] + 3 || S.z < bx[2] - 3 || S.z > bx[5] + 3 || S.y < bx[1] - 3 || S.y > bx[4]) continue;
@@ -585,7 +575,6 @@ function findTarget() {
   }
   return best;
 }
-function npcName(n) { const rec = npcRec(n.d.key); if (n.d.generic) return n.gname || 'A stranger'; if (n.d.role === 'direite') return 'A Direite'; return rec.met || n.d.key === 'dan' ? n.d.name : 'A stranger'; }
 function describeTarget(t) {
   const P_ = $('#prompt'), ch = $('#crosshair');
   ch.classList.toggle('hot', !!t);
@@ -597,18 +586,13 @@ function describeTarget(t) {
       a = esc(addrLine(t.book)) + (out ? '<br><span class="warm">out of place — it will go home at dawn</span>' : '');
       b = S.carried ? 'Your hands are full · G to drop the book you hold' : '[E] Take it and read';
     } else { a = 'An empty slot · ' + esc(addrLine(t.slot)); b = S.carried ? '[E] Put the book you hold here' : 'Someone took this one. It will be back at dawn.'; }
-  } else if (t.kind === 'npc') {
-    const n = t.n, lying = n.mode === 'lie' || n.mode === 'dead';
-    a = `<span class="n">${esc(npcName(n))}</span>`;
-    b = n.mode === 'dead' ? '[E] Look' : lying && S.time >= 21.5 ? 'Asleep' : '[E] Talk' + (n.mode === 'chase' ? ' · [F] Shove' : '');
   } else if (t.kind === 'ground') { a = esc(addrLine(parseKey(t.gb.id))) + '<br>lying on the floor'; b = S.carried ? 'Your hands are full' : '[E] Pick it up'; }
   else if (t.kind === 'kiosk') { a = 'A kiosk, glowing softly'; b = '[E] Ask for food or drink'; }
   else if (t.kind === 'bed') { a = 'A narrow bed in an alcove'; b = S.time >= 17 || dark ? '[E] Sleep until the lights come on' : 'Beds are for the evening (after 17:00).'; }
   else if (t.kind === 'bath') { a = 'The washroom'; b = '[E] Go in'; }
   else if (t.kind === 'plaque') { a = 'A brass plaque, and a slot beneath it'; b = S.carried ? '[E] Post the book you hold through the slot' : '[E] Read the plaque'; }
   else if (t.kind === 'edge') { a = 'The parapet. Below it, the shaft goes down past every floor anyone has counted.'; b = PL.edgeArm > 0 ? '[E] again to let go · step back to stay' : '[E] Climb over' + (S.carried ? ' · [G] Drop the book in' : ''); }
-  else if (t.kind === 'tackle') { a = '<span class="n">Dire Dan</span>'; b = '[E] Tackle him over the parapet'; }
-  else if (t.kind === 'catch') { a = `<span class="n">${esc(t.n.d.key === 'wand' ? 'A falling woman' : 'Someone falling')}</span>`; b = '[E] Catch hold'; }
+  else if (t.kind === 'trace') { a = TRACE_TEXT[t.it.k]; b = t.it.k === 'book' ? (S.carried ? 'Your hands are full' : '[E] Read where they left off') : ''; }
   P_.innerHTML = `<div class="t">${a}</div><div class="k">${b}</div>`;
 }
 
@@ -635,7 +619,7 @@ function act(kind) {
       if (sh) { dir.set(sh.cx - sh.edge[0], 0, sh.cz - sh.edge[1]).normalize().transformDirection(sh.room.m); }
       throwBookVisual(id, S.x - Math.sin(S.yaw) * 0.5, S.y + 1.3, S.z - Math.cos(S.yaw) * 0.5, dir.x * 2.5, dir.z * 2.5);
       S.carried = null; S.stats.thrown++; showHeld(null); updateCarry(); SFX.book();
-      if (S.stats.thrown === 1) { logJ('Dropped a searched book down the well, as Elliott said. It fell until the dark had it.'); toast('It falls end over end until the dark takes it. Dawn will put it back on its shelf.'); }
+      if (S.stats.thrown === 1) { logJ('Dropped a searched book down the well. It fell until the dark had it.'); toast('It falls end over end until the dark takes it. Dawn will put it back on its shelf.'); }
       save(); return;
     }
     const fx = -Math.sin(S.yaw) * 0.55, fz = -Math.cos(S.yaw) * 0.55;
@@ -646,20 +630,12 @@ function act(kind) {
     if (S.ground.length > 120) S.ground.shift();
     S.carried = null; SFX.book(); showHeld(null); updateCarry(); updateGroundBooks(); save(); return;
   }
-  if (kind === 'shove') {
-    if (t && (t.kind === 'npc' || t.kind === 'tackle' || t.kind === 'catch')) {
-      const n = t.n;
-      if (n.mode === 'fallWith' || S.fall) { shoveInFall(n); return; }
-      n.stun = 2.4; n.hitCd = 2.4; SFX.hit();
-      const p = n.mesh.position, dx = p.x - S.x, dz = p.z - S.z, d = Math.hypot(dx, dz) || 1;
-      n.ax += dx / d * 0.9; n.az += dz / d * 0.9;
-      if (n.mode !== 'chase') toast(`${npcName(n)} stumbles and stares at you.`);
-    } else if (S.flags.danWith) shoveInFall(NPC_BY.dan);
+  if (!t) { if (PL.edgeArm > 0) goOver(); return; }
+  if (t.kind === 'trace') {
+    if (t.it.k === 'book' && !S.carried) { openReader(t.it.id); RD.pg = t.it.page; renderPage(); }
+    else toast(TRACE_TEXT[t.it.k]);
     return;
   }
-  if (!t) { if (PL.edgeArm > 0) goOver(); return; }
-  if (t.kind === 'tackle') { tackleDan(); return; }
-  if (t.kind === 'catch') { catchFaller(); return; }
   if (t.kind === 'slot') {
     if (t.book) {
       if (S.carried) { toast('You can only carry one book. Put yours in an empty slot, or drop it with G.'); return; }
@@ -678,7 +654,6 @@ function act(kind) {
     if (S.carried) { toast('Your hands are full.'); return; }
     S.carried = t.gb.id; S.ground.splice(S.ground.indexOf(t.gb), 1); SFX.book(); updateCarry(); updateGroundBooks(); showHeld(parseKey(S.carried)); openReader(parseKey(S.carried)); save(); return;
   }
-  if (t.kind === 'npc') { openDialogue(t.n); return; }
   if (t.kind === 'kiosk') { openKiosk(); return; }
   if (t.kind === 'bed') { if (S.time < 17 && !dark) { toast('You aren’t tired yet.'); return; } sleepNow('bed'); return; }
   if (t.kind === 'bath') { S.flags.bath = (S.flags.bath || 0) + 1; toast(['A clean white room, tiled to the ceiling. The water is cold and perfect. There is no mirror.', 'You wash your face. The towel is fresh. It is always fresh.', 'Somebody has written on the tiles in pencil: “still here.” By morning it will be gone.'][S.flags.bath % 3]); return; }
@@ -748,7 +723,6 @@ function openReader(id) {
   $('#r-title').textContent = `Floor ${fmt(id.f)}, room ${roomName(id.x, id.z)}`;
   $('#r-addr').innerHTML = `Shelf <b>${id.k + 1}</b> · Book <b>${id.p + 1}</b><br>410 pages · 40 lines · 80 characters<br>One of 10<sup>${fmt(LOG10_BOOKS)}</sup> books.`;
   $('#r-results').innerHTML = ''; $('#r-qnote').textContent = ''; $('#r-q').value = '';
-  if (sameId(id, SACK)) { RD.pg = 188; }
   openOverlay('#reader'); renderPage(); SFX.page();
 }
 function renderPage() {
@@ -772,9 +746,11 @@ function renderPage() {
     const have = S.frags.some(f => f.addr === keyOf(id));
     fbox.innerHTML = `<div class="fragbox"><div class="eyebrow">Words, out of the noise</div><q>${esc(fr.text)}</q><div><button class="btn primary" id="r-rec" ${have ? 'disabled' : ''}>${have ? 'Recorded in your journal' : 'Record in journal'}</button></div></div>`;
     if (!have) $('#r-rec').onclick = () => { S.frags.push({ text: fr.text, addr: keyOf(id), page: fr.page + 1, day: S.day }); logJ(`Found words in a book: “${fr.text}” (${addrLine(id)}, page ${fr.page + 1}).`); SFX.chime(); renderPage(); save(); };
-    if (sameId(id, SACK) && !S.flags.sackFound) { S.flags.sackFound = 1; logJ('Found Biscuit’s book. “sack it.” Two words, alone in the noise, exactly where he said.'); }
     if (!S.flags['saw' + keyOf(id)]) { S.flags['saw' + keyOf(id)] = 1; SFX.chime(); }
   } else fbox.innerHTML = '';
+  // someone else read this book before you, and wrote in the margin
+  const note = marginNote(id, RD.pg), nb = $('#r-note');
+  nb.hidden = !note; if (note) { nb.textContent = note; sawNote(note, id, RD.pg); }
   S.stats.pages++;
 }
 function turnPage(d) { RD.pg = mod(RD.pg + d, PAGES); renderPage(); SFX.page(); }
@@ -831,68 +807,6 @@ function openSign() { $('#k-out').textContent = ''; showPlaque(); }
 function showPlaque() { openOverlay('#plaque'); }
 
 /* ==========================================================================
-   Dialogue
-   ========================================================================== */
-const D = { n: null, chat: [], ctl: null };
-let SAMPLE = null;
-(async () => { try { if (window.claude && window.claude.use) SAMPLE = await window.claude.use('sample'); } catch (e) { SAMPLE = null; } })();
-function openDialogue(n) {
-  D.n = n; D.chat = []; n.attend = 12;
-  const rec = npcRec(n.d.key);
-  if (rec.last !== S.day) { rec.last = S.day; rec.aff = (rec.aff || 0) + 1; }
-  rec.talks = (rec.talks || 0) + 1;
-  const por = n.d.por;
-  $('#d-por').style.backgroundImage = por ? `url(assets/${por}.jpg)` : '';
-  $('#d-por').innerHTML = por ? '' : `<div class="sil">${esc(npcName(n).replace(/^A /, '').charAt(0))}</div>`;
-  $('#d-fac').hidden = true;
-  $('#d-chat').hidden = true; $('#d-opts').hidden = false; $('#d-text').hidden = false;
-  openOverlay('#dialog');
-  if (n.mode === 'dead' && !DLG[n.d.key]) { $('#d-name').textContent = npcName(n); renderNode({ text: '(They are not breathing. They will be back in the morning.)', opts: [] }, true); return; }
-  if (DLG[n.d.key]) gotoNode('root', true);
-  else { rec.met = true; renderNode(genericNode(n, rec)); }
-}
-function gotoNode(name, greet) {
-  const def = DLG[D.n.d.key], rec = npcRec(D.n.d.key);
-  const node = def[name]({ rec, greet: !!greet, n: D.n });
-  renderNode(node);
-}
-function renderNode(node, noChat) {
-  const n = D.n;
-  $('#d-name').textContent = npcName(n);
-  const role = n.d.generic ? (n.assign ? { searchers: 'Searcher', drinkers: 'Drinker', still: 'One of the Still', scholars: 'The University', preacher: n.assign.i === 0 ? 'Shelf-preacher' : 'Listener', swimmers: 'Swimmer' }[n.assign.role] : 'Falling') : { rachel: 'The University', master: 'The University', scholar: 'The University', dan: 'The Direites', direite: 'The Direites', companion: 'Arrived with you', drinker: 'The rest area east', faller: 'Falling', took: 'Mathematician' }[n.d.role];
-  const fc = $('#d-fac'); fc.hidden = !role; fc.textContent = role || ''; fc.className = 'chip' + (n.d.role === 'dan' || n.d.role === 'direite' ? ' hostile' : '');
-  $('#d-text').textContent = node.text;
-  const opts = (node.opts || []).filter(o => !('if' in o) || o.if);
-  if (SAMPLE && !noChat) opts.push({ t: 'Speak freely…', soft: true, fx: openChat });
-  opts.push({ t: 'Leave.', soft: true, fx: closeOverlays });
-  const box = $('#d-opts'); box.innerHTML = '';
-  opts.forEach((o, i) => { const b = document.createElement('button'); b.innerHTML = `<span class="n">${i + 1}</span>${esc(o.t)}`; if (o.soft) b.className = 'soft'; b.onclick = () => { if (o.fx) o.fx(); if (o.go) gotoNode(o.go); save(); }; box.appendChild(b); });
-  save();
-}
-function openChat() { $('#d-opts').hidden = true; $('#d-text').hidden = true; $('#d-chat').hidden = false; $('#d-log').innerHTML = ''; D.chat = []; setTimeout(() => $('#d-in').focus(), 30); }
-async function sendChat() {
-  const inp = $('#d-in'), text = inp.value.trim(); if (!text || !SAMPLE || D.ctl) return;
-  inp.value = '';
-  const logEl = $('#d-log'), me = document.createElement('div'); me.className = 'me'; me.textContent = text; logEl.appendChild(me);
-  const them = document.createElement('div'); them.className = 'them'; them.textContent = 'Thinking…'; logEl.appendChild(them); logEl.scrollTop = logEl.scrollHeight;
-  D.chat.push({ role: 'user', content: text }); if (D.chat.length > 12) D.chat.splice(0, 2);
-  D.ctl = new AbortController(); $('#d-stop').hidden = false; $('#d-send').disabled = true;
-  try {
-    const r = await SAMPLE([{ role: 'user', content: chatPrompt(D.n) }, ...D.chat], { modelTier: 'quick', cache: false, signal: D.ctl.signal, onText: ({ text }) => { them.textContent = text; logEl.scrollTop = logEl.scrollHeight; } });
-    D.chat.push({ role: 'assistant', content: r.text });
-  } catch (e) {
-    D.chat.pop();
-    const c = e && e.code; them.textContent = e && e.text ? e.text : '';
-    if (['not_granted', 'sampling_disabled', 'capability_disabled', 'not_declared'].includes(c)) { them.textContent = '(They look at you as if you hadn’t spoken. Free conversation is turned off for this page.)'; SAMPLE = null; }
-    else if (c === 'rate_limited') them.textContent = '(They seem tired of talking. Try again in a little while.)';
-    else if (c !== 'cancelled' && !them.textContent) them.textContent = '(They open their mouth, then close it again. Something interrupted them — try again.)';
-  } finally { D.ctl = null; $('#d-stop').hidden = true; $('#d-send').disabled = false; }
-}
-$('#d-send').onclick = sendChat; $('#d-in').addEventListener('keydown', e => { if (e.key === 'Enter') sendChat(); });
-$('#d-stop').onclick = () => D.ctl && D.ctl.abort();
-$('#d-back').onclick = () => { if (D.ctl) D.ctl.abort(); $('#d-chat').hidden = true; $('#d-opts').hidden = false; $('#d-text').hidden = false; if (DLG[D.n.d.key]) gotoNode('root'); else renderNode(genericNode(D.n, npcRec(D.n.d.key))); };
-
-/* ==========================================================================
    Captions (for things that happen around you) and moments (chapter cards)
    ========================================================================== */
 let CAP = null;
@@ -931,10 +845,10 @@ function renderJournal() {
     h = `<ul class="threads">${act.map(t => `<li>${esc(t.text())}</li>`).join('') || '<li class="dim">Nothing pressing. There is only the search.</li>'}</ul>`;
     if (done.length) h += `<h3 class="jh">Done</h3><ul class="threads done">${done.map(t => `<li>${esc(t.text())}</li>`).join('')}</ul>`;
   } else if (jTab === 'log') h = `<ol class="log">${S.journal.slice().reverse().map(e => `<li><span>Day ${fmt(e.d)}<br>${e.t}</span><div>${esc(e.text)}</div></li>`).join('') || '<li><span></span><div>Nothing yet.</div></li>'}</ol>`;
-  else if (jTab === 'frags') h = S.frags.length ? `<div class="frags">${S.frags.map(f => `<blockquote><q>${esc(f.text)}</q><cite>${esc(addrLine(parseKey(f.addr)))} · page ${f.page} · day ${f.day}${f.uni ? ' · catalogued by the University' : ''}</cite></blockquote>`).join('')}</div>` : '<p class="note" style="max-width:52ch">No readable words yet. Most pages are noise from edge to edge. When a sentence surfaces, record it here — the University will want it.</p>';
-  else if (jTab === 'souls') {
-    const met = NPC_DEFS.filter(d => !d.generic && !d.minor && npcRec(d.key).met);
-    h = `<div class="souls">${met.map(d => `<div class="soul"><div class="p" style="background-image:url(assets/${d.por}.jpg)"></div><div><div class="nm">${esc(d.name)}</div><div class="ds">${esc(soulNote(d.key))}</div></div><div class="ds">${npcRec(d.key).talks || 0} talks</div></div>`).join('') || '<p class="note">You haven’t introduced yourself to anyone yet.</p>'}</div>`;
+  else if (jTab === 'frags') h = S.frags.length ? `<div class="frags">${S.frags.map(f => `<blockquote><q>${esc(f.text)}</q><cite>${esc(addrLine(parseKey(f.addr)))} · page ${f.page} · day ${f.day}</cite></blockquote>`).join('')}</div>` : '<p class="note" style="max-width:52ch">No readable words yet. Most pages are noise from edge to edge. When a sentence surfaces, record it here — the University will want it.</p>';
+  else if (jTab === 'notes') {
+    const ns = S.notes || [];
+    h = ns.length ? `<div class="frags">${ns.map(n => `<blockquote class="hand"><q>${esc(n.text)}</q><cite>${esc(addrLine(parseKey(n.addr)))} · page ${n.page} · day ${n.day}</cite></blockquote>`).join('')}</div>` : '<p class="note">No one has written to you yet. Some books have notes in their margins, left by whoever read them before.</p>';
   } else if (jTab === 'nums') {
     const st = S.stats, items = [['Days', S.day], ['Books opened', st.books], ['Pages read', st.pages], ['Books dropped down a well', st.thrown], ['Fragments found', S.frags.length], ['Walked', st.dist < 1000 ? fmt(st.dist) + ' m' : (st.dist / 1000).toFixed(2) + ' km'], ['Rooms seen', st.rooms || 0], ['Swum', fmt(st.swum || 0) + ' m'], ['Floors climbed', st.climbed], ['Floors fallen', st.fallen], ['Longest fall', fmt(st.maxFall) + ' fl.'], ['Days spent falling', st.daysFalling], ['Deaths', st.deaths]];
     h = `<div class="stats">${items.map(([k, v]) => `<div class="stat"><div class="v">${typeof v === 'number' ? fmt(v) : v}</div><div class="k">${k}</div></div>`).join('')}</div>`;
@@ -953,14 +867,6 @@ function renderJournal() {
   }
   pane.innerHTML = h;
 }
-function soulNote(k) {
-  const r = npcRec(k);
-  if (k === 'rachel') return S.flags.rachelGone ? 'Went over the parapet to escape the Direites.' : r.following ? 'Walking with you.' : 'The University.';
-  if (k === 'jed') return S.flags.jedBack ? 'Drank himself to death. Came back.' : 'Drinks at the rest area two rooms east.';
-  if (k === 'dan') return S.flags.danFallen ? 'You took him over the parapet with you.' : 'Leads the Direites.';
-  if (k === 'wand') return S.flags.wandLanded ? 'Let go, and steered for a floor.' : 'Met falling.';
-  return { biscuit: 'Arrived with you. Found “sack it.”', elliott: 'Arrived with you. Has a system.', larisa: 'Arrived with you.', betty: 'Arrived with you.', treacle: 'Presides over the University.', pruitt: 'Department of Coherent Text.', took: 'Has done the arithmetic.' }[k] || '';
-}
 
 /* ==========================================================================
    Overlays, pause, title, prologue
@@ -973,7 +879,6 @@ function openOverlay(sel) {
   $('#touch').hidden = true;
 }
 function closeOverlays() {
-  if (D.ctl) D.ctl.abort();
   document.querySelectorAll('.overlay').forEach(o => o.hidden = true);
   MODE = 'play'; save(); $('#touch').hidden = !isTouch; showClickHint();
 }
@@ -1007,18 +912,18 @@ function applyGfx() {
   WORLD.radius = g >= 2 ? 3 : 2; WORLD.bookR = g >= 2 ? 9 : g >= 1 ? 7 : 5;
 }
 function showTitle() {
-  MODE = 'title'; NPCS.forEach(n => n.mesh.visible = false); $('#captions').hidden = true; CAP = null; $('#title').hidden = false; $('#hud').hidden = true; $('#touch').hidden = true; $('#prologue').hidden = true;
+  MODE = 'title'; $('#captions').hidden = true; CAP = null; $('#title').hidden = false; $('#hud').hidden = true; $('#touch').hidden = true; $('#prologue').hidden = true;
   const sv = S || loadSave(); $('#b-continue').hidden = !sv;
   if (sv) $('#b-continue').textContent = `Continue — year ${fmt(sv.year)}, day ${fmt(sv.day)}`;
   titleWorld();
 }
 const PRO = [
   { who: '', text: 'You died. The cancer did what the doctors said it would, more or less on schedule.' },
-  { who: '', text: 'Then: a waiting room. Fluorescent light. Plastic chairs. Four strangers beside you, just as lost as you are.' },
+  { who: '', text: 'Then: a waiting room. Fluorescent light. Plastic chairs. Other people, just as lost as you are.' },
   { who: 'Xandern', text: 'Welcome. I’m Xandern. I’ll be processing you today. Please keep your paperwork in order and your screaming to a minimum.' },
   { who: 'Xandern', text: 'I’m afraid the true religion was Zoroastrianism. Nobody is ever pleased to hear it. It’s nothing personal.' },
   { who: '', text: 'He calls Lester first — a Christian, certain of everything — and sends him through a door you are glad you cannot see beyond. Then Julia, an atheist, who seems mostly annoyed to be wrong.' },
-  { who: 'Xandern', text: 'You five are going somewhere else. Three things. One: if you die, you will be brought back. Two: your earthly covenants — marriage included — are dissolved.' },
+  { who: 'Xandern', text: 'You are going somewhere else. Three things. One: if you die, you will be brought back. Two: your earthly covenants — marriage included — are dissolved.' },
   { who: 'Xandern', text: 'Three: find the book that tells your life, every word of it, without a single error, and post it through the slot. Then you may go. It is meant to teach you something. It is a punishment. It is not forever.' },
   { who: '', text: 'Then there is warm stone, and lamplight, and shelves, and a body that doesn’t hurt anymore.' },
 ];
@@ -1032,7 +937,7 @@ function showPro() {
 }
 $('#b-pro').onclick = () => {
   if (proI < PRO.length - 1) { proI++; showPro(); return; }
-  S = freshState(); logJ('Died of cancer. Was processed by a demon named Xandern. The true religion was Zoroastrianism.'); logJ('Woke beside a small stepped pit in a green room, with four others who arrived when I did. I can remember every day of my life, exactly. That should make my book easy to recognise. It does not make it easier to find.');
+  S = freshState(); logJ('Died of cancer. Was processed by a demon named Xandern. The true religion was Zoroastrianism.'); logJ('Woke alone beside a small stepped pit in a green room. I can remember every day of my life, exactly. That should make my book easy to recognise. It does not make it easier to find.');
   save(); startPlay(true);
 };
 function startPlay(first) {
@@ -1118,10 +1023,9 @@ function frame(now) {
   WU.uTime.value = t;
   if (live) {
     if (MODE === 'play' && !nightBusy && !PL.dead) {
-      updatePlayer(dt); updateTime(dt); syncRoom(); storyTick(dt); updateNPCs(dt); updateCaptions(dt);
+      updatePlayer(dt); updateTime(dt); syncRoom(); storyTick(dt); updateCaptions(dt);
       if (PL.edgeArm > 0) { PL.edgeArm -= dt; const sh = shaftNear(); if (!sh || sh.d > 1.8) PL.edgeArm = 0; }
       TARGET = findTarget(); updateHUD(dt);
-      if (TARGET && TARGET.kind === 'npc' && npcDist(TARGET.n) < 3) TARGET.n.attend = Math.max(TARGET.n.attend || 0, 1.5);
       PL.hurtT = Math.max(0, PL.hurtT - dt * 1.5);
       saveT += dt; if (saveT > 8) { saveT = 0; save(); }
       bookT -= dt; if (bookT <= 0) { bookT = 0.5; if (!S.fall || -PL.vy < 15) { updateWorld(S.x, S.y, S.z, S.fall && -PL.vy > 20); refreshBooks(); } }

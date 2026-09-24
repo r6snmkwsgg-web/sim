@@ -2,7 +2,7 @@
 <title>A Short Stay in Hell</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=IM+Fell+English:ital@0;1&family=IM+Fell+English+SC&family=Spectral:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500&family=Courier+Prime:wght@400;700&family=IM+Fell+English:ital@0;1&family=IM+Fell+English+SC&family=Spectral:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap">
 <style>
 :root{
   color-scheme:dark;
@@ -179,6 +179,8 @@ h1,h2,h3{font-family:var(--display);font-weight:400;margin:0;text-wrap:balance}
 .log li span{font-family:var(--mono);font-size:12px;color:var(--faint);padding-top:3px}
 .frags{display:grid;gap:14px}
 .frags blockquote{margin:0;border-left:2px solid var(--lamp);padding:2px 0 2px 14px}
+.hand-note{font-family:'Caveat',cursive;font-size:clamp(18px,1.9vw,24px);color:#28406e;transform:rotate(-2.5deg);margin:10px 0 0 42%;line-height:1.1}
+.frags .hand q{font-family:'Caveat',cursive;font-size:24px;color:#9fb4e0}
 .frags q{font-family:var(--display);font-size:20px}
 .frags cite{display:block;font-style:normal;font-family:var(--mono);font-size:11.5px;color:var(--faint);margin-top:4px}
 .stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:18px 22px}
@@ -267,8 +269,8 @@ h1,h2,h3{font-family:var(--display);font-weight:400;margin:0;text-wrap:balance}
     <p id="t-load">Building the library…</p>
     <div class="keys">
       <span><b>WASD</b>walk · steer when falling</span><span><b>Mouse</b>look</span><span><b>Shift</b>sprint</span>
-      <span><b>Space</b>jump</span><span><b>C</b>crouch</span><span><b>E</b>take · use · talk</span>
-      <span><b>R</b>read held book</span><span><b>G</b>drop · into a well</span><span><b>F</b>shove</span>
+      <span><b>Space</b>jump</span><span><b>C</b>crouch</span><span><b>E</b>take · use</span>
+      <span><b>R</b>read held book</span><span><b>G</b>drop · into a well</span>
       <span><b>Q</b>eat · drink</span><span><b>Z</b>sleep</span><span><b>J</b>journal</span>
     </div>
     <p class="credit">A fan-made game. The rooms were modelled and lit in Blender; portraits and paintings generated with Higgsfield; the books, the stone, the marble, the people and the sounds are generated in your browser.</p>
@@ -306,6 +308,7 @@ h1,h2,h3{font-family:var(--display);font-weight:400;margin:0;text-wrap:balance}
     <div class="page-wrap">
       <div class="page-head"><span id="r-ph-l"></span><span id="r-ph-r"></span></div>
       <pre id="page"></pre>
+      <p id="r-note" class="hand-note" hidden></p>
     </div>
     <div class="rside">
       <button class="x" data-close aria-label="Close">×</button>
@@ -330,26 +333,6 @@ h1,h2,h3{font-family:var(--display);font-weight:400;margin:0;text-wrap:balance}
   </div>
 </section>
 
-<section id="dialog" class="overlay" hidden>
-  <div class="card">
-    <div class="por" id="d-por"></div>
-    <div class="dbody">
-      <button class="x" data-close aria-label="Close">×</button>
-      <div class="dname"><h2 id="d-name"></h2><span class="chip" id="d-fac"></span></div>
-      <p id="d-text"></p>
-      <div id="d-opts"></div>
-      <div id="d-chat" hidden>
-        <div id="d-log"></div>
-        <div class="chatrow">
-          <input id="d-in" class="field wide" maxlength="400" autocomplete="off" placeholder="Say something…">
-          <button class="btn" id="d-send">Say</button>
-          <button class="btn" id="d-stop" hidden>Stop</button>
-        </div>
-        <div><button class="btn" id="d-back">Back</button></div>
-      </div>
-    </div>
-  </div>
-</section>
 
 <section id="kiosk" class="overlay" hidden>
   <div class="card">
@@ -387,7 +370,7 @@ h1,h2,h3{font-family:var(--display);font-weight:400;margin:0;text-wrap:balance}
       <button role="tab" data-tab="threads" aria-selected="true">Threads</button>
       <button role="tab" data-tab="log">Days</button>
       <button role="tab" data-tab="frags">Fragments</button>
-      <button role="tab" data-tab="souls">Souls</button>
+      <button role="tab" data-tab="notes">Margins</button>
       <button role="tab" data-tab="nums">Numbers</button>
       <button role="tab" data-tab="odds">The odds</button>
     </div>
@@ -413,8 +396,8 @@ h1,h2,h3{font-family:var(--display);font-weight:400;margin:0;text-wrap:balance}
     <div class="checks"><label><input type="checkbox" id="s-hints"> Show the current thread</label></div>
     <div class="keys">
       <span><b>WASD</b>walk · steer falling</span><span><b>Mouse</b>look</span><span><b>Shift</b>sprint</span>
-      <span><b>Space</b>jump · sleep falling</span><span><b>C</b>crouch</span><span><b>E</b>take · use · talk</span>
-      <span><b>R</b>read held book</span><span><b>G</b>drop · into a well</span><span><b>F</b>shove</span>
+      <span><b>Space</b>jump · sleep falling</span><span><b>C</b>crouch</span><span><b>E</b>take · use</span>
+      <span><b>R</b>read held book</span><span><b>G</b>drop · into a well</span>
       <span><b>Q</b>eat · drink</span><span><b>Z</b>sleep</span><span><b>J</b>journal</span>
     </div>
     <div style="border-top:1px solid var(--edge);padding-top:14px;display:grid;gap:8px">
@@ -428,7 +411,7 @@ h1,h2,h3{font-family:var(--display);font-weight:400;margin:0;text-wrap:balance}
   <div id="joy"><i></i></div>
   <div id="tmenu"><button id="t-j">Journal</button><button id="t-p">Pause</button></div>
   <div id="tbtns">
-    <button id="t-e">Use</button><button id="t-r">Read</button><button id="t-g">Drop</button><button id="t-f">Shove</button>
+    <button id="t-e">Use</button><button id="t-r">Read</button><button id="t-g">Drop</button>
     <button id="t-c">Crouch</button><button id="t-z">Sleep</button><button id="t-sp">Jump</button>
   </div>
 </div>
@@ -437,7 +420,7 @@ h1,h2,h3{font-family:var(--display);font-weight:400;margin:0;text-wrap:balance}
 /* Load three.js (with a second CDN as fallback), then the game's own scripts in order */
 (function () {
   const libs = ['https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js', 'https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js'];
-  const game = ['js/core.js', 'js/post.js', 'js/world.js', 'js/props.js', 'js/actors.js', 'js/story.js', 'js/game.js'];
+  const game = ['js/core.js', 'js/post.js', 'js/world.js', 'js/props.js', 'js/story.js', 'js/game.js'];
   const fail = msg => { const el = document.createElement('div'); el.style.cssText = 'position:fixed;left:16px;right:16px;bottom:16px;z-index:99;background:#14171c;border:1px solid #c05a40;color:#ddd0b3;padding:12px 16px;font:15px Georgia,serif'; el.textContent = msg; document.body.appendChild(el); };
   const load = (src, ok, bad) => { const s = document.createElement('script'); s.src = src; s.async = false; s.onload = ok; s.onerror = bad; document.body.appendChild(s); };
   const lib = i => i >= libs.length ? fail('The 3D engine could not be downloaded. Check your connection and reload the page.') : load(libs[i], () => window.THREE ? run(0) : lib(i + 1), () => lib(i + 1));

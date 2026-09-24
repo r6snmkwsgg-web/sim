@@ -25,8 +25,8 @@ def cage(R, x0, y0, x1, y1, h=3.0, rows=5, open_side=None):
     # shelves back to back down the middle
     xm = (x0 + x1) / 2
     L = y1 - y0 - 0.3
-    R.shelf(xm - 0.01, y0 + 0.15 + L, 0, L, '-x', rows=rows, frame='walnut', depth=0.32, solid=False, crown=False)
-    R.shelf(xm + 0.01, y0 + 0.15, 0, L, '+x', rows=rows, frame='walnut', depth=0.32, solid=False, crown=False, sides=False)
+    R.shelf(xm - 0.01, y0 + 0.15, 0, L, '-x', rows=rows, frame='walnut', depth=0.32, solid=False, crown=False)
+    R.shelf(xm + 0.01, y0 + 0.15 + L, 0, L, '+x', rows=rows, frame='walnut', depth=0.32, solid=False, crown=False, sides=False)
     # the cage
     bars_y(R, y0, y1, x0, 0.05, h)
     bars_y(R, y0, y1, x1, 0.05, h)

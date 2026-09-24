@@ -55,7 +55,7 @@ const KINDS = {
 
 const ROOM_VS = `
 attribute vec2 uv2;
-varying vec3 vL; varying vec3 vN; varying vec2 vUv; varying vec2 vUv2; varying vec3 vCam;
+varying vec3 vL; varying vec3 vN; varying vec2 vUv; varying vec2 vUv2; varying vec3 vCam; varying float vWY;
 void main(){
   vec3 p = position;
   #ifdef KIND
@@ -63,16 +63,30 @@ void main(){
     p -= normal * 0.035;
   #endif
   #endif
-  vL = p; vN = normal; vUv = uv; vUv2 = uv2;
+  vL = p; vN = normal; vUv = uv; vUv2 = uv2; vWY = (modelMatrix * vec4(p, 1.0)).y;
   vCam = (inverse(modelMatrix) * vec4(cameraPosition, 1.0)).xyz;
   gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(p, 1.0);
 }`;
 
+/* Rooms overlap a little vertically: a pit dug below a floor lies inside the top of the room beneath.
+   The world origin always sits on your floor (y = 0), so each fragment knows whose floor it is on:
+   a room's below-floor parts show only on its own floor, and its top band only from its own floor or below.
+   Anything outside a room's footprint is never drawn. Shafts that repeat through every floor are exempt. */
+const ROOM_CLIP = `
+uniform float uTop; uniform float uRep; uniform vec2 uWD;
+void roomClip(vec3 L, float wy){
+  if (L.x < -0.05 || L.z < -0.05 || L.x > uWD.x + 0.05 || L.z > uWD.y + 0.05) discard;
+  if (uRep > 0.5) return;
+  float base = wy - L.y;
+  if (base > 0.5 && L.y < -0.4) discard;
+  if (base + uTop < 0.5 && L.y > uTop - 3.25) discard;
+}`;
 const ROOM_COMMON = `
 uniform sampler2D tLMd; uniform sampler2D tLMn; uniform float uDay; uniform float uTime;
 uniform samplerCube tProbe; uniform samplerCube tProbeN; uniform vec3 uProbeP; uniform vec3 uBoxMin; uniform vec3 uBoxMax; uniform float uProbeOn;
 uniform vec3 uFogCol; uniform float uFogD; uniform float uCaus;
 uniform vec4 uWat[4]; uniform vec2 uWatH[4];
+${ROOM_CLIP}
 float hash21(vec2 p){ vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
 float vnoise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
   return mix(mix(hash21(i), hash21(i + vec2(1.0, 0.0)), f.x), mix(hash21(i + vec2(0.0, 1.0)), hash21(i + vec2(1.0, 1.0)), f.x), f.y); }
@@ -139,7 +153,7 @@ vec3 safeCol(vec3 c){
 const ROOM_FS = `
 uniform vec3 uAlb; uniform float uSize; uniform float uGrout; uniform float uJit; uniform float uGloss; uniform float uF0; uniform float uRough;
 uniform vec3 uP0; uniform vec3 uP1; uniform vec3 uP2; uniform vec3 uP3; uniform sampler2D tTex;
-varying vec3 vL; varying vec3 vN; varying vec2 vUv; varying vec2 vUv2; varying vec3 vCam;
+varying vec3 vL; varying vec3 vN; varying vec2 vUv; varying vec2 vUv2; varying vec3 vCam; varying float vWY;
 ${ROOM_COMMON}
 void tiles(vec2 uv, float size, float grout, vec3 alb, float jit, out vec3 A, out vec2 bump, out float gm){
   vec2 p = uv / size; vec2 c = floor(p); vec2 f = p - c;
@@ -159,6 +173,7 @@ void tiles(vec2 uv, float size, float grout, vec3 alb, float jit, out vec3 A, ou
   bump += (vec2(vnoise(p * 3.1 + h * 40.0), vnoise(p * 3.1 + 11.0 + h * 40.0)) - 0.5) * 0.06 * (1.0 - far);
 }
 void main(){
+  roomClip(vL, vWY);
   vec3 N = normalize(vN);
   #if KIND == 10
     if (!gl_FrontFacing) N = -N;
@@ -293,8 +308,10 @@ void main(){
 
 const EMIT_FS = `
 uniform vec3 uEmit; uniform float uOn; uniform vec3 uFogCol; uniform float uFogD;
-varying vec3 vL; varying vec3 vN; varying vec2 vUv; varying vec2 vUv2; varying vec3 vCam;
+varying vec3 vL; varying vec3 vN; varying vec2 vUv; varying vec2 vUv2; varying vec3 vCam; varying float vWY;
+${ROOM_CLIP}
 void main(){
+  roomClip(vL, vWY);
   float d = length(vL - vCam);
   vec3 col = uEmit * uOn;
   col = mix(col, uFogCol, 1.0 - exp(-d * uFogD));
@@ -304,12 +321,14 @@ void main(){
 /* A painted sky for the rooms that pretend to be outside: gradient, slow clouds, and stars after lights-out */
 const SKY_FS = `
 uniform vec3 uEmit; uniform float uOn; uniform vec3 uFogCol; uniform float uFogD; uniform float uTime; uniform float uDay;
-varying vec3 vL; varying vec3 vN; varying vec2 vUv; varying vec2 vUv2; varying vec3 vCam;
+varying vec3 vL; varying vec3 vN; varying vec2 vUv; varying vec2 vUv2; varying vec3 vCam; varying float vWY;
+${ROOM_CLIP}
 float h2(vec2 p){ vec3 q = fract(vec3(p.xyx) * 0.1031); q += dot(q, q.yzx + 33.33); return fract((q.x + q.y) * q.z); }
 float n2(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
   return mix(mix(h2(i), h2(i + vec2(1, 0)), f.x), mix(h2(i + vec2(0, 1)), h2(i + vec2(1, 1)), f.x), f.y); }
 float fbm(vec2 p){ float a = 0.5, s = 0.0; for (int i = 0; i < 5; i++) { s += a * n2(p); p = p * 2.03 + 11.7; a *= 0.5; } return s; }
 void main(){
+  roomClip(vL, vWY);
   vec3 d = normalize(vL - vCam);
   float e = clamp(d.y, 0.0, 1.0);
   float k = max(dot(uEmit, vec3(0.333)), 0.001);
@@ -447,18 +466,20 @@ function shaftBoxes(meshes) {
 /* Books on shelves: one instance per book, lit from the lightmap texel behind its spine */
 const BOOK_VS = `
 attribute float aFace; attribute vec3 aStyle; attribute vec4 aLM;
-varying vec3 vL; varying vec3 vN; varying vec2 vUv; varying vec2 vLM; varying vec3 vCol; varying vec3 vStyle; varying float vFace; varying vec3 vCam;
+varying vec3 vL; varying vec3 vN; varying vec2 vUv; varying vec2 vLM; varying vec3 vCol; varying vec3 vStyle; varying float vFace; varying vec3 vCam; varying float vWY;
 void main(){
   vec4 p = instanceMatrix * vec4(position, 1.0);
+  vWY = (modelMatrix * p).y;
   vL = p.xyz; vN = normalize(mat3(instanceMatrix) * normal); vUv = uv; vFace = aFace; vStyle = aStyle; vCol = instanceColor;
   vLM = mix(aLM.xy, aLM.zw, position.y + 0.5);
   vCam = (inverse(modelMatrix) * vec4(cameraPosition, 1.0)).xyz;
   gl_Position = projectionMatrix * viewMatrix * modelMatrix * p;
 }`;
 const BOOK_FS = `
-varying vec3 vL; varying vec3 vN; varying vec2 vUv; varying vec2 vLM; varying vec3 vCol; varying vec3 vStyle; varying float vFace; varying vec3 vCam;
+varying vec3 vL; varying vec3 vN; varying vec2 vUv; varying vec2 vLM; varying vec3 vCol; varying vec3 vStyle; varying float vFace; varying vec3 vCam; varying float vWY;
 ${ROOM_COMMON}
 void main(){
+  roomClip(vL, vWY);
   vec3 base = vCol, N = normalize(vN); float ao = 1.0, gl = 0.0;
   if (vFace < 0.5) {
     float bv = vUv.y, bu = vUv.x;
@@ -576,7 +597,8 @@ async function loadPrefab(name) {
       tLMd: { value: lmd }, tLMn: { value: lmn }, tProbe: { value: cube.texture }, tProbeN: { value: cubeN.texture },
       uProbeP: { value: new THREE.Vector3().fromArray(probeP) }, uBoxMin: { value: box.min }, uBoxMax: { value: box.max },
       uWat: { value: wat.W }, uWatH: { value: wat.Hh },
-      uDay: WU.uDay, uTime: WU.uTime, uFogCol: WU.uFogCol, uFogD: WU.uFogD, uProbeOn: WU.uProbeOn, uCaus: WU.uCaus
+      uDay: WU.uDay, uTime: WU.uTime, uFogCol: WU.uFogCol, uFogD: WU.uFogD, uProbeOn: WU.uProbeOn, uCaus: WU.uCaus,
+      uTop: { value: meta.levels * RLH - 0.4 }, uRep: { value: meta.repeat ? 1 : 0 }, uWD: { value: new THREE.Vector2(meta.w * RC, meta.d * RC) }
     };
     const mats = {}, meshes = [];
     for (const g of meta.groups) {
@@ -591,7 +613,7 @@ async function loadPrefab(name) {
       if (!mat) {
         if (g.emit) {
           const e = meta.emit[g.mat];
-          mat = new THREE.ShaderMaterial({ uniforms: { uEmit: { value: new THREE.Vector3(e[0][0] * e[1], e[0][1] * e[1], e[0][2] * e[1]) }, uOn: { value: 1 }, uFogCol: WU.uFogCol, uFogD: WU.uFogD },
+          mat = new THREE.ShaderMaterial({ uniforms: { uEmit: { value: new THREE.Vector3(e[0][0] * e[1], e[0][1] * e[1], e[0][2] * e[1]) }, uOn: { value: 1 }, uFogCol: WU.uFogCol, uFogD: WU.uFogD, uTop: common.uTop, uRep: common.uRep, uWD: common.uWD },
             vertexShader: ROOM_VS, fragmentShader: EMIT_FS });
           mat.userData.night = (meta.night_on || ['e_pool', 'e_amber', 'e_kiosk', 'e_portal']).includes(g.mat);
           if (g.mat === 'e_skydome') { mat.fragmentShader = SKY_FS; mat.uniforms.uTime = WU.uTime; mat.uniforms.uDay = WU.uDay; }
@@ -1063,15 +1085,25 @@ function gridTris(pf, x0, y0, z0, x1, y1, z1, fn) {
   }
 }
 /* Push a sphere (world space) out of the rooms near it. Returns the push, and a floor normal if it touched one. */
+/* the same ownership rule as the shaders: which of this room's triangles exist from your floor (null: all) */
+function bandOf(inst) {
+  const M = inst.pf.meta; if (M.repeat) return null;
+  const base = inst.box[1] + 2, top = M.levels * RLH - 0.4;
+  if (base > 0.5) return [-0.4, 1e9];
+  if (base + top < 0.5) return [-1e9, top - 3.25];
+  return null;
+}
+const triY = (c, t) => (c[t * 9 + 1] + c[t * 9 + 4] + c[t * 9 + 7]) / 3;
 function pushSphere(p, r, onlyWalls, info) {
   for (const inst of WORLD.inst.values()) {
     const b = inst.box;
     if (p.x < b[0] - r || p.x > b[3] + r || p.z < b[2] - r || p.z > b[5] + r || p.y < b[1] - r - 1 || p.y > b[4] + r + 1) continue;
-    const pf = inst.pf, c = pf.col, nrm = triNormals(pf);
+    const pf = inst.pf, c = pf.col, nrm = triNormals(pf), band = bandOf(inst);
     _v.copy(p).applyMatrix4(inst.inv);
     const lx = _v.x, ly = _v.y, lz = _v.z;
     let mx = 0, my = 0, mz = 0;
     gridTris(pf, lx - r, ly - r, lz - r, lx + r, ly + r, lz + r, t => {
+      if (band) { const y = triY(c, t); if (y < band[0] || y > band[1]) return; }
       const ny = nrm[t * 3 + 1];
       if (onlyWalls && ny > 0.7) return;
       closestOnTri(lx + mx, ly + my, lz + mz, c, t * 9, _cp);
@@ -1099,11 +1131,12 @@ function groundAt(x, y, z, up, down) {
     const b = inst.box;
     if (x < b[0] - 0.1 || x > b[3] + 0.1 || z < b[2] - 0.1 || z > b[5] + 0.1) continue;
     if (y + up < b[1] - 1 || y - down > b[4] + 1) continue;
-    const pf = inst.pf, c = pf.col, nrm = triNormals(pf);
+    const pf = inst.pf, c = pf.col, nrm = triNormals(pf), band = bandOf(inst);
     _v.set(x, y, z).applyMatrix4(inst.inv);
     const lx = _v.x, ly = _v.y, lz = _v.z, oyw = y - ly;   // rooms never tilt, so world y = local y + offset
     gridTris(pf, lx - 0.01, ly - down, lz - 0.01, lx + 0.01, ly + up, lz + 0.01, t => {
       if (nrm[t * 3 + 1] < 0.35) return;
+      if (band) { const yy = triY(c, t); if (yy < band[0] || yy > band[1]) return; }
       const o = t * 9;
       const ax = c[o], az = c[o + 2], bx = c[o + 3], bz = c[o + 5], cx = c[o + 6], cz = c[o + 8];
       const d = (bz - cz) * (ax - cx) + (cx - bx) * (az - cz); if (Math.abs(d) < 1e-9) return;
@@ -1152,10 +1185,11 @@ function rayHit(o, d, maxT) {
       t0 = Math.max(t0, ta); t1 = Math.min(t1, tb);
     }
     if (t0 > t1) continue;
-    const pf = inst.pf, c = pf.col;
+    const pf = inst.pf, c = pf.col, band = bandOf(inst);
     const lo = _v.copy(o).applyMatrix4(inst.inv), ld = _w.copy(d).transformDirection(inst.inv);
     const ex = lo.x + ld.x * best, ey = lo.y + ld.y * best, ez = lo.z + ld.z * best;
     gridTris(pf, Math.min(lo.x, ex), Math.min(lo.y, ey), Math.min(lo.z, ez), Math.max(lo.x, ex), Math.max(lo.y, ey), Math.max(lo.z, ez), t => {
+      if (band) { const yy = triY(c, t); if (yy < band[0] || yy > band[1]) return; }
       const q = t * 9;
       const e1x = c[q + 3] - c[q], e1y = c[q + 4] - c[q + 1], e1z = c[q + 5] - c[q + 2], e2x = c[q + 6] - c[q], e2y = c[q + 7] - c[q + 1], e2z = c[q + 8] - c[q + 2];
       const px = ld.y * e2z - ld.z * e2y, py = ld.z * e2x - ld.x * e2z, pz = ld.x * e2y - ld.y * e2x, det = e1x * px + e1y * py + e1z * pz;
