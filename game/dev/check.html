@@ -61,7 +61,7 @@ window.CHECK = null;
       const L = cols[i2 * NZ + j2];
       // walk: a surface within step height; else drop to the highest surface below
       let best = null;
-      for (const m of L) if (m.h <= n.h + 0.55 && m.h >= n.h - 0.55 && (m.h <= n.h + 0.05 || m.c) && (!best || Math.abs(m.h - n.h) < Math.abs(best.h - n.h))) best = m;
+      for (const m of L) if (m.h <= n.h + 0.55 && m.h >= n.h - 0.55 && (m.h <= n.h + 0.05 || m.c) && (!best || m.h > best.h)) best = m;   // like the game: the highest surface in reach
       if (!best) {
         // blocked if something solid stands between: a surface in this column above our step height but below our head?
         const x2 = (i2 + 0.5) * G, z2 = (j2 + 0.5) * G;
