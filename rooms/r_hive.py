@@ -160,7 +160,7 @@ def queen(R, rnd):
     hq = [(cx + QR * math.cos(math.radians(60 * k)), cy + QR * math.sin(math.radians(60 * k))) for k in range(6)]
     R.cut(poly_prism(hq, 0.0, 4.6, side='wax', top='wax', bottom='honey'))
     hq2 = [(cx + 1.9 * math.cos(math.radians(60 * k)), cy + 1.9 * math.sin(math.radians(60 * k))) for k in range(6)]
-    R.cut(poly_prism(hq2, 4.5, 6.6, side='wax', top='e_honey', bottom='wax'))
+    R.cut(poly_prism(hq2, 4.5, 6.6, side='wax', top='wax', bottom='wax'))
     R.light(poly_prism([(cx + 1.2 * math.cos(math.radians(60 * k)), cy + 1.2 * math.sin(math.radians(60 * k))) for k in range(6)], 6.55, 6.58, 'e_honey', 'e_honey', 'e_honey'))
     # glowing cells set into the walls
     for k in range(6):
