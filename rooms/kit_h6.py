@@ -1,0 +1,165 @@
+"""Shared helpers for batch 6 of the Deep Stacks (time II, machines): hourglass, candlehall, unfinished,
+seasons, pneumatic, presses, sortingengine, typewriters."""
+import random
+import lib
+from kit_h3 import *
+from kit_h1 import along, xcyl, cone
+from kit_h2 import climb_ladder, ramp, wall_col, hexa, railed_flight
+from kit_h4 import tube, curve, loft
+
+# a few materials the library palette lacks (the room file carries the albedo; the game paints them)
+NEW_MATS = {
+    'tallow':    (0.88, 0.80, 0.64),   # candle wax, old and built up
+    'newsprint': (0.82, 0.80, 0.74),   # paper off the presses
+    'ink':       (0.03, 0.03, 0.05),   # printer's ink
+    'blossom':   (0.93, 0.70, 0.76),   # cherry blossom
+    'rust':      (0.72, 0.30, 0.07),   # autumn leaves
+    'amberleaf': (0.84, 0.56, 0.12),
+    'leafg':     (0.16, 0.30, 0.08),   # summer leaves
+    'snow':      (0.90, 0.92, 0.95),
+    'concrete':  (0.52, 0.52, 0.50),   # bare, unfinished
+    'belt':      (0.10, 0.09, 0.08),   # conveyor rubber / canvas
+}
+NEW_EMIT = {
+    'e_flame': ((1.00, 0.66, 0.30), 9.0),    # candle flames en masse: stays on at night
+}
+for _k, _v in NEW_MATS.items(): lib.MATS.setdefault(_k, _v)
+for _k, _v in NEW_EMIT.items(): lib.EMIT.setdefault(_k, _v)
+lib.NIGHT_ON.add('e_flame')
+
+
+def rng(seed):
+    return random.Random(seed)
+
+
+# ---------------------------------------------------------------------------
+# furniture
+def typewriter(x, y, a=0.0, z=0.0, body='iron', keys='ivory', paper='newsprint', s=1.0, page=True):
+    """An upright office typewriter (a few boxes) on a desk top at z, the typist facing angle a
+    (the keyboard toward the typist). Drawn only (nocol)."""
+    g = Geo()
+    g.add(box(-0.23, -0.17, 0, 0.23, 0.15, 0.07, body, skip=('-z',)))
+    g.add(slope_box(-0.17, 0.0, -0.21, 0.21, 0.07, 0.07, 0.10, 0.16, body).xform(math.pi / 2, 0, 0, 0))
+    for k in range(3):                                  # three rows of keys
+        yk = -0.15 + k * 0.05
+        g.add(box(-0.19, yk, 0.10 + k * 0.02, 0.19, yk + 0.03, 0.125 + k * 0.02, keys, skip=('-z',)))
+    g.add(box(-0.2, -0.0, 0.07, 0.2, 0.15, 0.2, body, skip=('-z',)))          # the body
+    g.add(box(-0.27, 0.07, 0.2, 0.27, 0.15, 0.26, 'black', sides='chrome'))   # the carriage and platen
+    g.add(box(-0.3, 0.09, 0.21, -0.27, 0.13, 0.25, 'chrome'))
+    if page:
+        p = box(-0.105, 0.105, 0.2, 0.105, 0.11, 0.5, paper)
+        rot(p, 'x', -0.22, 0, 0.11, 0.24)
+        g.add(p)
+    if s != 1.0: g.v = [(px * s, py * s, pz * s) for (px, py, pz) in g.v]
+    return g.xform(a - math.pi / 2, x, y, z)
+
+
+def desk(x, y, a=0.0, w=1.1, d=0.66, h=0.76, m='walnut', top='leather'):
+    """A plain writing desk centred at (x, y); the sitter faces angle a. Drawers on the left, a panel on the right."""
+    g = Geo()
+    g.add(box(-d / 2, -w / 2, h - 0.05, d / 2, w / 2, h, m, top=top))
+    g.add(box(-d / 2 + 0.03, -w / 2 + 0.02, 0, d / 2 - 0.03, -w / 2 + 0.36, h - 0.05, m, skip=('-z', '+z')))
+    g.add(box(-d / 2 + 0.03, w / 2 - 0.06, 0, d / 2 - 0.03, w / 2 - 0.02, h - 0.05, m, skip=('-z', '+z')))
+    for k in range(3):   # drawer fronts toward the sitter
+        zz = 0.08 + k * 0.22
+        g.add(box(-d / 2 - 0.0, -w / 2 + 0.06, zz, -d / 2 + 0.03, -w / 2 + 0.32, zz + 0.17, 'oak', skip=('+x',)))
+    return g.xform(a, x, y, 0)
+
+
+def stool(x, y, a=0.0, m='walnut', seat='leather', back=True):
+    g = Geo()
+    g.add(box(-0.2, -0.2, 0.42, 0.2, 0.2, 0.47, seat, sides=m))
+    g.add(box(-0.18, -0.18, 0, -0.14, 0.18, 0.42, m, skip=('-z', '+z')))
+    g.add(box(0.14, -0.18, 0, 0.18, 0.18, 0.42, m, skip=('-z', '+z')))
+    if back: g.add(box(-0.22, -0.18, 0.47, -0.18, 0.18, 0.95, m, skip=('-z',)))
+    return g.xform(a, x, y, 0)
+
+
+def sheet(x, y, z, a=0.0, w=0.21, l=0.3, m='newsprint', tilt=0.0):
+    """A loose page lying on something."""
+    g = box(-l / 2, -w / 2, 0, l / 2, w / 2, 0.004, m, skip=('-z',))
+    if tilt: rot(g, 'x', tilt)
+    return g.xform(a, x, y, z)
+
+
+def plank(p0, p1, w=0.25, t=0.05, m='oak'):
+    """A flat board between two 3D points (lying flat, w wide)."""
+    return beam(p0, p1, w, m, t)
+
+
+def wheel(cx, cy, cz, r, axis='x', spokes=6, rim=0.08, w=0.12, m='iron', hub=None, segs=20):
+    """A spoked wheel (a flywheel, a gear) standing in the plane normal to `axis` ('x' or 'y')."""
+    g = Geo()
+    g.add(ring(0, 0, -w / 2, w / 2, r - rim, r, segs, top=m, bottom=m, inner=m, outer=m))
+    g.add(cyl(0, 0, -w * 0.8, w * 0.8, rim * 1.3, 10, side=hub or m, top=hub or m, bottom=hub or m))
+    for k in range(spokes):
+        an = 2 * math.pi * k / spokes
+        g.add(obox(0, 0, math.cos(an) * (r - rim * 0.5), math.sin(an) * (r - rim * 0.5), -w * 0.3, w * 0.3, rim * 0.6, m))
+    # stand it up: the wheel lies in x-y about z; turn its axis to `axis`
+    if axis == 'x': rot(g, 'y', math.pi / 2)
+    else: rot(g, 'x', math.pi / 2)
+    g.v = [(a + cx, b + cy, c + cz) for a, b, c in g.v]
+    return g
+
+
+def gear(cx, cy, cz, r, teeth=16, axis='x', w=0.15, m='brass', spokes=5):
+    g = Geo()
+    g.add(ring(0, 0, -w / 2, w / 2, r * 0.78, r, max(teeth, 12), top=m, bottom=m, inner=m, outer=m))
+    for k in range(teeth):
+        an = 2 * math.pi * (k + 0.5) / teeth
+        tw = 2 * math.pi * r / teeth * 0.45
+        t = box(r - 0.02, -tw / 2, -w / 2, r + r * 0.12, tw / 2, w / 2, m, skip=('-x',))
+        g.add(t.xform(an, 0, 0, 0))
+    g.add(cyl(0, 0, -w * 0.9, w * 0.9, r * 0.14, 10, side=m, top=m, bottom=m))
+    for k in range(spokes):
+        an = 2 * math.pi * k / spokes
+        g.add(obox(0, 0, math.cos(an) * r * 0.8, math.sin(an) * r * 0.8, -w * 0.3, w * 0.3, r * 0.08, m))
+    if axis == 'x': rot(g, 'y', math.pi / 2)
+    else: rot(g, 'x', math.pi / 2)
+    g.v = [(a + cx, b + cy, c + cz) for a, b, c in g.v]
+    return g
+
+
+def roller(x0, x1, y, z, r, m='iron', segs=14, axis='x'):
+    """A horizontal cylinder from x0 to x1 (axis 'x') or y0..y1 (axis 'y', then the first two args are y's and y is x)."""
+    g = xcyl(x1 - x0, r, segs, side=m)
+    if axis == 'x':
+        g.v = [(a + x0, b + y, c + z) for a, b, c in g.v]
+    else:
+        g.v = [(y + b, a + x0, c + z) for a, b, c in g.v]
+    return g
+
+
+def candles_on(R, x0, y0, x1, y1, z, n, rs, hmin=0.12, hmax=0.4, rmin=0.025, rmax=0.05, m='tallow', flame='e_candle', segs=6):
+    """A scatter of candles standing on a surface (drawn only), each with its flame."""
+    for _ in range(n):
+        x, y = rs.uniform(x0, x1), rs.uniform(y0, y1)
+        h, r = rs.uniform(hmin, hmax), rs.uniform(rmin, rmax)
+        R.nocol.add(cyl(x, y, z, z + h, r, segs, side=m, top=m, caps=True, bottom=m))
+        R.light(box(x - r * 0.35, y - r * 0.35, z + h + 0.005, x + r * 0.35, y + r * 0.35, z + h + 0.03 + r * 0.9, flame))
+
+
+def cage_tube(p0, p1, r, m='brass', ribs=6, hoops=None, segs=16, hoop_w=0.06):
+    """A 'glass' tube as the library builds one: brass hoops and fine ribs round an open core (drawn)."""
+    g = Geo()
+    L = math.dist(p0, p1)
+    n = hoops if hoops is not None else max(2, int(L / 1.2) + 1)
+    for k in range(n):
+        t = k / (n - 1)
+        h = cyl(0, 0, -hoop_w / 2, hoop_w / 2, r, segs, side=m, caps=False)
+        hi = cyl(0, 0, -hoop_w / 2, hoop_w / 2, r - 0.03, segs, side=m, caps=False)
+        hi.f = [tuple(reversed(f)) for f in hi.f]; hi.uv = [list(reversed(u)) for u in hi.uv]
+        h.add(hi)
+        rot(h, 'y', math.pi / 2)
+        h.v = [(a + L * t, b, c) for a, b, c in h.v]
+        g.add(h)
+    for k in range(ribs):
+        an = 2 * math.pi * k / ribs
+        b = box(0, -0.012, -0.012, L, 0.012, 0.012, m)
+        b.v = [(a, bb + math.cos(an) * (r - 0.015), c + math.sin(an) * (r - 0.015)) for a, bb, c in b.v]
+        g.add(b)
+    return along(g, p0, p1)
+
+
+def solid_tube(p0, p1, r, m='brass', segs=16, caps=True):
+    return along(xcyl(math.dist(p0, p1), r, segs, side=m, caps=caps), p0, p1)
