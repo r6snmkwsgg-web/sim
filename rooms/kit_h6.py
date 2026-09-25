@@ -130,13 +130,13 @@ def roller(x0, x1, y, z, r, m='iron', segs=14, axis='x'):
     return g
 
 
-def candles_on(R, x0, y0, x1, y1, z, n, rs, hmin=0.12, hmax=0.4, rmin=0.025, rmax=0.05, m='tallow', flame='e_candle', segs=6):
+def candles_on(R, x0, y0, x1, y1, z, n, rs, hmin=0.12, hmax=0.4, rmin=0.025, rmax=0.05, m='tallow', fm='e_candle', segs=6):
     """A scatter of candles standing on a surface (drawn only), each with its flame."""
     for _ in range(n):
         x, y = rs.uniform(x0, x1), rs.uniform(y0, y1)
         h, r = rs.uniform(hmin, hmax), rs.uniform(rmin, rmax)
-        R.nocol.add(cyl(x, y, z, z + h, r, segs, side=m, top=m, caps=True, bottom=m))
-        R.light(box(x - r * 0.35, y - r * 0.35, z + h + 0.005, x + r * 0.35, y + r * 0.35, z + h + 0.03 + r * 0.9, flame))
+        R.nocol.add(taper(x, y, z, z + h, r, r * 0.9, segs, m))
+        flame(R, x, y, z + h + 0.005, r * 0.35, 0.025 + r * 0.9, fm)
 
 
 def cage_tube(p0, p1, r, m='brass', ribs=6, hoops=None, segs=16, hoop_w=0.06):
@@ -192,3 +192,89 @@ def tunnels(R, x0, y0, x1, y1, z=0.0, floor='floor', wall='tile', skip=()):
         for side, a, b in (('W', T, x0 + 0.05), ('E', x1 - 0.05, W - T)):
             if (side, j, L) in skip or b - a < 0.62: continue
             R.cut(prism([(p + c, q + z) for p, q in pr], 'x', a, b, arch_mats(len(pr), floor, wall)))
+
+
+# ---------------------------------------------------------------------------
+# wax
+def wax_spire(R, x, y, z, h, r, rs, m='tallow', col=True, segs=8, lit=True, flame_m='e_candle'):
+    """One built-up candle: a tapering column of wax with a guttered lip and a flame on top."""
+    g = cone(x, y, z, z + h, r, r * rs.uniform(0.45, 0.7), segs, side=m, top=m, bottom=m)
+    (R.parts if col else R.nocol).add(g)
+    rt = r * 0.55
+    if lit:
+        fr = min(0.05, rt * 0.4)
+        R.light(box(x - fr, y - fr, z + h + 0.01, x + fr, y + fr, z + h + 0.03 + fr * 2.4, flame_m))
+
+
+def wax_mound(R, x, y, r, h, rs, n=None, m='tallow', z=0.0, col=True, flames=True):
+    """A stalagmite of wax: a broad foot, spires of different heights, candles burning on every top."""
+    R.parts.add(cone(x, y, z, z + min(h * 0.18, 0.5), r, r * 0.8, 12, side=m, top=m, bottom=m)) if col else \
+        R.nocol.add(cone(x, y, z, z + min(h * 0.18, 0.5), r, r * 0.8, 12, side=m, top=m, bottom=m))
+    n = n or max(3, int(r * 7))
+    wax_spire(R, x, y, z, h, r * 0.42, rs, m, col, 10)
+    for k in range(n):
+        a = rs.uniform(0, 2 * math.pi); d = rs.uniform(0.25, 0.85) * r
+        hh = h * rs.uniform(0.15, 0.75) * (1 - d / r * 0.6)
+        rr = r * rs.uniform(0.1, 0.24)
+        wax_spire(R, x + math.cos(a) * d, y + math.sin(a) * d, z, max(0.2, hh), rr, rs, m, col and d < r * 0.7, 7, lit=flames)
+
+
+def icicle(x, y, ztop, L, r, segs=4, m='tallow', a0=0.0):
+    """A hanging point: a ring at ztop narrowing to a tip L below (open at the top, a few faces)."""
+    g = Geo()
+    ring_ = [g.vert((x + r * math.cos(a0 + 2 * math.pi * k / segs), y + r * math.sin(a0 + 2 * math.pi * k / segs), ztop)) for k in range(segs)]
+    tip = g.vert((x, y, ztop - L))
+    for k in range(segs):
+        j = (k + 1) % segs
+        g.face([ring_[j], ring_[k], tip], m, [(k * r, 0), ((k + 1) * r, 0), ((k + 0.5) * r, -L)])
+    return g
+
+
+def taper(x, y, z0, z1, r0, r1, segs=5, m='tallow'):
+    """An upright tapering stick without a bottom (a candle, a spire): segs sides and a top."""
+    g = Geo()
+    b = [g.vert((x + r0 * math.cos(2 * math.pi * k / segs), y + r0 * math.sin(2 * math.pi * k / segs), z0)) for k in range(segs)]
+    t = [g.vert((x + r1 * math.cos(2 * math.pi * k / segs), y + r1 * math.sin(2 * math.pi * k / segs), z1)) for k in range(segs)]
+    for k in range(segs):
+        j = (k + 1) % segs
+        g.face([b[k], b[j], t[j], t[k]], m, [(k * r0, z0), ((k + 1) * r0, z0), ((k + 1) * r0, z1), (k * r0, z1)])
+    g.face(t, m, [(g.v[i][0], g.v[i][1]) for i in t])
+    return g
+
+
+def flame(R, x, y, z, s=0.012, h=0.045, m='e_candle'):
+    R.light(box(x - s, y - s, z, x + s, y + s, z + h, m, skip=('-z',)))
+
+
+def drips(R, x0, y0, x1, y1, z, n, rs, Lmin=0.08, Lmax=0.9, rmin=0.02, rmax=0.07, m='tallow', segs=4):
+    """Wax hanging in icicles from an edge between two points at height z (drawn only)."""
+    for _ in range(n):
+        t = rs.random()
+        x, y = x0 + (x1 - x0) * t, y0 + (y1 - y0) * t
+        L = Lmin + (Lmax - Lmin) * rs.random() ** 2
+        r = rs.uniform(rmin, rmax) * (1 + L)
+        R.nocol.add(icicle(x, y, z + 0.02, L + 0.02, r, segs, m, rs.uniform(0, 1.5)))
+
+
+def wax_fall(R, y0, y1, xb, ztop, rs, depth=0.35, bulge=0.5, foot=0.9, face=1, m='tallow', col=True, n=14, zbot=0.0):
+    """A frozen waterfall of wax down a wall facing +x (face=1) or -x (face=-1): a rippled sheet whose
+    back stands at x=xb, bulging out as it falls, with a pooled foot on the floor."""
+    rings = []
+    zs = [ztop, ztop - 0.4, ztop * 0.7, ztop * 0.45, ztop * 0.22, 0.5, 0.18, zbot]
+    for k in range(n + 1):
+        y = y0 + (y1 - y0) * k / n
+        e = math.sin(math.pi * k / n) ** 0.5                     # thin at the edges
+        rip = 0.09 * math.sin(y * 6.3 + 1.3) + 0.05 * math.sin(y * 13.1)
+        front = []
+        for j, z in enumerate(zs):
+            f = (ztop - z) / max(ztop - zbot, 1e-6)
+            out = depth * 0.3 + bulge * f ** 1.5 + (foot if j == len(zs) - 1 else foot * 0.45 if j == len(zs) - 2 else 0)
+            front.append((xb + face * (0.02 + e * out + rip * e), y, z))
+        back = [(xb, y, zbot), (xb, y, ztop)]
+        rings.append(front + back)
+    # rings run top->bottom on the front then back up; keep orientation consistent
+    g = loft(rings, m, caps=True)
+    (R.parts if col else R.nocol).add(g)
+    # icicles off the lip at the top
+    drips(R, xb + face * 0.1, y0, xb + face * 0.1, y1, ztop, int((y1 - y0) * 5), rs, 0.1, 0.6)
+    return g

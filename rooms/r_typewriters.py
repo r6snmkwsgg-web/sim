@@ -5,32 +5,32 @@ from kit_h6 import *
 
 W = D = 32.0
 X1 = 29.2                    # the hall's east wall; the alcove is in the thickness behind it
-VJ, VR = 4.6, 2.7            # the vaults: springing height, rise
+VJ = 4.3                     # the vaults' springing height
+VX = (T, 10.4, 21.6, X1)     # the vaults' edges: piers stand under the two valleys
 AL = (29.2, 14.4, 31.45, 17.6)   # the secret alcove (x0, y0, x1, y1)
 PIERS_X = None
 
 
 def vaults():
-    w = (X1 - T) / 3
-    return [(T + w * (k + 0.5), w) for k in range(3)]
+    return [((a + b) / 2, b - a, min(3.1, (b - a) * 0.28)) for a, b in zip(VX, VX[1:])]
 
 
 def make():
     R = Room('typewriters', 2, 2, res=2048)
-    hall(R, x1=X1, h=VJ, wall='tile', floor='floor', ceil='plaster')
+    hall(R, x1=X1, h=VJ, wall='tile', floor='slate', ceil='plaster')
     vs = vaults()
-    for (c, w) in vs:
+    for (c, w, VR) in vs:
         pr = arch_profile(c, w + 0.04, 0, VJ, 28, rise=VR)
-        R.cut(prism(pr, 'y', T - 0.02, D - T + 0.02, ['floor'] + ['plaster'] * (len(pr) - 1), cap='plaster'))
+        R.cut(prism(pr, 'y', T - 0.02, D - T + 0.02, ['slate'] + ['plaster'] * (len(pr) - 1), cap='plaster'))
     # piers and an entablature under the two valleys between the vaults
-    px = [vs[0][0] + vs[0][1] / 2, vs[1][0] + vs[1][1] / 2]
+    px = list(VX[1:3])
     for x in px:
         R.parts.add(box(x - 0.35, T, VJ - 0.45, x + 0.35, D - T, VJ + 0.25, 'tile'))
         for k in range(8):
             y = 2.0 + k * 4.0
             pier(R, x, y, 0, VJ - 0.45, s=0.6)
     # transverse ribs in every vault over each pier
-    for (c, w) in vs:
+    for (c, w, VR) in vs:
         for k in range(8):
             y = 2.0 + k * 4.0
             R.nocol.add(prism(arc_band(c, w, VJ, VR, 0.0, 0.32, 20), 'y', y - 0.2, y + 0.2, 'tile', cap='tile'))
@@ -71,27 +71,32 @@ def walls(R):
         sh(R, '-y', D - T, x - 1.7, x + 1.7, z=4.25, rows=1, frame='walnut')
 
 
-def aisle(x, y, px):
-    """True if a desk centred here would block an aisle or a pier."""
-    for a in (8.0, 16.0, 24.0):
-        if abs(x - a) < 1.55: return True
-    for a in px:
-        if abs(x - a) < 0.95: return True
-    for a in (8.0, 16.0, 24.0):
-        if abs(y - a) < 1.45: return True
-    if x < 1.2 or x > X1 - 0.95 or y < 1.4 or y > D - 1.4: return True
-    return False
+def columns(px):
+    """Desk centres across the room: each block between aisles, piers and walls filled evenly."""
+    stops = sorted([(0.0, 1.35)] + [(a - 1.3, a + 1.3) for a in (8.0, 16.0, 24.0)] + [(a - 0.45, a + 0.45) for a in px] + [(X1 - 1.05, 99.0)])
+    xs = []
+    for (a, b), (c, d) in zip(stops, stops[1:]):
+        L = c - b
+        n = int((L + 0.25) / 1.3)
+        for k in range(n):
+            xs.append(b + (L - n * 1.3 + 0.25) / 2 + 0.525 + k * 1.3)
+    return xs
+
+
+def rows_y():
+    ys = []
+    for (a, b) in ((1.4, 6.7), (9.3, 14.7), (17.3, 22.7), (25.3, D - 1.3)):
+        n = int((b - a + 0.6) / 2.0)
+        ys += [a + (b - a - (n - 1) * 2.0) / 2 + k * 2.0 for k in range(n)]
+    return ys
 
 
 def pool(R, px):
     """The desks: ranks facing north, a typewriter on each, a chair pushed back from most."""
     rs = rng(57)
     k = 0
-    for j in range(15):
-        y = 1.95 + j * 2.0
-        for i in range(22):
-            x = 1.35 + i * 1.3
-            if aisle(x, y, px): continue
+    for y in rows_y():
+        for x in columns(px):
             k += 1
             a = math.pi / 2
             R.parts.add(desk(x, y, a, w=1.05, d=0.62))
@@ -99,7 +104,7 @@ def pool(R, px):
             R.nocol.add(tw)
             R.col.add(box(x - 0.3, y - 0.2, 0.76, x + 0.3, y + 0.2, 1.0, 'tile'))
             if rs.random() < 0.9:
-                c = stool(x + rs.uniform(-0.1, 0.1), y - 0.62 - rs.uniform(0, 0.25), a + rs.uniform(-0.3, 0.3))
+                c = stool(x + rs.uniform(-0.08, 0.08), y - 0.62 - rs.uniform(0, 0.12), a + rs.uniform(-0.25, 0.25))
                 R.parts.add(c)
             if k % 5 == 2:
                 R.nocol.add(sheet(x + 0.35, y + 0.1, 0.76, rs.uniform(-0.3, 0.3)))
@@ -117,10 +122,10 @@ def green_lamp(R, x, y, z, m='e_lamp'):
 
 
 def lamps(R, vs):
-    for (c, w) in vs:
+    for (c, w, VR) in vs:
         for k in range(4):
             y = 4.0 + k * 8.0
-            pendant(R, c, y, 4.4, VJ + VR - 0.05, r=0.24)
+            pendant(R, c, y, 3.7, VJ + VR - 0.05, r=0.24)
     # a few night lamps at the doors
     for (x, y) in ((8.0 - 2.0, 1.2), (24.0 + 2.0, 1.2), (8.0 + 2.0, D - 1.2), (24.0 - 2.0, D - 1.2)):
         R.light(sphere(x, y, 2.6, 0.08, 8, 4, 'e_amber'))

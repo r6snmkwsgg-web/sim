@@ -633,6 +633,29 @@ def build(R, quick=False, night=True, bake=True):
     bpy.ops.uv.average_islands_scale()
     bpy.ops.uv.pack_islands(rotate=True, margin_method='FRACTION', margin=4.5 / R.res, shape_method='CONCAVE')
     bpy.ops.object.mode_set(mode='OBJECT')
+    # with very many small islands the margins can eat the whole map and everything packs to nothing (a black
+    # bake): measure what the islands cover and repack with thinner margins until they get a real share
+    def _uv_cover():
+        uv = np.zeros(len(me.loops) * 2, np.float32); lm.data.foreach_get('uv', uv); uv = np.nan_to_num(uv.reshape(-1, 2))
+        st = np.zeros(len(me.polygons), np.int32); me.polygons.foreach_get('loop_start', st)
+        nt = np.zeros(len(me.polygons), np.int32); me.polygons.foreach_get('loop_total', nt)
+        a = 0.0
+        for k in range(3, int(nt.max()) + 1 if len(nt) else 3):   # shoelace, grouped by corner count
+            sel = st[nt == k]
+            if not len(sel): continue
+            q = uv[sel[:, None] + np.arange(k)[None, :]]
+            x, y = q[..., 0], q[..., 1]
+            a += float(np.abs((x * np.roll(y, -1, 1) - y * np.roll(x, -1, 1)).sum(1)).sum() * 0.5)
+        return a
+    cover = _uv_cover()
+    for mg in (1.5, 0.5):
+        if cover > 0.25: break
+        print('uv islands cover only %.3f of the lightmap: repacking with margin %.1f px' % (cover, mg))
+        bpy.ops.object.mode_set(mode='EDIT'); bpy.ops.mesh.select_all(action='SELECT')
+        bpy.ops.uv.pack_islands(rotate=True, margin_method='FRACTION', margin=mg / R.res, shape_method='AABB')
+        bpy.ops.object.mode_set(mode='OBJECT')
+        cover = _uv_cover()
+    print('uv cover %.2f' % cover)
     print('uv %.1fs' % (time.time() - t1))
     res = R.res if not quick else R.res // 2
     maps = {}
