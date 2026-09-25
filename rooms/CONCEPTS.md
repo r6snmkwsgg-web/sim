@@ -280,8 +280,7 @@ Read AUTHORING.md's "Engine features" section first: portals, mirrors, moving pa
   slow, collided: it carries you round). Secret: an engine room under the disc, reached by a stair.
 - **elevator** [54] 2x2x2 tall. An ornate open brass lift cage (slide mover, delta 8 m, pause) in a
   shaft lined with shelves on every side, joining the two levels; stairs also connect them (checker).
-  Secret: a door at mid-shaft reachable only from the cage roof? No: from a ledge the cage passes, a
-  short jump from a rail gap on the stair.
+  Secret: a door at mid-shaft, on a ledge reached by a short jump from a gap in the stair's rail.
 - **orrery** [55] 2x2x1 quad. A domed hall with a great orrery: planets made of bound books on long
   arms turning about a brass sun (spin 'z' movers at different speeds); low arms are wide walkways you
   can step onto from a ring platform and ride. Secret: inside the sun.
@@ -295,8 +294,8 @@ Read AUTHORING.md's "Engine features" section first: portals, mirrors, moving pa
   copies of you trail behind; one pale figure walks its own loop). Secret: the end of the other figure's
   loop is a door.
 - **mirrorlake** [71] 2x2x1 quad. The floor of the hall is a still black mirror (a floor mirror) with a
-  raised stone walkway grid across it; shelves and arches reflected. Secret: a door visible only in
-  the reflection? Make it real: a door in a place you only notice via the reflection (under the walkway).
+  raised stone walkway grid across it; shelves and arches reflected. Secret: a door under the walkway
+  that you only notice in the reflection.
 - **mirrorhall** [72] 2x1x1 long. A corridor of mirrors (2-3 large mirrors facing each other) with
   bookcases and lamps. Secret: one "mirror" is a portal instead, into a mirror-image room.
 - **negative** [74] 2x2x1 quad. A library with fx negative over it: the picture inverts. Build it with
