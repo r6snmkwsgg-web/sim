@@ -237,8 +237,69 @@ yet; they are built later, after the engine work. Everything else is buildable n
 - **lastreader** [99] 2x2x1 quad. One lamp on, one chair out, an open book, tea steaming. Secret: a
   door behind the reader's shelf.
 
-## Engine rooms (after the portal / motion / gravity work)
-mobius [0], escherloop [1], recursion [3], klein [4],
-folded [5], penrose [6], tesseract [7], rotunda5 [8], afterimage [45], loopcorridor [46],
-clockwork [50], elevator [54], orrery [55], waterwheel [56], dumbwaiters [59], mirrorlake [71],
-mirrorhall [72], negative [74], reflectstair [75].
+## Batch 11: engine rooms I (portals)
+Read AUTHORING.md's "Engine features" section first: portals, mirrors, moving parts.
+- **mobius** [0] 2x1x1 long. A long reading hall whose floor, walls and ceiling visibly twist along its
+  length (a twisted ribbon of shelves overhead, lamps hanging at angles); the far end is a portal back
+  onto the near end, so the hall never ends. The walkable floor stays level; the twist is architecture
+  around you. Secret: behind the twist's tightest point, a gap into a still, level reading nook.
+- **escherloop** [1] 2x2x2 tall. Four flights of stairs climbing round a square courtyard of shelves;
+  the top of the fourth flight is a portal onto the bottom of the first (b is 8 m lower), so you can
+  climb forever. Doorways on both levels connect by ordinary walking too. Secret: a door on a landing
+  that only exists on the "second lap" side (reached by a short spur off a landing).
+- **recursion** [3] 1x1x1 single. A gallery whose gilded frames are portals looking back into this same
+  room from other angles (small portals, too high or small to walk through), one large low frame empty
+  and dark: that one you can climb into (a real portal) and it leads to the secret, a small room hung
+  with frames of its own. Keep to 3-4 portals.
+- **klein** [4] 2x2x2 tall. A glass-and-brass bottle-shaped atrium sculpture you walk into; its neck
+  curves up and back and "passes through its own wall": a portal at the top of the neck brings you out
+  inside the bulb's base. Shelves line the inner surface. Secret: a brass capsule reading room in the base.
+- **folded** [5] 2x1x1 long. A corridor folded like paper: sharp angled planes of wall and shelving at
+  odd angles overhead, doors set sideways; at each fold a portal turns you 90° into the next leg (b turned),
+  so the corridor folds back on itself more often than the room could hold. Secret: a door in a fold.
+- **penrose** [6] 2x2x2 tall. A triangular balcony round a deep book-lined well, rising on all three
+  sides; the end of the third side is a portal onto the start of the first (lower), so it rises forever.
+  Railed. Secret: a hatch in the well wall below the balcony.
+- **tesseract** [7] 1x1x1 single. A cubic study with a door on every wall; each door opens (portal) into
+  the same study turned 90°/180°/270°, so walking through a door brings you into the study from another
+  side. A hatch in the ceiling and floor are sealed (painted doors). Secret: the fifth door, behind a
+  bookcase, leads to a normal corridor to a small room with the only window.
+- **rotunda5** [8] 2x2x1 quad. A circular domed rotunda with an ambulatory ring corridor; walking round
+  one way takes far longer than the other (a portal pair in the ring shortcuts one direction), and the
+  floor pattern warps. Secret: under the central floor medallion, a stair to a crypt.
+- **loopcorridor** [46] 2x1x1 long. An identical doorway repeats down a corridor; the last opens onto
+  the first a few metres back (portal), so through it you see endless copies, a single book on the floor
+  in each. Secret: one side door in the corridor leads out of the loop to a quiet reading room.
+- **reflectstair** [75] 2x2x2 tall. A grand stair rising to a tall ornate mirror (a real mirror); beside
+  it an identical frame is a portal onto a second stair that descends to the lower level. Secret: a
+  landing halfway down with a small room.
+
+## Batch 12: engine rooms II (motion, mirrors, effects)
+- **clockwork** [50] 2x2x2 tall. A clockwork nave: huge brass gears in the walls turning (movers:
+  swing/spin about horizontal axes, nocol, behind rails), and a great rotating floor disc (spin 'z',
+  slow, collided: it carries you round). Secret: an engine room under the disc, reached by a stair.
+- **elevator** [54] 2x2x2 tall. An ornate open brass lift cage (slide mover, delta 8 m, pause) in a
+  shaft lined with shelves on every side, joining the two levels; stairs also connect them (checker).
+  Secret: a door at mid-shaft reachable only from the cage roof? No: from a ledge the cage passes, a
+  short jump from a rail gap on the stair.
+- **orrery** [55] 2x2x1 quad. A domed hall with a great orrery: planets made of bound books on long
+  arms turning about a brass sun (spin 'z' movers at different speeds); low arms are wide walkways you
+  can step onto from a ring platform and ride. Secret: inside the sun.
+- **waterwheel** [56] 2x2x1 quad. A water channel through the hall (water volume) turning a great wheel
+  whose paddles are bookcases (spin about horizontal axis, nocol, railed off). Secret: the mill room
+  behind the wheel.
+- **dumbwaiters** [59] 1x1x1 single. A wall of small dumbwaiter hatches; several are lifts (slide
+  movers) big enough to crouch in, rising 4 m to an upper gallery; stairs also go up. Secret: one hatch
+  goes to a hidden room.
+- **afterimage** [45] 2x1x1 long. A long plain gallery with fx afterimage over the whole floor (pale
+  copies of you trail behind; one pale figure walks its own loop). Secret: the end of the other figure's
+  loop is a door.
+- **mirrorlake** [71] 2x2x1 quad. The floor of the hall is a still black mirror (a floor mirror) with a
+  raised stone walkway grid across it; shelves and arches reflected. Secret: a door visible only in
+  the reflection? Make it real: a door in a place you only notice via the reflection (under the walkway).
+- **mirrorhall** [72] 2x1x1 long. A corridor of mirrors (2-3 large mirrors facing each other) with
+  bookcases and lamps. Secret: one "mirror" is a portal instead, into a mirror-image room.
+- **negative** [74] 2x2x1 quad. A library with fx negative over it: the picture inverts. Build it with
+  strong contrast so the negative reads well: white shelves, black-glowing lamps (use dark emitters
+  sparingly). Secret: a small room at its heart where the effect stops (the box excludes it).
+

@@ -188,3 +188,46 @@ Build the room so it already works and looks right without them.
 
 **Names**: new room names must not clash with existing ones (`ls rooms/r_*.py`). Use the slug given
 in CONCEPTS.md. Helpers go in `kit_<batch>.py` (e.g. `kit_h1.py` for batch 1).
+
+## Engine features: moving parts, portals, mirrors
+
+These exist in the game now; use them for the engine rooms (and anywhere they make a room better).
+
+**Moving parts** (lib.py `R.mover`): geometry that moves in the game. It is baked where it stands.
+```python
+M = R.mover('spin', pivot=(8, 8, 0), axis='z', speed=0.3)            # turns about a vertical axis, rad/s
+M = R.mover('swing', pivot=(8, 8, 6), axis='x', amp=0.4, period=6)   # rocks back and forth (a pendulum)
+M = R.mover('slide', delta=(0, 0, 8.0), period=20, pause=4)          # there and back: lifts, drawers, rails
+M.parts.add(...)   # collided: you can stand on it and it carries you (only level movers: spin about 'z', slide)
+M.nocol.add(...)   # drawn only
+M.col.add(...)     # invisible colliders that move with it
+```
+`phase` (0..1) offsets its timing. Movers that tilt (spin/swing about 'x' or 'y') are drawn but never
+collided: keep people out of their way with rails. A lift must have somewhere safe at both ends, and the
+room must pass the checker with every mover in its rest position (the checker does not animate them).
+
+**Portals**: a rectangle that shows, and leads to, another rectangle in the same room. Walk through
+and you come out of the other one, moving the same way relative to it.
+```python
+R.meta['portals'] = [{'a': {'c': [26, 8, 0], 'n': [1, 0, 0], 'w': 3.2, 'h': 3.5},
+                      'b': {'c': [6.4, 8, 0], 'n': [1, 0, 0], 'w': 3.2, 'h': 3.5}}]
+```
+`c` is the middle of the rectangle's bottom edge (Blender axes), `n` the direction you walk when you go
+in at `a` and the direction you come out at `b`, `w`/`h` its size. Pairs work both ways. The rectangles
+must stand in an opening with at least 0.8 m of free, walkable floor behind them (the recess the player
+steps into while crossing), and nothing may block the far side of `b`. `b` may be higher or lower than
+`a` (stairs that climb forever), or turned (a door that brings you back in sideways). Only the nearest
+two portals in view are rendered at a time; keep a room to a handful. Portals are extras: the checker
+does not know about them, so the room must still pass without them (every doorway connected by
+ordinary walking; a portal can be a shortcut or a loop, not the only way).
+
+**Mirrors**: a rectangle showing the room reflected.
+```python
+R.meta['mirrors'] = [{'c': [9, 15.3, 0], 'n': [0, -1, 0], 'w': 4.0, 'h': 3.6}]   # n faces the viewer
+```
+Put a solid surface (a wall, a frame's back) at the mirror plane; the image is drawn just in front of it.
+A floor mirror (`n` = [0, 0, 1], `c` on the floor, `w` along x, `h` along y) makes a still, black-glass floor.
+
+**More effects** for `R.meta['fx']`: `negative` (inside the box the picture inverts, like a photographic
+negative), `afterimage` (inside the box, pale copies of you trail a few seconds behind, and one pale figure
+that is not you walks its own loop).
