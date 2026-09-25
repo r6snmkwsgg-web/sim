@@ -148,3 +148,43 @@ sense (stairs to nowhere, doors in walls too high to reach, rooms at the wrong s
 repetition, a room that is only slightly wrong); but in a library of stone, wood and brass, warmly
 lit, with books on everything. Strong silhouettes and depth: arches receding, rows of columns,
 long sightlines, big voids, pools of light. Every room should make a player stop and look.
+
+## Additions for the Deep Stacks (the concept rooms, see CONCEPTS.md)
+
+**Size budgets are relaxed** (the game is hosted without the old size cap): single <= 700 KB,
+long/quad <= 1400 KB, tall <= 2200 KB, giant <= 5000 KB. `res` 1024 for singles and columns, 2048 for
+everything else. Still keep geometry sensible: instance-like repetition (hundreds of clocks,
+typewriters, chairs) should be simple boxes, a few dozen faces each.
+
+**Water** (wade in it, swim in it; the game draws the surface and handles swimming):
+```python
+R.water.append(dict(x0=..., y0=..., x1=..., y1=..., top=0.0, bot=-1.2))   # a box of water, Blender axes
+R.water.append(dict(cx=..., cy=..., r=..., top=..., bot=...))                # a round one
+```
+Carve the basin with `R.cut` so there is a floor at `bot`. Water may hang in the air (a lake overhead)
+if you give it a basin's worth of walls; you swim up into it. Water deeper than 1.4 m is swimming.
+
+**Secrets**: every concept room has at least one hidden place. Build it for real (a false bookcase
+`solid=False`, a crawlspace at crouch height 1.15-1.3 m, a hatch and ladder, a gap you only see from
+one angle, a drawer that goes too far). It must be reachable and walkable: the checker's `"ok":true`
+still applies, and nothing in it may be a trap. Register it so the game can notice when someone finds it:
+```python
+R.meta.setdefault('secrets', []).append({'at': [x, y, z], 'r': 1.5, 'name': 'The Snow Cave',
+    'text': 'One or two sentences, second person, for when you find it.'})
+```
+`at` is a point inside the secret space (Blender axes, z = floor height there), `r` how close counts.
+Put something in it worth finding: a lamp, a bed, a view, a desk with an open book, a `plaque` spot.
+
+**Effects**: things the lightmap can't do (falling rain and snow, fog, drifting dust, lightning, an
+aurora, a sweeping beam) are drawn by the game from a list in the room's metadata; the game is
+getting support for these, so declare them now:
+```python
+R.meta.setdefault('fx', []).append({'type': 'rain', 'box': [x0, y0, z0, x1, y1, z1]})
+```
+Types: `rain`, `snow`, `fog` (add `'density': 0.02-0.12`), `dust` (motes in light), `embers`,
+`lightning` (add `'at': [x, y, z]`, where it strikes), `aurora` (put the box where the sky is),
+`beam` (a lighthouse beam: `'at'`, `'r'` radius), `breathe` (walls that swell), `pendulums`, `starfloor`.
+Build the room so it already works and looks right without them.
+
+**Names**: new room names must not clash with existing ones (`ls rooms/r_*.py`). Use the slug given
+in CONCEPTS.md. Helpers go in `kit_<batch>.py` (e.g. `kit_h1.py` for batch 1).
