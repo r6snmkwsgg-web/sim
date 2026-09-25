@@ -163,3 +163,32 @@ def cage_tube(p0, p1, r, m='brass', ribs=6, hoops=None, segs=16, hoop_w=0.06):
 
 def solid_tube(p0, p1, r, m='brass', segs=16, caps=True):
     return along(xcyl(math.dist(p0, p1), r, segs, side=m, caps=caps), p0, p1)
+
+
+def hall(R, x0=None, y0=None, x1=None, y1=None, h=TOP - 0.1, wall='tile', floor='floor', ceil='plaster', skip=(), z=0.0, level=None):
+    """Doorways plus a main hall box, for rooms of any size. When the hall is inset from the shell
+    (thick walls), each doorway's tunnel is carried through the extra thickness."""
+    W, D = R.W, R.D
+    x0 = T if x0 is None else x0; y0 = T if y0 is None else y0
+    x1 = W - T if x1 is None else x1; y1 = D - T if y1 is None else y1
+    if level is None or level == 0:
+        R.sockets(floor=floor, wall=wall, skip=skip)
+    R.cut(box(x0 - 0.02, y0 - 0.02, z, x1 + 0.02, y1 + 0.02, z + h, wall, bottom=floor, top=ceil))
+    tunnels(R, x0, y0, x1, y1, z=z, floor=floor, wall=wall, skip=skip)
+
+
+def tunnels(R, x0, y0, x1, y1, z=0.0, floor='floor', wall='tile', skip=()):
+    """Carry the doorways on the level at z through walls thicker than the shell, to a hall edge."""
+    W, D = R.W, R.D
+    L = int(round(z / LH))
+    pr = arch_profile(0, DW, 0, DJ)
+    for i in range(R.w):
+        c = i * C + C / 2
+        for side, a, b in (('S', T, y0 + 0.05), ('N', y1 - 0.05, D - T)):
+            if (side, i, L) in skip or b - a < 0.62: continue
+            R.cut(prism([(p + c, q + z) for p, q in pr], 'y', a, b, arch_mats(len(pr), floor, wall)))
+    for j in range(R.d):
+        c = j * C + C / 2
+        for side, a, b in (('W', T, x0 + 0.05), ('E', x1 - 0.05, W - T)):
+            if (side, j, L) in skip or b - a < 0.62: continue
+            R.cut(prism([(p + c, q + z) for p, q in pr], 'x', a, b, arch_mats(len(pr), floor, wall)))

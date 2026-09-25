@@ -650,6 +650,7 @@ def _set_emit(em_objs, mode):
         if o is None: continue
         for m in o.data.materials:
             b = m.node_tree.nodes.get('Principled BSDF')
+            if m.name.split('.')[0] not in EMIT: continue   # a stray non-emitter face on a light: leave it as it is
             col, s = EMIT[m.name.split('.')[0]]
             on = mode == 'day' or m.name.split('.')[0] in NIGHT_ON
             b.inputs['Emission Strength'].default_value = s if on else 0.0

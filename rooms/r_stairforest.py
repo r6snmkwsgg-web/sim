@@ -122,6 +122,7 @@ def secret_spiral(R, used):
     a1 = math.pi / 2
     a0 = a1 - turns * 2 * math.pi
     helix_stair(R, cx, cy, r0, r1, 0.0, zt, a0, rise_per_turn=rpt, m='oak', side='walnut', bottom='walnut', newel='iron')
+    R.col.add(cyl(cx, cy, 1.2, zt - 0.3, r1 + 0.05, 32, caps=False))     # an invisible fence all the way up
     # the platform: north-west of the axis, where the last step arrives
     px0, px1, py0, py1 = cx - 4.4, cx + 0.02, cy - 0.3, cy + 3.9
     R.parts.add(box(px0 - 0.45, py0 - 0.45, zt - 0.3, cx - r1 - 0.1, py1 + 0.45, zt, 'walnut', top='oak'))
