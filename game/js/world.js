@@ -948,10 +948,12 @@ function makeInst(pl, slot) {
   r.grp.matrixAutoUpdate = false; r.water.matrixAutoUpdate = false;
   scene.add(r.grp); waterScene.add(r.water);
   if (!pf.probeDone) captureProbe(pf);
+  if (typeof fxPlace === 'function') fxPlace(r);
   return r;
 }
 function dropInst(r) {
   scene.remove(r.grp); waterScene.remove(r.water);
+  if (typeof fxDrop === 'function') fxDrop(r);
   if (r.books) { r.books.geometry.dispose(); r.grp.remove(r.books); r.books = null; }
 }
 function positionInst(r) {

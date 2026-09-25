@@ -850,7 +850,7 @@ function renderJournal() {
     const ns = S.notes || [];
     h = ns.length ? `<div class="frags">${ns.map(n => `<blockquote class="hand"><q>${esc(n.text)}</q><cite>${esc(addrLine(parseKey(n.addr)))} · page ${n.page} · day ${n.day}</cite></blockquote>`).join('')}</div>` : '<p class="note">No one has written to you yet. Some books have notes in their margins, left by whoever read them before.</p>';
   } else if (jTab === 'nums') {
-    const st = S.stats, items = [['Days', S.day], ['Books opened', st.books], ['Pages read', st.pages], ['Books dropped down a well', st.thrown], ['Fragments found', S.frags.length], ['Walked', st.dist < 1000 ? fmt(st.dist) + ' m' : (st.dist / 1000).toFixed(2) + ' km'], ['Rooms seen', st.rooms || 0], ['Swum', fmt(st.swum || 0) + ' m'], ['Floors climbed', st.climbed], ['Floors fallen', st.fallen], ['Longest fall', fmt(st.maxFall) + ' fl.'], ['Days spent falling', st.daysFalling], ['Deaths', st.deaths]];
+    const st = S.stats, items = [['Days', S.day], ['Books opened', st.books], ['Pages read', st.pages], ['Books dropped down a well', st.thrown], ['Fragments found', S.frags.length], ['Walked', st.dist < 1000 ? fmt(st.dist) + ' m' : (st.dist / 1000).toFixed(2) + ' km'], ['Rooms seen', st.rooms || 0], ['Secrets found', st.secrets || 0], ['Swum', fmt(st.swum || 0) + ' m'], ['Floors climbed', st.climbed], ['Floors fallen', st.fallen], ['Longest fall', fmt(st.maxFall) + ' fl.'], ['Days spent falling', st.daysFalling], ['Deaths', st.deaths]];
     h = `<div class="stats">${items.map(([k, v]) => `<div class="stat"><div class="v">${typeof v === 'number' ? fmt(v) : v}</div><div class="k">${k}</div></div>`).join('')}</div>`;
   } else if (jTab === 'odds') {
     const n = Math.max(S.stats.books, 1), frac = LOG10_BOOKS - Math.log10(n), lb = lifeBook(), sent = 20 * Math.log10(95) - Math.log10(1312000);
@@ -1023,7 +1023,7 @@ function frame(now) {
   WU.uTime.value = t;
   if (live) {
     if (MODE === 'play' && !nightBusy && !PL.dead) {
-      updatePlayer(dt); updateTime(dt); syncRoom(); storyTick(dt); updateCaptions(dt);
+      updatePlayer(dt); updateTime(dt); syncRoom(); fxTick(dt); storyTick(dt); updateCaptions(dt);
       if (PL.edgeArm > 0) { PL.edgeArm -= dt; const sh = shaftNear(); if (!sh || sh.d > 1.8) PL.edgeArm = 0; }
       TARGET = findTarget(); updateHUD(dt);
       PL.hurtT = Math.max(0, PL.hurtT - dt * 1.5);
@@ -1045,7 +1045,7 @@ function frame(now) {
   PM.comp.uniforms.uHurt.value = live ? Math.max(PL.hurtT, 1 - S.hp / 100) * 0.8 : 0;
   PM.comp.uniforms.uSpeed.value = live && S.fall ? clamp((-PL.vy - 20) / 40, 0, 1) : 0;
   PM.comp.uniforms.uWet.value = live && PL.under ? 1 : 0;
-  PM.comp.uniforms.uTint.value.set(live && PL.under ? 0.55 : 1, live && PL.under ? 0.95 : 1, live && PL.under ? 1.1 : 1);
+  PM.comp.uniforms.uTint.value.set(live && PL.under ? 0.55 : 1, live && PL.under ? 0.95 : 1, live && PL.under ? 1.1 : 1).multiplyScalar(1 + FX.flash);
   renderer.setClearColor(WU.uFogCol.value, 1);   // beyond the rooms that are loaded: haze, not black
   renderFrame();
 }
