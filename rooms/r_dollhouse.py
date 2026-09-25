@@ -175,6 +175,10 @@ def gallery(R):
         for j in range(5):
             a = j * 2 * math.pi / 5
             lamps.add(sphere(x + 0.07 * math.cos(a), (YG0 + YG1) / 2 + 0.07 * math.sin(a), 1.1, 0.012, 6, 3, 'e_lamp'))
+    # a cornice of little lamps along the gallery's front wall, lighting the alcoves opposite
+    for k in range(20):
+        x = GX0 + 0.3 + k * (GX1 - GX0 - 0.6) / 19
+        lamps.add(box(x - 0.1, YG0 + 0.02, GH - 0.14, x + 0.1, YG0 + 0.05, GH - 0.1, 'e_lamp'))
     # a runner, and little benches and globes down the middle
     R.nocol.add(box(GX0 + 0.3, (YG0 + YG1) / 2 - 0.25, 0, GX1 - 0.3, (YG0 + YG1) / 2 + 0.25, 0.008, 'carpet', sides='oxblood'))
     R.parts.add(weld(g))
@@ -203,7 +207,7 @@ def hidden(R):
     R.spot('sit', dx - 0.2, dy - 0.75, 0.48, math.pi / 2)
     open_book_prop(R, dx - 0.2, dy - 0.05, 0.76)
     # a window that looks out onto nothing but a painted garden, a bed, a clock
-    R.light(box(x0 + 0.01, y0 + 0.6, 1.0, x0 + 0.03, y1 - 0.8, 2.3, 'e_sky'))
+    R.light(box(x0 + 0.01, y0 + 0.6, 1.0, x0 + 0.03, y1 - 0.8, 2.3, 'e_skydome'))
     R.parts.add(box(x0, y0 + 0.5, 0.95, x0 + 0.12, y1 - 0.7, 1.0, 'ivory'))
     R.parts.add(box(x1 - 2.1, y0 + 0.1, 0, x1 - 0.2, y0 + 1.0, 0.5, 'bed', sides='walnut'))
     R.nocol.add(box(x1 - 0.7, y0 + 0.2, 0.5, x1 - 0.3, y0 + 0.9, 0.62, 'ivory'))

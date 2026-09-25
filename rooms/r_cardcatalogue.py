@@ -159,8 +159,9 @@ def tunnel(R, X0):
             g.add(box(x - 0.015, min(y, y + s * 0.25), 0.12, x + 0.015, max(y, y + s * 0.25), 2.5, 'leather', skip=('-z', '+z')))
             if k % 3 == 0:
                 g.add(box(x - 0.2, min(y, y + s * 0.02), 1.9, x + 0.25, max(y, y + s * 0.02), 2.2, 'oxblood', skip=('-z', '+z')))
-        if k % 4 == 1:
-            lamps.add(box(x - 0.1, 15.45, 2.38, x + 0.1, 15.55, 2.44, 'e_dim'))
+        if k % 2 == 1:
+            lamps.add(sphere(x, 15.5, 2.3, 0.07, 8, 4, 'e_lamp'))
+            g.add(cyl(x, 15.5, 2.35, 2.5, 0.006, 4, side='brass', caps=False))
         x += 1.3; k += 1
     # red rules along the card walls
     for (y, s) in ((TUN[0], 1), (TUN[1], -1)):
@@ -193,6 +194,7 @@ def tunnel(R, X0):
     R.spot('bed', x1 - 0.5, y0 + 1.2, 0.42, math.pi / 2)
     bulb(R, (x0 + x1) / 2, (y0 + y1) / 2, RRH - 0.7, r=0.14, m='e_lamp', top=RRH, shade='brass')
     candle(R, x1 - 0.5, y0 + 2.6, 0.0, h=0.2, stand=0.9)
+    bulb(R, x0 + 1.2, y0 + 1.2, RRH - 0.8, r=0.1, m='e_lamp', top=RRH)
     R.spot('plaque', x0 + 1.0, y1 - 0.1, 1.5, -math.pi / 2)
     secret(R, (x0 + x1) / 2, (y0 + y1) / 2, 0.0, 'The Room in the Catalogue',
            'The drawer went back twenty metres further than the cabinet is deep. At the end of it somebody has set up a desk and a bed, and has been writing out cards of their own.', r=2.5)
@@ -275,7 +277,7 @@ def hall(R, W, D, X0, X1, HT):
         for k in range(4):
             x = 8.0 + k * 16.0
             R.cut(box(x - 5.0, y0, HT - 0.05, x + 5.0, y1, HT + 0.18, 'plaster'))
-            R.light(box(x - 4.6, y0 + 0.4, HT + 0.12, x + 4.6, y1 - 0.4, HT + 0.14, 'e_sky', skip=('+z',)))
+            R.light(box(x - 3.0, y0 + 1.2, HT + 0.12, x + 3.0, y1 - 1.2, HT + 0.14, 'e_panel', skip=('+z',)))
     for (x, y) in ((3.8, 12.0), (W - 3.8, 12.0), (3.8, 20.0), (W - 3.8, 20.0)):
         floor_lamp(R, x, y, 1.7)
     for (x, y) in ((1.0, 16.0), (W - 1.0, 16.0)):

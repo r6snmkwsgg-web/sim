@@ -97,7 +97,7 @@ def upper(R, W, D):
     for k in range(3):
         x = 5.5 + k * 10.5
         R.cut(box(x - 3.5, 2.0, H - 0.05, x + 3.5, 9.6, H + 0.3, 'plaster'))
-        R.light(box(x - 3.0, 2.5, H + 0.24, x + 3.0, 9.1, H + 0.26, 'e_sky', skip=('+z',)))
+        R.light(box(x - 1.6, 4.2, H + 0.24, x + 1.6, 7.4, H + 0.26, 'e_panel', skip=('+z',)))
     rows = 15
     for (a, b) in ((0.6, 6.0), (10.0, 22.0), (26.0, W - 0.6)):
         sh(R, '+y', T, a, b, z=z, rows=rows, frame='walnut')
@@ -252,7 +252,7 @@ def ledge(R):
     seat(R, x0 + 1.8, y1 - 0.75, math.pi, z=zl)
     sh(R, '+x', x0, y0 + 2.4, y1 - 1.6, z=zl, rows=5, frame='walnut', depth=0.28)
     candle(R, x0 + 0.4, y0 + 2.4, zl + 0.4, h=0.2)
-    bulb(R, (x0 + x1) / 2, (y0 + y1) / 2, zl + 2.1, r=0.08, m='e_dim', top=zl + 2.7)
+    bulb(R, (x0 + x1) / 2, (y0 + y1) / 2, zl + 2.1, r=0.1, m='e_lamp', top=zl + 2.7)
     R.spot('plaque', x0 + 0.1, (y0 + y1) / 2, zl + 1.5, 0.0)
     secret(R, (x0 + x1) / 2, y0 + 2.2, zl, 'The Ledge Room',
            'Halfway down the keyhole, a room one bed wide inside the wall. Someone slept here with the whole canyon of books on the other side of a bookcase.', r=1.6)

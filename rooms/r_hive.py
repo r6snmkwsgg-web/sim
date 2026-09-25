@@ -161,14 +161,14 @@ def queen(R, rnd):
     R.cut(poly_prism(hq, 0.0, 4.6, side='wax', top='wax', bottom='honey'))
     hq2 = [(cx + 1.9 * math.cos(math.radians(60 * k)), cy + 1.9 * math.sin(math.radians(60 * k))) for k in range(6)]
     R.cut(poly_prism(hq2, 4.5, 6.6, side='wax', top='wax', bottom='wax'))
-    R.light(poly_prism([(cx + 1.2 * math.cos(math.radians(60 * k)), cy + 1.2 * math.sin(math.radians(60 * k))) for k in range(6)], 6.55, 6.58, 'e_honey', 'e_honey', 'e_honey'))
+    R.light(poly_prism([(cx + 0.6 * math.cos(math.radians(60 * k)), cy + 0.6 * math.sin(math.radians(60 * k))) for k in range(6)], 6.55, 6.58, 'e_honey', 'e_honey', 'e_honey'))
     # glowing cells set into the walls
     for k in range(6):
         a = math.radians(60 * k + 30)
         ap = QR * math.sqrt(3) / 2 - 0.02
-        for (du, z) in ((-0.7, 3.2), (0.7, 3.2), (0.0, 3.9)):
+        for (du, z) in ((0.0, 3.9),):
             x = cx + ap * math.cos(a) - du * math.sin(a); y = cy + ap * math.sin(a) + du * math.cos(a)
-            g = prism(hexpts(0.0, z, 0.3), 'x', -0.02, 0.0, 'e_honey', cap='e_honey')
+            g = prism(hexpts(0.0, z, 0.22), 'x', -0.02, 0.0, 'e_candle', cap='e_candle')
             R.light(g.xform(a, x, y, 0))
     # the throne, facing the way in; the great book; honey on the floor
     ta = math.radians(SECRET_FACE) + math.pi

@@ -245,10 +245,11 @@ def climb(R, W, D):
     # the ladders
     climb_ladder(R, P1[0] + 0.05, yl, 0.0, L1, math.pi, run=run)
     climb_ladder(R, P2[0] + 0.05, yl, L1, L2, math.pi, run=run)
-    climb_ladder(R, P3[0] + 0.05, yl, L2, CAT, math.pi, run=3.65)
+    climb_ladder(R, P3[0] + 0.05, yl, L2, CAT, math.pi, run=4.0)
     # the door in the sky: a patch of painted sky on the wall round it, the door ajar
     dx, dw, dh = SKYD, 1.2, 2.2
     R.cut(box(dx - dw / 2, yw - 0.05, CAT, dx + dw / 2, SR[2] + 0.05, CAT + dh, 'oak', bottom='oak', top='oak'))
+    R.parts.add(box(dx - dw / 2 - 0.3, yf - 0.1, CAT - 0.2, dx + dw / 2 + 0.3, yw + 0.02, CAT, 'iron', top='oak'))
     R.light(box(dx - 3.2, yw - 0.02, CAT - 0.4, dx - dw / 2 - 0.15, yw - 0.005, CAT + 3.4, 'e_skydome'))
     R.light(box(dx + dw / 2 + 0.15, yw - 0.02, CAT - 0.4, W - B - 0.02, yw - 0.005, CAT + 3.4, 'e_skydome'))
     R.light(box(dx - dw / 2 - 0.15, yw - 0.02, CAT + dh + 0.15, dx + dw / 2 + 0.15, yw - 0.005, CAT + 3.4, 'e_skydome'))
@@ -280,7 +281,7 @@ def climb(R, W, D):
            'Up three ladders and along a catwalk under the clouds there is a door, painted round with sky. Behind it, a garret with a bed, a lamp and a window looking down on all of it.', r=2.2)
     # nav up the ladders
     ids = [R.navpt(P1[0] - run - 0.8, yl, 0.0), R.navpt(P1[0] + 0.6, yl, L1), R.navpt(P2[0] - run - 0.2, yl, L1), R.navpt(P2[0] + 0.6, yl, L2),
-           R.navpt(P3[0] - 3.65 - 0.6, yl, L2), R.navpt(P3[0] + 0.6, yl, CAT), R.navpt(dx, yl, CAT), R.navpt(dx, y0 + 0.9, CAT)]
+           R.navpt(P3[0] - 4.0 - 0.4, yl, L2), R.navpt(P3[0] + 0.6, yl, CAT), R.navpt(dx, yl, CAT), R.navpt(dx, y0 + 0.9, CAT)]
     R.link(*ids)
     best = min(NAV['ring'], key=lambda b: math.hypot(R.nav[b][0] - R.nav[ids[0]][0], R.nav[b][1] - R.nav[ids[0]][1]))
     R.link(ids[0], best)

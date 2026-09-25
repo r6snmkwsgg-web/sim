@@ -168,7 +168,7 @@ def book(R):
                 word = Geo()
                 for k in range(n):
                     x0 = x + wl * k / n; x1 = x + wl * (k + 1) / n
-                    z0, z1 = base_z(x0, y) + 0.012, base_z(x1, y) + 0.012
+                    z0, z1 = base_z(x0, y) + 0.04, base_z(x1, y) + 0.04
                     word.add(hexa([(x0, y - 0.07, z0 - 0.01), (x1, y - 0.07, z1 - 0.01), (x1, y + 0.07, z1 - 0.01), (x0, y + 0.07, z0 - 0.01),
                                    (x0, y - 0.07, z0), (x1, y - 0.07, z1), (x1, y + 0.07, z1), (x0, y + 0.07, z0)], 'slate'))
                 tx.add(weld(word))
@@ -237,7 +237,8 @@ def cave(R):
         R.nocol.add(sphere(x0 + 1.6 + 0.12 * math.cos(a), y0 + 1.3 + 0.12 * math.sin(a), z0 + 0.01, 0.08, 6, 3, 'velvet'))
     R.nocol.add(box(x0 + 1.58, y0 + 0.5, z0, x0 + 1.62, y0 + 1.2, z0 + 0.01, 'green'))
     book_pile(R, x1 - 0.5, y0 + 0.5, z0, n=4, seed=3)
-    R.light(sphere(x0 + 2.6, y0 + 2.4, z1 + 0.1, 0.06, 8, 4, 'e_candle'))
+    R.light(sphere(x0 + 2.6, y0 + 2.4, z1 + 0.1, 0.09, 8, 4, 'e_lamp'))
+    green_lamp(R, x0 + 0.6, y0 + 0.5, z0, 0.3)
     R.nocol.add(cyl(x0 + 2.6, y0 + 2.4, z1 + 0.14, z1 + 0.25, 0.005, 4, side='brass', caps=False))
     R.spot('plaque', x0 + 0.2, (y0 + y1) / 2, z0 + 0.6, 0.0)
     secret(R, (x0 + x1) / 2, (y0 + y1) / 2, z0, 'Between the Pages',
