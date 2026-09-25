@@ -88,3 +88,38 @@ def fish(x, y, z, a, L=0.6, m='fish', fin='fishred'):
     df.face(ids, fin, [(0, 0)] * 3); df.face(ids[::-1], fin, [(0, 0)] * 3)
     g.add(df)
     return g.xform(a, x, y, z)
+
+
+def inverted(R, fn, zc):
+    """Build something the right way up on the floor (z = 0) with fn(), then hang it upside down from a
+    ceiling at 2 * zc (drawn, not collided). Its book slabs and emitters go with it; its spots are dropped."""
+    saved = (R.parts, R.nocol, R.col, R.emit)
+    R.parts, R.nocol, R.col, R.emit = Geo(), Geo(), Geo(), Geo()
+    n0, s0 = len(R.slabs), len(R.spots)
+    fn()
+    g = Geo(); g.add(R.parts); g.add(R.nocol)
+    e = R.emit
+    R.parts, R.nocol, R.col, R.emit = saved
+    R.nocol.add(flipz(g, zc)); R.emit.add(flipz(e, zc))
+    for s in R.slabs[n0:]:
+        o = list(s['o']); o[2] = 2 * zc - o[2] - s['v'][2]; s['o'] = o
+    del R.spots[s0:]
+
+
+def tree_geo(R, x, y, rnd, h=5.5, spread=2.4, m_bark='bark', m_leaf='leaf', crown=1.0):
+    """A broad tree standing at (x, y, 0): trunk, root flare, limbs, a crown of leaf clusters (drawn only)."""
+    lean = (rnd.uniform(-0.4, 0.4), rnd.uniform(-0.4, 0.4))
+    top = (x + lean[0], y + lean[1], h * 0.55)
+    R.nocol.add(tube([(x, y, -0.1), (x + lean[0] * 0.4, y + lean[1] * 0.4, h * 0.3), top], [0.42, 0.32, 0.26], 10, m_bark))
+    for k in range(5):
+        a = k * 2 * math.pi / 5 + rnd.uniform(-0.4, 0.4)
+        R.nocol.add(tube([(x, y, 0.45), (x + math.cos(a) * 0.7, y + math.sin(a) * 0.7, 0.08), (x + math.cos(a) * 1.3, y + math.sin(a) * 1.3, -0.05)], [0.2, 0.12, 0.05], 6, m_bark))
+    n = rnd.randint(4, 6)
+    for k in range(n):
+        a = 2 * math.pi * k / n + rnd.uniform(-0.3, 0.3)
+        d = spread * rnd.uniform(0.7, 1.0)
+        end = (top[0] + math.cos(a) * d, top[1] + math.sin(a) * d, h + rnd.uniform(-0.3, 0.8))
+        mid = (top[0] + math.cos(a) * d * 0.45, top[1] + math.sin(a) * d * 0.45, top[2] + (end[2] - top[2]) * 0.7)
+        R.nocol.add(tube([top, mid, end], [0.17, 0.1, 0.05], 6, m_bark))
+        leaves(R, end[0], end[1], end[2] + 0.3, rnd.uniform(1.2, 1.6) * crown, int(3 * crown + 0.5), rnd, m=m_leaf)
+    leaves(R, top[0], top[1], h + 0.9, 1.8 * crown, int(4 * crown + 0.5), rnd, m=m_leaf)

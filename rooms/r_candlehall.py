@@ -71,6 +71,8 @@ def walls(R, rs):
     # the great fall on the west wall, standing off it: the way into the cave is behind it
     wax_fall(R, FALL[0], FALL[1], X0 + GAP, AH - 0.05, rs, depth=0.5, bulge=0.9, foot=1.0, face=1)
     R.parts.add(box(X0, FALL[0] - 0.2, AH - 0.5, X0 + GAP + 0.3, FALL[1] + 0.2, AH, 'tallow'))
+    candles_on(R, X0 + GAP + 1.3, FALL[0] + 0.6, X0 + GAP + 1.8, FALL[1] - 0.6, 0.12, 14, rs, 0.1, 0.45)
+    candles_on(R, W - T - 1.9, 14.0, W - T - 1.4, 18.0, 0.12, 12, rs, 0.1, 0.45)
     drips(R, X0 + 0.1, FALL[0], X0 + GAP, FALL[0], AH - 0.5, 5, rs, 0.1, 0.8)
     drips(R, X0 + 0.1, FALL[1], X0 + GAP, FALL[1], AH - 0.5, 5, rs, 0.1, 0.8)
     # the wall behind it is wax-coated
@@ -82,7 +84,7 @@ def ledge(R, facing, bk, a, b, rows, rs, dens=2.2):
     """Candles along a bookcase's crown and a couple of its rows, wax hanging off the edges."""
     top = rows * 0.42 + 0.035 + 0.08 + 0.06
     L = b - a
-    for (z, n, hmax) in ((top, int(L * dens * 1.6), 0.45), (2 * 0.42 + 0.035, int(L * dens * 0.5), 0.2), (5 * 0.42 + 0.035, int(L * dens * 0.4), 0.2)):
+    for (z, n, hmax) in ((top, int(L * dens * 0.7), 0.45), (2 * 0.42 + 0.035, int(L * dens * 0.22), 0.2), (5 * 0.42 + 0.035, int(L * dens * 0.18), 0.2)):
         for _ in range(n):
             t = rs.uniform(0.03, 0.97); dd = rs.uniform(0.08, 0.3)
             if facing == '+x': x, y = bk + dd, a + L * t
@@ -90,11 +92,11 @@ def ledge(R, facing, bk, a, b, rows, rs, dens=2.2):
             elif facing == '+y': x, y = a + L * t, bk + dd
             else: x, y = a + L * t, bk - dd
             h, r = rs.uniform(0.08, hmax), rs.uniform(0.022, 0.04)
-            R.nocol.add(taper(x, y, z, z + h, r, r * 0.9, 5))
+            R.nocol.add(taper(x, y, z, z + h, r, r * 0.9, 4))
             flame(R, x, y, z + h + 0.004)
     # drips off the crown edge and a row
     f = 0.36
-    for (z, n, Lm) in ((top - 0.06, int(L * 5), 1.0), (2 * 0.42, int(L * 2), 0.25)):
+    for (z, n, Lm) in ((top - 0.06, int(L * 2.4), 1.2), (2 * 0.42, int(L * 0.6), 0.25)):
         if facing == '+x': drips(R, bk + f, a, bk + f, b, z, n, rs, 0.06, Lm)
         elif facing == '-x': drips(R, bk - f, a, bk - f, b, z, n, rs, 0.06, Lm)
         elif facing == '+y': drips(R, a, bk + f, b, bk + f, z, n, rs, 0.06, Lm)
@@ -112,8 +114,6 @@ def stacks(R, rs):
             # a great wax heap at the end facing the walkway
             xe = b + 0.5 if a < 10 else a - 0.5
             wax_mound(R, xe, y, 0.7, rs.uniform(2.4, 4.4), rs)
-            drips(R, a, y - 0.4, b, y - 0.4, rows * 0.42 + 0.1, int((b - a) * 3), rs, 0.1, 1.5)
-            drips(R, a, y + 0.4, b, y + 0.4, rows * 0.42 + 0.1, int((b - a) * 3), rs, 0.1, 1.5)
 
 
 def nave(R, rs):
@@ -121,8 +121,8 @@ def nave(R, rs):
     for (y0, y1) in ((3.0, 6.8), (9.2, 14.8), (17.2, 22.8), (25.2, 29.0)):
         reading_table(R, 15.3, y0, 16.7, y1, lamps=2, chairs=True)
         candles_on(R, 15.4, y0 + 0.1, 16.6, y1 - 0.1, 0.78, int((y1 - y0) * 5), rs, 0.08, 0.35)
-        drips(R, 15.28, y0, 15.28, y1, 0.76, int((y1 - y0) * 4), rs, 0.05, 0.35)
-        drips(R, 16.72, y0, 16.72, y1, 0.76, int((y1 - y0) * 4), rs, 0.05, 0.35)
+        drips(R, 15.28, y0, 15.28, y1, 0.76, int((y1 - y0) * 2), rs, 0.05, 0.35)
+        drips(R, 16.72, y0, 16.72, y1, 0.76, int((y1 - y0) * 2), rs, 0.05, 0.35)
     # tall standing candelabra between tables
     for y in (8.0, 16.0, 24.0):
         for x in (12.6, 19.4):
@@ -155,7 +155,7 @@ def chandelier(R, x, y, z, r, rs):
             cx, cy = x + math.cos(a) * rr, y + math.sin(a) * rr
             R.nocol.add(taper(cx, cy, z + dz + 0.06, z + dz + 0.36, 0.03, 0.028, 5))
             R.light(box(cx - 0.02, cy - 0.02, z + dz + 0.38, cx + 0.02, cy + 0.02, z + dz + 0.46, 'e_flame'))
-        drips(R, x - rr, y, x + rr, y, z + dz, n, rs, 0.1, 0.9)
+        drips(R, x - rr, y, x + rr, y, z + dz, n // 2, rs, 0.1, 0.9)
     for k in range(4):
         a = k * math.pi / 2
         R.nocol.add(beam((x, y, z + 1.2), (x + math.cos(a) * r, y + math.sin(a) * r, z + 0.05), 0.03, 'iron'))

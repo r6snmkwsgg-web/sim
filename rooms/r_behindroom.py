@@ -77,7 +77,7 @@ def hall(R):
     book_pile(R, 21.0, 6.8, 0.78, 4, random.Random(8), 0.4)
     # pendant lamps and corner lamps (these stay on at night)
     for x in (6.0, 12.0, 18.0, 24.0):
-        pendant(R, x, 7.0, 3.3, H)
+        pendant(R, x, 7.0, 3.3, H, r=0.28)
     for (x, y) in ((1.4, 1.4), (XE - 1.1, 1.4), (1.4, YN - 1.1), (XE - 1.1, YN - 1.1)):
         floor_lamp(R, x, y, 1.6, m='e_amber')
     # coffers on the ceiling
@@ -163,14 +163,16 @@ def passage(R):
     # a line of books along a board on the stone, over the bed
     shelf(R, CX0 + 0.1 + 3.6, CY1, 1.3, 3.6, '-y', rows=2, frame='oak', depth=0.22, sides=False, crown=False)
     # lamps: bare bulbs on flex, far apart
-    for (x, m) in ((12.2, 'e_dim'), (16.0, 'e_dim'), (20.0, 'e_dim')):
-        bulb(R, x, (CY0 + CY1) / 2, 3.0, r=0.07, m=m, top=TOP - 0.2)
+    for (x, m) in ((13.0, 'e_lamp'), (17.0, 'e_lamp'), (20.4, 'e_lamp')):
+        bulb(R, x, (CY0 + CY1) / 2, 2.7, r=0.09, m=m, top=TOP - 0.2)
+    bulb(R, 16.0, (CY0 + CY1) / 2, 5.6, r=0.08, m='e_lamp', top=TOP - 0.2)
+    pendant(R, CX0 + 1.2, CY1 - 0.5, 1.9, TOP - 0.2, r=0.14)
     # the ladder at the east end, up to the catwalk
     L = UZ / math.tan(math.radians(60))
-    ladder_up(R, CX1 - L, (CY0 + CY1) / 2, 0.0, UZ, '+x', w=0.62, m='iron', rail='iron')
+    ladder_up(R, CX1 - L, (CY0 + CY1) / 2, 0.0, UZ, '+x', w=0.9, m='iron', rail='iron')
     ym = (CY0 + CY1) / 2
-    rail(R, CX1 + 0.05, CY0 + 0.02, CX1 + 0.05, ym - 0.42, UZ, m='iron')
-    rail(R, CX1 + 0.05, ym + 0.42, CX1 + 0.05, CY1 - 0.02, UZ, m='iron')
+    rail(R, CX1 + 0.05, CY0 + 0.02, CX1 + 0.05, ym - 0.58, UZ, m='iron')
+    rail(R, CX1 + 0.05, ym + 0.58, CX1 + 0.05, CY1 - 0.02, UZ, m='iron')
     a, b = R.navpt(CX0 + 3.0, ym), R.navpt(CX1 - L - 0.8, ym)
     R.link(a, b)
 
@@ -216,7 +218,8 @@ def catwalk(R):
     R.parts.add(box(30.6, EY0 + 0.05, UZ, 31.4, EY0 + 0.75, UZ + 0.6, 'oak'))
     open_book_(R, 31.0, EY0 + 0.4, UZ + 0.6, 1.4)
     candle(R, 31.25, EY0 + 0.15, UZ + 0.6, h=0.1, r=0.025)
-    bulb(R, 30.75, 8.0, UZ + 2.0, r=0.06, m='e_dim', top=TOP - 0.2)
-    bulb(R, 26.5, (CY0 + CY1) / 2, UZ + 2.0, r=0.06, m='e_dim', top=TOP - 0.2)
+    for y in (5.0, 9.5, 13.6):
+        bulb(R, 30.75, y, UZ + 2.1, r=0.08, m='e_lamp', top=TOP - 0.2)
+    bulb(R, 26.5, (CY0 + CY1) / 2, UZ + 2.1, r=0.08, m='e_lamp', top=TOP - 0.2)
     a, b, c = R.navpt(CX1 + 0.8, (CY0 + CY1) / 2, UZ), R.navpt(30.75, 14.75, UZ), R.navpt(30.75, 3.2, UZ)
     R.link(a, b, c)

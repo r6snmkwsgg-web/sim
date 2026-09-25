@@ -8,7 +8,7 @@ W = D = 32.0
 X0, X1 = 12.0, 20.0             # the stair's width
 N, RISE, RUN = 20, 0.2, 0.3
 PX0, PX1, PY1 = 10.4, 21.6, 8.0  # the pit
-ZB = -4.0                        # the pit floor
+ZB = -2.0                        # the pit floor
 PIER_Y0, PIER_Y1 = 14.8, 18.2
 LZ = 4.0                         # the landing, halfway down
 DY0, DY1 = 16.0, 17.0            # the landing door in the east pier
@@ -16,11 +16,12 @@ TOPV = 15.2
 
 
 def make():
-    R = Room('stairblack', 2, 2, levels=2, res=2048, lo=-6.0)
+    R = Room('stairblack', 2, 2, levels=2, res=2048, lo=-3.0)
     skip = [('S', 0, 1), ('S', 1, 1), ('W', 0, 1), ('E', 0, 1)]
     seal(R, skip, floor='terrazzo', wall='tile')
-    R.cut(box(T - 0.02, T - 0.02, 0, W - T + 0.02, D - T + 0.02, TOPV, 'tile', bottom='slate', top='plaster'))
-    R.cut(box(PX0, T - 0.02, ZB, PX1, PY1, 0.3, 'tile', bottom='slate', top='tile'))
+    R.cut(box(T - 0.02, T - 0.02, 0, W - T + 0.02, D - T + 0.02, 8.0, 'slate', bottom='slate', top='plaster'))
+    R.cut(box(T - 0.02, T - 0.02, 7.9, W - T + 0.02, D - T + 0.02, TOPV, 'tile', bottom='slate', top='plaster'))
+    R.cut(box(PX0, T - 0.02, ZB, PX1, PY1, 0.3, 'black', bottom='black', top='slate'))
     upper(R)
     stair(R)
     piers(R)
@@ -29,7 +30,7 @@ def make():
     secret_room(R)
     # walkers: round the deck, down the stair, round the dark floor
     d = navloop(R, [(6, 27), (16, 27), (26, 27), (26, 30), (6, 30)], z=8.0)
-    a, b, c, e = R.navpt(16, 16.8, LZ), R.navpt(16, 8.9, 0), R.navpt(16, 1.2, ZB), R.navpt(16, 25.0, 8.0)
+    a, b, c, e = R.navpt(16, 16.8, LZ), R.navpt(16, 8.9, 0), R.navpt(16, 2.6, ZB), R.navpt(16, 25.0, 8.0)
     R.link(d[1], e, a, b, c)
     g = navloop(R, [(3, 8.9), (3, 29), (29, 29), (29, 8.9)])
     R.link(g[0], b, g[3])
@@ -43,9 +44,9 @@ def make():
 
 def upper(R):
     """The lamplit top: a deck along the north wall and two galleries running down the side walls."""
-    R.parts.add(box(T - 0.02, 24.0, 7.55, W - T + 0.02, D - T + 0.02, 8.0, 'tile', top='terrazzo', bottom='plaster'))
+    R.parts.add(box(T - 0.02, 24.0, 7.55, W - T + 0.02, D - T + 0.02, 8.0, 'tile', top='tile', bottom='plaster'))
     for (x0, x1) in ((T - 0.02, 4.35), (W - 4.35, W - T + 0.02)):
-        R.parts.add(box(x0, 14.0, 7.55, x1, 24.0, 8.0, 'tile', top='terrazzo', bottom='plaster'))
+        R.parts.add(box(x0, 14.0, 7.55, x1, 24.0, 8.0, 'tile', top='tile', bottom='plaster'))
     y = 24.07
     stone_rail(R, 4.28, y, X0, y, 8.0); stone_rail(R, X1, y, W - 4.28, y, 8.0)
     stone_rail(R, 4.28, 14.0, 4.28, y, 8.0); stone_rail(R, W - 4.28, 14.0, W - 4.28, y, 8.0)
@@ -57,10 +58,10 @@ def upper(R):
 
 
 def stair(R):
-    for (y0, z0) in ((18.0, LZ), (9.6, 0.0), (2.0, ZB)):
-        rflight(R, X0, y0, z0, X1 - X0, N, RISE, RUN, '+y', m='terrazzo', side='tile')
-        flight_rail(R, X0, y0, z0, X1 - X0, N, RISE, RUN, '+y', which=(0, 1), m='tile', cap='brass', h=1.0)
-    R.parts.add(box(X0, 15.6, LZ - 0.45, X1, 18.02, LZ, 'tile', top='terrazzo', bottom='plaster'))
+    for (y0, z0, n, m) in ((18.0, LZ, N, 'tile'), (9.6, 0.0, N, 'slate'), (5.0, ZB, 10, 'slate')):
+        rflight(R, X0, y0, z0, X1 - X0, n, RISE, RUN, '+y', m=m, side=m, soffit=m)
+        flight_rail(R, X0, y0, z0, X1 - X0, n, RISE, RUN, '+y', which=(0, 1), m=m, cap='brass', h=1.0)
+    R.parts.add(box(X0, 15.6, LZ - 0.45, X1, 18.02, LZ, 'tile', bottom='slate'))
     # the pit's rim
     stone_rail(R, PX0 - 0.07, T, PX0 - 0.07, PY1 + 0.14, 0.0)
     stone_rail(R, PX1 + 0.07, T, PX1 + 0.07, PY1 + 0.14, 0.0)
@@ -75,20 +76,19 @@ def stair(R):
 def piers(R):
     """Two great square piers stand either side of the landing. The east one is hollow."""
     x0, x1 = 8.4, X0
-    R.parts.add(box(x0, PIER_Y0, 0, x1, PIER_Y1, 9.4, 'tile', skip=('-z',)))
+    R.parts.add(box(x0, PIER_Y0, 0, x1, PIER_Y1, 7.0, 'slate', skip=('-z',)))
     ex0, ex1 = X1, 23.6
-    R.parts.add(box(ex0, PIER_Y0, 0, ex1, PIER_Y1, LZ, 'tile', top='oak', skip=('-z',)))
+    R.parts.add(box(ex0, PIER_Y0, 0, ex1, PIER_Y1, LZ, 'slate', top='oak', skip=('-z',)))
     t = 0.3
-    R.parts.add(box(ex1 - t, PIER_Y0, LZ, ex1, PIER_Y1, 9.4, 'tile'))
-    R.parts.add(box(ex0, PIER_Y0, LZ, ex1 - t, PIER_Y0 + t, 9.4, 'tile'))
-    R.parts.add(box(ex0, PIER_Y1 - t, LZ, ex1 - t, PIER_Y1, 9.4, 'tile'))
-    R.parts.add(box(ex0, PIER_Y0 + t, LZ, ex0 + t, DY0, 9.4, 'tile'))
-    R.parts.add(box(ex0, DY1, LZ, ex0 + t, PIER_Y1 - t, 9.4, 'tile'))
-    R.parts.add(box(ex0, DY0, LZ + 2.2, ex0 + t, DY1, 9.4, 'tile'))
-    R.parts.add(box(ex0 + t, PIER_Y0 + t, 6.95, ex1 - t, PIER_Y1 - t, 9.4, 'tile', bottom='plaster'))
+    R.parts.add(box(ex1 - t, PIER_Y0, LZ, ex1, PIER_Y1, 7.0, 'slate'))
+    R.parts.add(box(ex0, PIER_Y0, LZ, ex1 - t, PIER_Y0 + t, 7.0, 'slate'))
+    R.parts.add(box(ex0, PIER_Y1 - t, LZ, ex1 - t, PIER_Y1, 7.0, 'slate'))
+    R.parts.add(box(ex0, PIER_Y0 + t, LZ, ex0 + t, DY0, 7.0, 'slate'))
+    R.parts.add(box(ex0, DY1, LZ, ex0 + t, PIER_Y1 - t, 7.0, 'slate'))
+    R.parts.add(box(ex0, DY0, LZ + 2.2, ex0 + t, DY1, 7.0, 'slate'))
+    R.parts.add(box(ex0 + t, PIER_Y0 + t, 6.95, ex1 - t, PIER_Y1 - t, 7.0, 'slate', bottom='plaster'))
     for (a, b) in ((x0, x1), (ex0, ex1)):
-        R.parts.add(box(a - 0.15, PIER_Y0 - 0.15, 9.4, b + 0.15, PIER_Y1 + 0.15, 9.7, 'tile'))
-        R.parts.add(box(a - 0.1, PIER_Y0 - 0.1, 0, b + 0.1, PIER_Y1 + 0.1, 0.4, 'tile', skip=('-z',)))
+        R.parts.add(box(a - 0.15, PIER_Y0 - 0.15, 7.0, b + 0.15, PIER_Y1 + 0.15, 7.3, 'slate'))
 
 
 def books(R):
@@ -97,9 +97,9 @@ def books(R):
     for (a, b) in ((0.6, 6.2), (25.8, W - 0.6)):
         R.shelf(a, T, 0.0, b - a, '+y', rows=rows, frame='walnut')
     # the pit is lined with books all the way down
-    sh(R, '+y', T, PX0 + 0.1, PX1 - 0.1, z=ZB, rows=9, frame='walnut')
-    sh(R, '+x', PX0, T + 0.4, PY1 - 0.1, z=ZB, rows=9, frame='walnut')
-    sh(R, '-x', PX1, T + 0.4, PY1 - 0.1, z=ZB, rows=9, frame='walnut')
+    sh(R, '+y', T, PX0 + 0.1, PX1 - 0.1, z=ZB, rows=4, frame='walnut')
+    sh(R, '+x', PX0, T + 0.4, PY1 - 0.1, z=ZB, rows=4, frame='walnut')
+    sh(R, '-x', PX1, T + 0.4, PY1 - 0.1, z=ZB, rows=4, frame='walnut')
     # the upper floor: the north wall and the galleries
     for (a, b) in ((0.6, 6.2), (9.8, 22.2), (25.8, W - 0.6)):
         R.shelf(b, D - T, 8.0, b - a, '-y', rows=13, frame='walnut')
@@ -125,29 +125,19 @@ def lights(R):
         if X0 - 1 < x < X1 + 1: continue
         green_standard(R, x, 24.07, 9.06, h=0.6)
     for yy in (16.0, 20.0):
-        green_standard(R, 4.28, yy, 9.06, h=0.6)
-        green_standard(R, W - 4.28, yy, 9.06, h=0.6)
+        green_standard(R, 4.28, yy, 9.06, h=0.6, m='e_dim')
+        green_standard(R, W - 4.28, yy, 9.06, h=0.6, m='e_dim')
     for (x, y) in ((8, 28), (16, 28), (24, 28)):
         pendant(R, x, y, 11.5, TOPV, r=0.3)
-    for (x, y) in ((4, 17), (W - 4, 17), (4, 21), (W - 4, 21)):
-        pass
     # the landing: two dim lamps on the piers' caps and sconces facing the stair
     for x in ((8.4 + X0) / 2, (X1 + 23.6) / 2):
-        green_standard(R, x, (PIER_Y0 + PIER_Y1) / 2, 9.7, h=0.8, m='e_dim')
+        green_standard(R, x, (PIER_Y0 + PIER_Y1) / 2, 7.3, h=0.9, m='e_dim')
     for (x, f) in ((X0 + 0.05, 0.0), (X1 - 0.05, math.pi)):
         R.nocol.add(box(x - 0.05, 15.05, 6.2, x + 0.05, 15.35, 6.6, 'brass'))
         R.light(sphere(x + 0.2 * math.cos(f), 15.2, 6.7, 0.08, 8, 4, 'e_dim'))
     # the bottom of the pit: a weak bulb over a chair nobody sits in
-    bulb(R, 16.0, 1.3, ZB + 2.6, r=0.07, m='e_dim', top=0.0)
-    chair(R, 16.0, 0.9, math.pi / 2, z=ZB)
-    # green exit signs over the ground-floor doors, and a few night lights low on the dark walls
-    for (sd, c) in (('N', 8), ('N', 24), ('S', 8), ('S', 24), ('W', 8), ('W', 24), ('E', 8), ('E', 24)):
-        if sd in 'NS':
-            y = T + 0.05 if sd == 'S' else D - T - 0.05
-            R.light(box(c - 0.3, y - 0.04, 4.35, c + 0.3, y + 0.04, 4.55, 'e_exit'))
-        else:
-            x = T + 0.05 if sd == 'W' else W - T - 0.05
-            R.light(box(x - 0.04, c - 0.3, 4.35, x + 0.04, c + 0.3, 4.55, 'e_exit'))
+    bulb(R, 16.0, 2.4, ZB + 1.9, r=0.07, m='e_dim', top=TOPV)
+    chair(R, 18.6, 1.0, math.pi / 2, z=ZB)
 
 
 def secret_room(R):

@@ -5,6 +5,7 @@ from lib import *
 from kit_h3 import (secret, fx, finish, field, reading_table, pendant, lamp_post, book_pile, open_book, armchair,
                     shell, obox, beam, rot, rail, stair_rail, shelf, sh, chair, table, bulb, desk_lamp, candle,
                     ladder, navloop, tidy, frustum, floor_lamp, open_flight, ellipsoid)
+from kit_a import stack, ang_shelf, inv_shelf
 from kit_g import (upper_sockets, seal, wall_cases, iron_rail, lamppost, hanging, bench)
 from kit_g import flight as gflight, flight_rail as gflight_rail, rail as brail
 from kit_h4 import ladder_up, ramp
@@ -116,3 +117,75 @@ def desk(R, x, y, a=0.0, z=0.0, w=1.5, d=0.75, h=0.78, top='leather', m='walnut'
 def hatch_frame(R, x0, y0, x1, y1, z, m='oak', t=0.1):
     for (a, b, c, d) in ((x0 - t, y0 - t, x1 + t, y0), (x0 - t, y1, x1 + t, y1 + t), (x0 - t, y0, x0, y1), (x1, y0, x1 + t, y1)):
         R.nocol.add(box(a, b, z - 0.02, c, d, z + 0.03, m))
+
+
+def lathe(cx, cy, prof, segs=48, mats='tile', a0=0.0, a1=2 * math.pi):
+    """A solid of revolution: the closed (r, z) polygon `prof` (all r > 0) turned round the vertical
+    axis through (cx, cy). mats: one material or one per profile edge. Partial turns get end caps."""
+    g = Geo()
+    full = abs(a1 - a0 - 2 * math.pi) < 1e-6
+    n = len(prof)
+    na = segs if full else segs + 1
+    ang = [a0 + (a1 - a0) * k / segs for k in range(na)]
+    V = [[g.vert((cx + r * math.cos(a), cy + r * math.sin(a), z)) for (r, z) in prof] for a in ang]
+    for k in range(segs):
+        j = (k + 1) % na
+        for i in range(n):
+            i2 = (i + 1) % n
+            (r0, z0), (r1, z1) = prof[i], prof[i2]
+            m = mats[i] if isinstance(mats, (list, tuple)) else mats
+            q = [V[k][i], V[j][i], V[j][i2], V[k][i2]]
+            if abs(z1 - z0) < 0.3 * abs(r1 - r0):
+                uv = [(g.v[v][0], g.v[v][1]) for v in q]
+            else:
+                uv = [(ang[k] * r0, z0), (ang[k] * r0 + (a1 - a0) / segs * r0, z0), (ang[k] * r1 + (a1 - a0) / segs * r1, z1), (ang[k] * r1, z1)]
+            g.face(q, m, uv)
+    if not full:
+        for (row, a) in ((V[0], ang[0]), (V[-1], ang[-1])):
+            g.face(list(row), mats[0] if isinstance(mats, (list, tuple)) else mats, [(r, z) for (r, z) in prof])
+    return g.fix()
+
+
+def tilt_place(g, x, y, z, toward, slope):
+    """Lean a piece built at the origin (base at z=0) down toward plan angle `toward` by `slope` radians,
+    then set it at (x, y, z)."""
+    rot(g, 'y', slope)
+    return g.xform(toward, x, y, z)
+
+
+def circle_pts(cx, cy, r, n=48, a0=0.0):
+    return [(cx + r * math.cos(a0 + 2 * math.pi * k / n), cy + r * math.sin(a0 + 2 * math.pi * k / n)) for k in range(n)]
+
+
+def clip_poly(pts, x0=-1e9, y0=-1e9, x1=1e9, y1=1e9):
+    """Clip a convex polygon to an axis-aligned rectangle (Sutherland-Hodgman). Returns a convex polygon."""
+    def clip(P, inside, cross):
+        out = []
+        for i in range(len(P)):
+            a, b = P[i - 1], P[i]
+            ia, ib = inside(a), inside(b)
+            if ib:
+                if not ia: out.append(cross(a, b))
+                out.append(b)
+            elif ia: out.append(cross(a, b))
+        return out
+    def cx_(v):
+        return lambda a, b: (v, a[1] + (b[1] - a[1]) * (v - a[0]) / ((b[0] - a[0]) or 1e-9))
+    def cy_(v):
+        return lambda a, b: (a[0] + (b[0] - a[0]) * (v - a[1]) / ((b[1] - a[1]) or 1e-9), v)
+    P = list(pts)
+    for (ins, cr) in ((lambda p: p[0] >= x0, cx_(x0)), (lambda p: p[0] <= x1, cx_(x1)), (lambda p: p[1] >= y0, cy_(y0)), (lambda p: p[1] <= y1, cy_(y1))):
+        if not P: break
+        P = clip(P, ins, cr)
+    return P
+
+
+def disc_with_hole(cx, cy, r, z0, z1, hole, n=48, top='floor', side='tile', bottom='plaster'):
+    """A round slab with a rectangular hole (hx0, hy0, hx1, hy1) inside it, as convex prisms."""
+    hx0, hy0, hx1, hy1 = hole
+    C = circle_pts(cx, cy, r, n)
+    g = Geo()
+    for rect in ((-1e9, -1e9, hx0, 1e9), (hx1, -1e9, 1e9, 1e9), (hx0, -1e9, hx1, hy0), (hx0, hy1, hx1, 1e9)):
+        P = clip_poly(C, *rect)
+        if len(P) >= 3: g.add(poly_prism(P, z0, z1, side=side, top=top, bottom=bottom))
+    return g

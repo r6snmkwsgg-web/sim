@@ -33,8 +33,8 @@ def make():
     R.parts.add(helix(CX, CY, RI, RI + 0.16, ph, LH, TH0, TH0 + 2 * math.pi, ph, 128, top='tile', side='tile', bottom='tile'))
     R.parts.add(helix(CX, CY, RM - 0.16, RM, ph + LH * gap / (2 * math.pi), LH, TH0 + gap, TH0 + 2 * math.pi - gap, ph, 110, top='tile', side='tile', bottom='tile'))
     R.parts.add(ring(CX, CY, 0.0, ph, RM, RM + 0.16, 80, top='tile', bottom='tile', inner='tile', outer='tile', a0=TH0 + gap, a1=TH0 + 2 * math.pi - gap))
-    R.parts.add(helix(CX, CY, RI - 0.03, RI + 0.19, ph + 0.06, LH, TH0, TH0 + 2 * math.pi, 0.06, 128, top='brass', side='brass', bottom='brass'))
-    R.parts.add(ring(CX, CY, ph, ph + 0.06, RM - 0.03, RM + 0.19, 80, top='brass', bottom='brass', inner='brass', outer='brass', a0=TH0 + gap, a1=TH0 + 2 * math.pi - gap))
+    R.parts.add(helix(CX, CY, RI - 0.03, RI + 0.19, ph + 0.07, LH, TH0, TH0 + 2 * math.pi, 0.07, 128, top='walnut', side='walnut', bottom='walnut'))
+    R.parts.add(ring(CX, CY, ph, ph + 0.07, RM - 0.03, RM + 0.19, 80, top='walnut', bottom='walnut', inner='walnut', outer='walnut', a0=TH0 + gap, a1=TH0 + 2 * math.pi - gap))
     alcoves(R)
     shelves(R)
     cell(R)
@@ -122,24 +122,27 @@ def cell(R):
     dx, dy = dirv(SEC)
     x0, y0, x1, y1 = T + 0.05, T + 0.05, 2.62, 2.62
     CH = 2.3
-    R.cut(box(x0, y0, 0, x1, y1, CH, 'plaster', bottom='floor', top='plaster'))
+    for (a0_, b0_, a1_, b1_) in ((x0, y0, x1, y1), (x0, y0, 3.6, 1.9), (x0, y0, 1.9, 3.6)):
+        R.cut(box(a0_, b0_, 0, a1_, b1_, CH, 'plaster', bottom='floor', top='plaster'))
     # the passage from behind the case, through the wall
     a0 = (CX + dx * (RW - 0.25), CY + dy * (RW - 0.25))
     a1 = (x1 - 0.5, y1 - 0.5)
-    R.cut(obox(a0[0], a0[1], a1[0], a1[1], 0, 1.5, 0.9, 'plaster', bottom='floor', top='oak'))
-    # inside: a bed, a shelf, a candle, a chair, a plaque
-    R.parts.add(box(x0 + 0.02, y0 + 0.02, 0, x0 + 0.95, y0 + 2.0, 0.42, 'bed', sides='walnut'))
-    R.parts.add(box(x0 + 0.02, y0 + 0.02, 0.42, x0 + 0.95, y0 + 0.08, 0.95, 'walnut'))
-    R.nocol.add(box(x0 + 0.12, y0 + 0.15, 0.42, x0 + 0.85, y0 + 0.55, 0.52, 'ivory'))
-    R.spot('bed', x0 + 0.5, y0 + 1.0, 0.42, math.pi / 2)
-    R.shelf(x1 - 0.02, y0 + 0.02, 0.0, 1.2, '+y', rows=4, frame='walnut', depth=0.28)
-    R.parts.add(box(x1 - 0.45, y0 + 1.35, 0, x1 - 0.02, y0 + 1.95, 0.7, 'walnut'))
-    candle(R, x1 - 0.25, y0 + 1.55, 0.7, h=0.18)
-    book_pile(R, x1 - 0.25, y0 + 1.8, 0.7, 3, seed=5)
-    R.light(sphere(x0 + 1.5, y0 + 1.2, CH - 0.35, 0.07, 8, 4, 'e_dim'))
-    R.nocol.add(cyl(x0 + 1.5, y0 + 1.2, CH - 0.3, CH, 0.008, 4, side='iron', caps=False))
-    R.spot('plaque', x0 + 1.2, y0 + 0.02, 1.4, math.pi / 2, text='REST HERE. THE STAIR WILL STILL BE THERE.')
-    secret(R, x0 + 1.4, y0 + 1.3, 0.0, 'The Cell in the Wall',
+    R.cut(obox(a0[0], a0[1], a1[0], a1[1], 0, 1.55, 1.1, 'plaster', bottom='floor', top='oak'))
+    # inside: a bed along the south wall, a case of books, a trunk with a candle, a plaque
+    R.parts.add(box(1.4, y0 + 0.02, 0, 3.55, y0 + 0.97, 0.42, 'bed', sides='walnut'))
+    R.parts.add(box(3.5, y0 + 0.02, 0, 3.58, y0 + 0.97, 0.95, 'walnut'))
+    R.nocol.add(box(2.95, y0 + 0.12, 0.42, 3.42, y0 + 0.87, 0.52, 'ivory'))
+    R.nocol.add(box(1.45, y0 + 0.05, 0.42, 2.7, y0 + 0.94, 0.46, 'velvet'))
+    R.spot('bed', 2.5, y0 + 0.5, 0.42, 0.0)
+    R.shelf(x0 + 0.02, 3.55, 0.0, 2.3, '+x', rows=4, frame='walnut', depth=0.28)
+    R.parts.add(box(0.95, 3.0, 0, 1.85, 3.55, 0.5, 'leather', sides='walnut'))
+    candle(R, 1.2, 3.25, 0.5, h=0.18)
+    book_pile(R, 1.6, 3.3, 0.5, 3, seed=5)
+    R.light(sphere(1.6, 1.8, CH - 0.4, 0.09, 8, 4, 'e_lamp'))
+    R.nocol.add(frustum(1.6, 1.8, CH - 0.38, CH - 0.2, 0.22, 0.08, 10, 'green', inner='ivory'))
+    R.nocol.add(cyl(1.6, 1.8, CH - 0.3, CH, 0.008, 4, side='iron', caps=False))
+    R.spot('plaque', 3.6, 1.2, 1.5, math.pi, text='REST HERE. THE STAIR WILL STILL BE THERE.')
+    secret(R, 1.5, 1.8, 0.0, 'The Cell in the Wall',
            'Behind the bookcase, a low door, and a cell just big enough for a bed. Someone lived here long enough to wear a hollow in the pillow, and left the candle for you.', r=1.2)
 
 

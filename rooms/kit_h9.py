@@ -25,6 +25,7 @@ NEW_MATS = {
     'rust':     (0.36, 0.19, 0.10),
     'hutred':   (0.64, 0.20, 0.16),
     'fuselage': (0.84, 0.85, 0.86),
+    'path':     (0.52, 0.42, 0.29),   # a beaten track through a field
 }
 NEW_EMIT = {
     'e_fog':   ((0.86, 0.88, 0.90), 2.2),    # the lit fog beyond a window

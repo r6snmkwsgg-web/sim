@@ -5,7 +5,7 @@ import lib
 from kit_h3 import *
 from kit_h1 import along, xcyl, cone
 from kit_h2 import climb_ladder, ramp, wall_col, hexa, railed_flight
-from kit_h4 import tube, curve, loft
+from kit_h4 import tube, curve, loft, branches
 
 # a few materials the library palette lacks (the room file carries the albedo; the game paints them)
 NEW_MATS = {
@@ -198,25 +198,35 @@ def tunnels(R, x0, y0, x1, y1, z=0.0, floor='floor', wall='tile', skip=()):
 # wax
 def wax_spire(R, x, y, z, h, r, rs, m='tallow', col=True, segs=8, lit=True, flame_m='e_candle'):
     """One built-up candle: a tapering column of wax with a guttered lip and a flame on top."""
-    g = cone(x, y, z, z + h, r, r * rs.uniform(0.45, 0.7), segs, side=m, top=m, bottom=m)
+    g = taper(x, y, z, z + h, r, r * rs.uniform(0.45, 0.7), segs, m)
     (R.parts if col else R.nocol).add(g)
     rt = r * 0.55
     if lit:
         fr = min(0.05, rt * 0.4)
-        R.light(box(x - fr, y - fr, z + h + 0.01, x + fr, y + fr, z + h + 0.03 + fr * 2.4, flame_m))
+        flame(R, x, y, z + h + 0.01, fr, 0.03 + fr * 2.4, flame_m)
 
 
 def wax_mound(R, x, y, r, h, rs, n=None, m='tallow', z=0.0, col=True, flames=True):
-    """A stalagmite of wax: a broad foot, spires of different heights, candles burning on every top."""
-    R.parts.add(cone(x, y, z, z + min(h * 0.18, 0.5), r, r * 0.8, 12, side=m, top=m, bottom=m)) if col else \
-        R.nocol.add(cone(x, y, z, z + min(h * 0.18, 0.5), r, r * 0.8, 12, side=m, top=m, bottom=m))
-    n = n or max(3, int(r * 7))
-    wax_spire(R, x, y, z, h, r * 0.42, rs, m, col, 10)
+    """A stalagmite of wax: a lumpy guttered foot, a crowd of spires of different heights leaning into
+    each other, drips down their sides, candles burning on every top."""
+    foot = lambda: cone(x, y, z, z + min(h * 0.16, 0.45), r, r * 0.72, 12, side=m, top=m, bottom=m)
+    (R.parts if col else R.nocol).add(foot())
+    for k in range(3):   # lumps round the foot
+        a = rs.uniform(0, 2 * math.pi); d = r * rs.uniform(0.55, 0.9)
+        R.nocol.add(cone(x + math.cos(a) * d, y + math.sin(a) * d, z, z + rs.uniform(0.12, 0.3), r * 0.35, r * 0.18, 7, side=m, top=m, bottom=m))
+    n = n or max(5, int(r * 9))
+    wax_spire(R, x, y, z, h, r * 0.32, rs, m, False, 8)
+    if col: R.col.add(cyl(x, y, z, z + h * 0.8, r * 0.55, 8, side='tile', top='tile', bottom='tile'))
     for k in range(n):
-        a = rs.uniform(0, 2 * math.pi); d = rs.uniform(0.25, 0.85) * r
-        hh = h * rs.uniform(0.15, 0.75) * (1 - d / r * 0.6)
-        rr = r * rs.uniform(0.1, 0.24)
-        wax_spire(R, x + math.cos(a) * d, y + math.sin(a) * d, z, max(0.2, hh), rr, rs, m, col and d < r * 0.7, 7, lit=flames)
+        a = rs.uniform(0, 2 * math.pi); d = rs.uniform(0.15, 0.8) * r
+        hh = h * rs.uniform(0.3, 0.92) * (1 - d / r * 0.55)
+        rr = r * rs.uniform(0.1, 0.22)
+        wax_spire(R, x + math.cos(a) * d, y + math.sin(a) * d, z, max(0.25, hh), rr, rs, m, False, 6, lit=flames)
+        # drips running down the spire: a thin rivulet and a bead at its foot
+        if hh > 0.8 and rs.random() < 0.4:
+            px, py = x + math.cos(a) * (d + rr * 0.9), y + math.sin(a) * (d + rr * 0.9)
+            R.nocol.add(tube([(px, py, z + hh * 0.95), (px + math.cos(a) * 0.02, py + math.sin(a) * 0.02, z + hh * 0.5), (px + math.cos(a) * 0.05, py + math.sin(a) * 0.05, z + hh * rs.uniform(0.1, 0.35))],
+                             [0.012, 0.03, 0.04], 4, m))
 
 
 def icicle(x, y, ztop, L, r, segs=4, m='tallow', a0=0.0):
@@ -243,7 +253,14 @@ def taper(x, y, z0, z1, r0, r1, segs=5, m='tallow'):
 
 
 def flame(R, x, y, z, s=0.012, h=0.045, m='e_candle'):
-    R.light(box(x - s, y - s, z, x + s, y + s, z + h, m, skip=('-z',)))
+    """A candle flame: a little three-sided point of light."""
+    g = Geo()
+    b = [g.vert((x + s * 1.2 * math.cos(a), y + s * 1.2 * math.sin(a), z)) for a in (0.3, 2.4, 4.5)]
+    t = g.vert((x, y, z + h))
+    for k in range(3):
+        g.face([b[k], b[(k + 1) % 3], t], m, [(0, 0), (s, 0), (s / 2, h)])
+    g.face([b[2], b[1], b[0]], m, [(0, 0), (s, 0), (s / 2, s)])
+    R.light(g)
 
 
 def drips(R, x0, y0, x1, y1, z, n, rs, Lmin=0.08, Lmax=0.9, rmin=0.02, rmax=0.07, m='tallow', segs=4):
@@ -272,9 +289,80 @@ def wax_fall(R, y0, y1, xb, ztop, rs, depth=0.35, bulge=0.5, foot=0.9, face=1, m
             front.append((xb + face * (0.02 + e * out + rip * e), y, z))
         back = [(xb, y, zbot), (xb, y, ztop)]
         rings.append(front + back)
-    # rings run top->bottom on the front then back up; keep orientation consistent
     g = loft(rings, m, caps=True)
     (R.parts if col else R.nocol).add(g)
+    # rivulets down its face: ridges following the front, fattening as they fall
+    for k in range(1, n):
+        for off in ((0.0,) if k % 2 else ()):
+            kk = k + off
+            if kk >= n: continue
+            i0, i1 = int(kk), min(n, int(kk) + 1)
+            t = kk - i0
+            fr = [tuple(a[q] + (b[q] - a[q]) * t for q in range(3)) for a, b in zip(rings[i0][:len(zs)], rings[i1][:len(zs)])]
+            L = rs.randint(3, len(zs) - 1)
+            pts = [(p[0] + face * 0.02, p[1], p[2]) for p in fr[:L + 1]]
+            R.nocol.add(tube(pts, [0.05 + 0.1 * j / len(pts) * rs.uniform(0.6, 1.3) for j in range(len(pts))], 5, m, caps=True))
     # icicles off the lip at the top
     drips(R, xb + face * 0.1, y0, xb + face * 0.1, y1, ztop, int((y1 - y0) * 5), rs, 0.1, 0.6)
+    return g
+
+
+# ---------------------------------------------------------------------------
+# trees and ground litter
+def tree(R, x, y, h, cr, rs, bark='walnut', leaf=('leafg',), snow=False, bare=False, z=0.0, n=6, puff=0.9, col=True, flat=0.6):
+    """A tree: a trunk, n limbs spreading from the top of the bole, a crown of leaf clusters at the limb
+    ends (or bare twigs, snow along their tops). The trunk is collided, the rest drawn."""
+    bole = h * 0.45
+    R.nocol.add(tube([(x, y, z), (x + rs.uniform(-0.1, 0.1), y + rs.uniform(-0.1, 0.1), z + bole * 0.5), (x, y, z + bole)], [0.24, 0.2, 0.17], 8, bark))
+    if col: R.col.add(box(x - 0.2, y - 0.2, z, x + 0.2, y + 0.2, z + bole, 'tile'))
+    g = Geo()
+    tips = []
+    for k in range(n):
+        a = 2 * math.pi * k / n + rs.uniform(-0.3, 0.3)
+        d = (math.cos(a) * 0.8, math.sin(a) * 0.8, rs.uniform(0.6, 1.1))
+        L = math.hypot(cr * 0.8, h - bole) * rs.uniform(0.55, 0.8)
+        if bare:
+            branches(g, (x, y, z + bole - 0.1), d, L * 0.6, 0.12, 2, rs, bark, 5, 2, 0.8, 0.25, 0.7, 0.5, 0.2)
+        else:
+            end = (x + d[0] * L * 0.7, y + d[1] * L * 0.7, z + bole + d[2] * L * 0.55)
+            g.add(tube(curve((x, y, z + bole - 0.1), end, (0, 0, 0.2), 4), [0.13, 0.1, 0.07, 0.05], 5, bark))
+            tips.append(end)
+    R.nocol.add(g)
+    if snow:
+        # snow lying along the limbs: pale boxes on the upper side of every branch segment
+        s = Geo()
+        for i in range(0, len(g.f), 5):
+            f = g.f[i]
+            p = [g.v[j] for j in f]
+            cx, cy, cz = sum(q[0] for q in p) / len(p), sum(q[1] for q in p) / len(p), max(q[2] for q in p)
+            if rs.random() < 0.35: s.add(box(cx - 0.07, cy - 0.07, cz - 0.01, cx + 0.07, cy + 0.07, cz + 0.035, 'snow', skip=('-z',)))
+        R.nocol.add(s)
+    for k, (tx, ty, tz) in enumerate(tips):
+        R.nocol.add(puffs(tx, ty, tz, puff * rs.uniform(0.75, 1.05), 3, leaf[k % len(leaf)], seed=rs.randint(0, 9999), flat=flat, segs=9, rings=4))
+    if tips and not bare:
+        R.nocol.add(puffs(x, y, z + h - puff * 0.6, puff * 1.15, 5, leaf[0], seed=rs.randint(0, 9999), flat=flat, segs=9, rings=4))
+
+
+def litter(R, x0, y0, x1, y1, n, rs, mats=('rust',), z=0.0, s=(0.05, 0.1), skip=None, t=0.004):
+    """Leaves, petals or pages lying scattered on a floor (drawn only): one upward face each."""
+    g = Geo()
+    for _ in range(n):
+        x, y = rs.uniform(x0, x1), rs.uniform(y0, y1)
+        if skip and skip(x, y): continue
+        a = rs.uniform(0, math.pi); w = rs.uniform(*s)
+        q = Geo(); zz = z + t + rs.uniform(0.0, 0.01)
+        ids = [q.vert(p) for p in ((-w, -w * 0.6, zz), (w, -w * 0.6, zz), (w, w * 0.6, zz), (-w, w * 0.6, zz))]
+        q.face(ids, rs.choice(mats), [(0, 0), (w, 0), (w, w), (0, w)])
+        g.add(q.xform(a, x, y, 0))
+    R.nocol.add(g)
+
+
+def blade(x, y, z, h, w, a, m, lean=0.0):
+    """A two-sided vertical sliver (a grass blade, a hanging page): two faces."""
+    g = Geo()
+    c, s_ = math.cos(a) * w / 2, math.sin(a) * w / 2
+    P = [(x - c, y - s_, z), (x + c, y + s_, z), (x + c + lean, y + s_, z + h), (x - c + lean, y - s_, z + h)]
+    ids = [g.vert(p) for p in P]
+    g.face(ids, m, [(0, 0), (w, 0), (w, h), (0, h)])
+    g.face(list(reversed(ids)), m, [(0, h), (w, h), (w, 0), (0, 0)])
     return g

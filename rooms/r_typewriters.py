@@ -147,7 +147,7 @@ def alcove(R):
     R.parts.add(stool(cx - 0.45, cy, 0.0))
     R.light(sphere(cx + 0.3, y1 - 0.25, 1.4, 0.06, 8, 4, 'e_amber'))
     R.nocol.add(box(cx + 0.28, y1 - 0.27, 0.76, cx + 0.32, y1 - 0.23, 1.35, 'brass'))
-    bulb(R, cx, cy, 2.1, r=0.08, m='e_dim', top=2.7)
+    bulb(R, cx, cy, 2.1, r=0.08, m='e_lamp', top=2.7)
     R.spot('plaque', cx + 0.2, cy, 0.76, 0.0,
            text='I have typed it at last, every letter in its place: the book of my life, as it was, without a single error. '
                 'It is one page long. I have left it in the machine for you. Do not correct anything.')
