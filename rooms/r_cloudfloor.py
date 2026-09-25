@@ -110,7 +110,7 @@ def puffs_over(R):
         if STX0 - 0.8 < x < STX1 + 0.8 and STY0 - 0.8 < y < STY1 + 0.8: continue
         z = cloud(x, y)
         r = rnd.uniform(0.7, 1.4)
-        g.add(puffs(x, y, z - 0.1, r, 3, 'bed', seed=n, flat=0.45, segs=10, rings=4))
+        g.add(puffs(x, y, z - 0.15, r, 3, 'bed', seed=n, flat=0.62, segs=12, rings=5))
         n += 1
     # a rim of puffs round the gap, to hide its edges
     for k in range(10):
@@ -205,7 +205,8 @@ def under_room(R):
     c = chair(SX1 - 1.1, SY0 + 1.2, math.pi / 2); c.xform(0, 0, 0, RZ); R.parts.add(c)
     R.spot('sit', SX1 - 1.1, SY0 + 1.2, RZ + 0.48, math.pi / 2)
     R.parts.add(box(SX0 + 0.8, SY0 + 1.5, RZ, SX0 + 3.8, SY1 - 1.0, RZ + 0.01, 'carpet'))
-    bulb(R, 16.4, 16.4, SLAB - 0.55, r=0.1, m='e_dim', top=SLAB)
+    bulb(R, 16.4, 16.4, SLAB - 0.55, r=0.14, m='e_lamp', top=SLAB)
+    bulb(R, 12.4, 16.0, 0.3, r=0.1, m='e_amber', top=0.98)
     R.light(sphere(SX0 + 0.35, SY1 - 0.35, RZ + 1.1, 0.05, 6, 3, 'e_candle'))
     R.nocol.add(cyl(SX0 + 0.35, SY1 - 0.35, RZ, RZ + 1.05, 0.02, 6, side='brass', caps=False))
     a, b, c2 = R.navpt(STX0 - 0.6, 16.0, 1.02), R.navpt(STX1 + 0.4, 16.0, RZ), R.navpt(16.8, 16.6, RZ)

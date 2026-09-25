@@ -302,6 +302,8 @@ def cave(R, rnd):
     R.parts.add(cyl(cx + 1.2, cy - 1.0, 0.45, 0.6, 0.04, 8, side='ivory', top='ivory'))
     R.light(sphere(cx + 1.2, cy - 1.0, 0.66, 0.05, 6, 3, 'e_candle'))
     R.light(sphere(cx + 0.9, cy + 1.6, 2.4, 0.09, 6, 3, 'e_amber'))
+    lamp(R, cx + 1.8, cy + 1.0, 0.0, 1.1)
+    R.light(sphere(cx - 1.5, cy + 2.0, 1.2, 0.07, 6, 3, 'e_candle'))
     R.parts.add(box(cx + 0.6, cy - 1.6, 0, cx + 0.9, cy - 1.2, 0.05, 'ivory'))
     R.spot('plaque', cx + 0.2, cy + 0.2, 0.0)
     # its walls, for the walker
