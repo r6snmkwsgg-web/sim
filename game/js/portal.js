@@ -22,23 +22,32 @@ const PORTAL_FS = `uniform sampler2D tP; uniform vec2 uRes; uniform float uOn; u
 void main() { vec3 c = texture2D(tP, gl_FragCoord.xy / uRes).rgb; gl_FragColor = vec4(mix(uFog, c, uOn), 1.0); }`;
 const PORTAL_VS = `void main() { gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
 
+function doorMesh(r, D, z) {
+  const g = new THREE.PlaneGeometry(D.w, D.h); g.translate(0, D.h / 2, z);
+  D.mat = new THREE.ShaderMaterial({ uniforms: { tP: { value: null }, uRes: { value: new THREE.Vector2(1, 1) }, uOn: { value: 0 }, uFog: { value: WU.uFogCol.value } },
+    vertexShader: PORTAL_VS, fragmentShader: PORTAL_FS, side: THREE.DoubleSide });
+  D.mesh = new THREE.Mesh(g, D.mat); D.mesh.matrixAutoUpdate = false; D.mesh.matrix.copy(D.F);
+  r.grp.add(D.mesh); r.doors.push(D); PORTAL.doors.push(D);
+}
 function portalPlace(r) {
   r.doors = [];
-  const list = r.pf.meta.meta && r.pf.meta.meta.portals; if (!list) return;
+  const M = r.pf.meta.meta || {};
+  // mirrors: n faces the viewer; the door's frame looks into the glass, and its transform reflects through it
+  for (const P of M.mirrors || []) {
+    const F = portalFrame(pv3(P.c), pv3(P.n).negate(), P.up && pv3(P.up));
+    const T = F.clone().multiply(new THREE.Matrix4().makeScale(1, 1, -1)).multiply(F.clone().invert());
+    const D = { r, F, Fi: F.clone().invert(), T, w: P.w, h: P.h, mirror: true, floor: Math.abs(P.n[2]) > 0.5 };
+    D.pair = D;
+    doorMesh(r, D, -0.01);
+  }
+  const list = M.portals; if (!list) return;
   for (const P of list) {
     const Fa = portalFrame(pv3(P.a.c), pv3(P.a.n), P.a.up && pv3(P.a.up)), Fb = portalFrame(pv3(P.b.c), pv3(P.b.n), P.b.up && pv3(P.b.up));
     const T = Fb.clone().multiply(Fa.clone().invert());
     const flip = new THREE.Matrix4().makeRotationY(Math.PI);
     const A = { r, F: Fa, T, w: P.a.w, h: P.a.h }, B = { r, F: Fb.clone().multiply(flip), T: T.clone().invert(), w: P.b.w || P.a.w, h: P.b.h || P.a.h };
     A.pair = B; B.pair = A;
-    for (const D of [A, B]) {
-      D.Fi = D.F.clone().invert();
-      const g = new THREE.PlaneGeometry(D.w, D.h); g.translate(0, D.h / 2, 0.02);
-      D.mat = new THREE.ShaderMaterial({ uniforms: { tP: { value: null }, uRes: { value: new THREE.Vector2(1, 1) }, uOn: { value: 0 }, uFog: { value: WU.uFogCol.value } },
-        vertexShader: PORTAL_VS, fragmentShader: PORTAL_FS, side: THREE.DoubleSide });
-      D.mesh = new THREE.Mesh(g, D.mat); D.mesh.matrixAutoUpdate = false; D.mesh.matrix.copy(D.F);
-      r.grp.add(D.mesh); r.doors.push(D); PORTAL.doors.push(D);
-    }
+    for (const D of [A, B]) { D.Fi = D.F.clone().invert(); doorMesh(r, D, 0.02); }
   }
 }
 function portalDrop(r) {
@@ -94,10 +103,11 @@ function portalRender() {
     if (S_.door !== D) { S_.door = D; }
     doorWorld(D, _pc, _pn, _pT);
     vc.matrixAutoUpdate = false;
-    vc.matrix.multiplyMatrices(_pT, camera.matrixWorld); vc.updateMatrixWorld(true);
+    if (D.mirror) vc.matrix.copy(camera.matrixWorld); else vc.matrix.multiplyMatrices(_pT, camera.matrixWorld);
+    vc.updateMatrixWorld(true);
     vc.projectionMatrix.copy(camera.projectionMatrix);
-    // oblique near plane on the exit, so nothing behind it gets in the way
-    const exitC = _ptp.copy(_pc).applyMatrix4(_pT), exitN = _pn.clone().transformDirection(_pT);
+    // oblique near plane on the exit (for a mirror: its own plane, keeping what lies behind the glass)
+    const exitC = D.mirror ? _ptp.copy(_pc) : _ptp.copy(_pc).applyMatrix4(_pT), exitN = D.mirror ? _pn.clone() : _pn.clone().transformDirection(_pT);
     _pl.setFromNormalAndCoplanarPoint(exitN, exitC.addScaledVector(exitN, -0.03)).applyMatrix4(vc.matrixWorldInverse);
     _pcl.set(_pl.normal.x, _pl.normal.y, _pl.normal.z, _pl.constant);
     const P = vc.projectionMatrix.elements;
@@ -107,7 +117,9 @@ function portalRender() {
     vc.projectionMatrixInverse.copy(vc.projectionMatrix).invert();
     const tgt = S_.rt[S_.cur ^ 1];
     D.pair.mesh.visible = false;
+    if (D.mirror) { scene.matrixAutoUpdate = false; scene.matrix.copy(_pT); scene.updateMatrixWorld(true); if (D.floor) WU.uNoClip.value = 1; }
     renderer.setRenderTarget(tgt); renderer.clear(); renderer.render(scene, vc);
+    if (D.mirror) { scene.matrix.identity(); scene.updateMatrixWorld(true); WU.uNoClip.value = 0; }
     D.pair.mesh.visible = true;
     S_.cur ^= 1;
     D.mat.uniforms.tP.value = tgt.texture; D.mat.uniforms.uRes.value.set(RW, RHh); D.mat.uniforms.uOn.value = 1;
@@ -122,6 +134,7 @@ function portalCross() {
   PORTAL.prev = now; PORTAL.prevCell = cell;
   if (!prev || !PORTAL.doors.length) return false;
   for (const D of PORTAL.doors) {
+    if (D.mirror) continue;
     doorWorld(D, _pc, _pn, _pT);
     const s0 = _ptp.copy(prev).sub(_pc).dot(_pn), s1 = _ptp.copy(now).sub(_pc).dot(_pn);
     if (!(s0 < 0 && s1 >= 0)) continue;

@@ -9,7 +9,7 @@ const ASSET_BASE = location.pathname.includes('/dev/') ? '../' : '';
 const SHAFT_U = { tDepth: { value: null }, uRes: { value: new THREE.Vector2() }, uProjInv: { value: new THREE.Matrix4() }, uStr: { value: 0.14 } };
 const WU = {   // shared by every room material
   uDay: { value: 1 }, uTime: { value: 0 }, uFogCol: { value: new THREE.Color(0.5, 0.52, 0.55) }, uFogD: { value: 0.006 },
-  uProbeOn: { value: 1 }, uCaus: { value: 1 }
+  uProbeOn: { value: 1 }, uCaus: { value: 1 }, uNoClip: { value: 0 }
 };
 const MAX_ANISO = renderer.capabilities.getMaxAnisotropy();
 
@@ -73,10 +73,10 @@ void main(){
    a room's below-floor parts show only on its own floor, and its top band only from its own floor or below.
    Anything outside a room's footprint is never drawn. Shafts that repeat through every floor are exempt. */
 const ROOM_CLIP = `
-uniform float uTop; uniform float uRep; uniform vec2 uWD;
+uniform float uTop; uniform float uRep; uniform vec2 uWD; uniform float uNoClip;
 void roomClip(vec3 L, float wy){
   if (L.x < -0.05 || L.z < -0.05 || L.x > uWD.x + 0.05 || L.z > uWD.y + 0.05) discard;
-  if (uRep > 0.5) return;
+  if (uRep > 0.5 || uNoClip > 0.5) return;
   float base = wy - L.y;
   if (base > 0.5 && L.y < -0.4) discard;
   if (base + uTop < 0.5 && L.y > uTop - 3.25) discard;
@@ -598,7 +598,7 @@ async function loadPrefab(name) {
       uProbeP: { value: new THREE.Vector3().fromArray(probeP) }, uBoxMin: { value: box.min }, uBoxMax: { value: box.max },
       uWat: { value: wat.W }, uWatH: { value: wat.Hh },
       uDay: WU.uDay, uTime: WU.uTime, uFogCol: WU.uFogCol, uFogD: WU.uFogD, uProbeOn: WU.uProbeOn, uCaus: WU.uCaus,
-      uTop: { value: meta.levels * RLH - 0.4 }, uRep: { value: meta.repeat ? 1 : 0 }, uWD: { value: new THREE.Vector2(meta.w * RC, meta.d * RC) }
+      uTop: { value: meta.levels * RLH - 0.4 }, uRep: { value: meta.repeat ? 1 : 0 }, uWD: { value: new THREE.Vector2(meta.w * RC, meta.d * RC) }, uNoClip: WU.uNoClip
     };
     const mats = {}, meshes = [];
     for (const g of meta.groups) {
@@ -613,7 +613,7 @@ async function loadPrefab(name) {
       if (!mat) {
         if (g.emit) {
           const e = meta.emit[g.mat];
-          mat = new THREE.ShaderMaterial({ uniforms: { uEmit: { value: new THREE.Vector3(e[0][0] * e[1], e[0][1] * e[1], e[0][2] * e[1]) }, uOn: { value: 1 }, uFogCol: WU.uFogCol, uFogD: WU.uFogD, uTop: common.uTop, uRep: common.uRep, uWD: common.uWD },
+          mat = new THREE.ShaderMaterial({ uniforms: { uEmit: { value: new THREE.Vector3(e[0][0] * e[1], e[0][1] * e[1], e[0][2] * e[1]) }, uOn: { value: 1 }, uFogCol: WU.uFogCol, uFogD: WU.uFogD, uTop: common.uTop, uRep: common.uRep, uWD: common.uWD, uNoClip: WU.uNoClip },
             vertexShader: ROOM_VS, fragmentShader: EMIT_FS });
           mat.userData.night = (meta.night_on || ['e_pool', 'e_amber', 'e_kiosk', 'e_portal']).includes(g.mat);
           if (g.mat === 'e_skydome') { mat.fragmentShader = SKY_FS; mat.uniforms.uTime = WU.uTime; mat.uniforms.uDay = WU.uDay; }

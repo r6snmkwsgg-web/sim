@@ -6,7 +6,7 @@
    in Blender axes (x east, y north, z up); here that is room-local (x, z, y).
    Particles live in the room's group, so they move with it; the GPU animates them from uTime.
    ========================================================================== */
-const FX = { flash: 0, bolts: [], checkT: 0 };
+const FX = { flash: 0, bolts: [], checkT: 0, neg: 0 };
 
 const fxBox = b => ({ x0: Math.min(b[0], b[3]), x1: Math.max(b[0], b[3]), y0: Math.min(b[2], b[5]), y1: Math.max(b[2], b[5]), z0: Math.min(b[1], b[4]), z1: Math.max(b[1], b[4]) });   // -> local x, height y, z
 const fxPt = p => new THREE.Vector3(p[0], p[2], p[1]);
@@ -133,9 +133,27 @@ function boltMesh(b, at) {
   return new THREE.Line(g, new THREE.LineBasicMaterial({ color: 0xe8f0ff, transparent: true, blending: THREE.AdditiveBlending }));
 }
 
+/* afterimages: pale copies of whoever walked here, trailing a few seconds behind; one is not yours */
+function ghostMesh(mat) {
+  const pts = [[0.001, 0.02], [0.28, 0.02], [0.25, 0.4], [0.2, 0.95], [0.19, 1.25], [0.21, 1.4], [0.11, 1.5], [0.001, 1.52]].map(p => new THREE.Vector2(p[0], p[1]));
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(new THREE.LatheGeometry(pts, 10), mat));
+  const h = new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 8), mat); h.position.y = 1.64; g.add(h);
+  g.visible = false; return g;
+}
+function afterimageFx(b) {
+  const grp = new THREE.Group(), ghosts = [];
+  for (let k = 0; k < 6; k++) {
+    const mat = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.85, 0.88, 0.95), transparent: true, opacity: 0.1, blending: THREE.AdditiveBlending, depthWrite: false });
+    const gm = ghostMesh(mat); grp.add(gm); ghosts.push({ g: gm, mat });
+  }
+  grp.userData.ghosts = ghosts;
+  return grp;
+}
+
 /* build a placed room's effects (called when a room instance is made) */
 function fxPlace(r) {
-  const M = r.pf.meta;
+  const M = r.pf.meta.meta || {};
   r.fx = [];
   for (const o of M.fx || []) {
     let obj = null;
@@ -146,6 +164,8 @@ function fxPlace(r) {
     else if (o.type === 'beam' && o.at) obj = beamFx(o);
     else if (o.type === 'lightning' && b) r.fx.push({ o, b, at: o.at ? fxPt(o.at) : new THREE.Vector3((b.x0 + b.x1) / 2, b.y0, (b.z0 + b.z1) / 2), t: 4 + Math.random() * 8 });
     else if (o.type === 'fog' && b) r.fx.push({ o, b, fog: o.density || 0.05 });
+    else if (o.type === 'negative' && b) r.fx.push({ o, b, neg: true });
+    else if (o.type === 'afterimage' && b) { obj = afterimageFx(b); r.fx.push({ o, b, obj, trail: [], rec: 0 }); r.grp.add(obj); obj = null; }
     if (obj) { obj.frustumCulled = false; obj.renderOrder = 6; r.grp.add(obj); r.fx.push({ o, obj }); }
   }
 }
@@ -167,7 +187,7 @@ function fxTick(dt) {
     if (bo.t <= 0) { bo.r.grp.remove(bo.line); bo.line.geometry.dispose(); bo.line.material.dispose(); FX.bolts.splice(i, 1); }
   }
   const here = PL.room;
-  let fogD = 0;
+  let fogD = 0, neg = 0;
   if (here) _fxP.set(S.x, S.y + 1.6, S.z).applyMatrix4(here.inv);
   for (const r of WORLD.inst.values()) {
     if (!r.fx) continue;
@@ -183,20 +203,42 @@ function fxTick(dt) {
           setTimeout(() => { if (AU.ctx) { burst({ dur: 2.2, type: 'lowpass', f: 180, gain: 0.8, rev: 1.2 }); tone(45, 30, 1.8, 0.35); } }, d * 1000);
         }
       }
+      if (f.trail && r === here) {
+        const b = f.b, inBox = _fxP.x > b.x0 && _fxP.x < b.x1 && _fxP.z > b.z0 && _fxP.z < b.z1;
+        f.rec -= dt;
+        if (inBox && f.rec <= 0) { f.rec = 0.1; f.trail.push([_fxP.x, _fxP.y - 1.6, _fxP.z, S.yaw]); if (f.trail.length > 600) f.trail.shift(); }
+        const G = f.obj.userData.ghosts, n = f.trail.length;
+        for (let k = 0; k < 5; k++) {
+          const i = n - 1 - (k + 1) * 25, gh = G[k];
+          gh.g.visible = i >= 0 && inBox;
+          if (gh.g.visible) { const p = f.trail[i]; gh.g.position.set(p[0], p[1], p[2]); gh.g.rotation.y = p[3]; gh.mat.opacity = 0.13 - k * 0.02; }
+        }
+        // the one that is not yours walks a slow loop of its own
+        const tt = WU.uTime.value * 0.07, gx = G[5];
+        gx.g.visible = inBox;
+        gx.g.position.set((b.x0 + b.x1) / 2 + Math.sin(tt) * (b.x1 - b.x0) * 0.38, b.y0, (b.z0 + b.z1) / 2 + Math.sin(tt * 2) * (b.z1 - b.z0) * 0.3);
+        gx.g.rotation.y = Math.atan2(Math.cos(tt) * (b.x1 - b.x0), Math.cos(tt * 2) * 2 * (b.z1 - b.z0)) + Math.PI; gx.mat.opacity = 0.09;
+      }
+      if (f.neg && r === here) {
+        const b = f.b;
+        if (_fxP.x > b.x0 && _fxP.x < b.x1 && _fxP.z > b.z0 && _fxP.z < b.z1 && _fxP.y > b.y0 - 1 && _fxP.y < b.y1 + 1) neg = 1;
+      }
       if (f.fog && r === here) {
         const b = f.b;
         if (_fxP.x > b.x0 && _fxP.x < b.x1 && _fxP.z > b.z0 && _fxP.z < b.z1 && _fxP.y > b.y0 - 1 && _fxP.y < b.y1 + 1) fogD = Math.max(fogD, f.fog);
       }
     }
   }
+  FX.neg += (neg - FX.neg) * Math.min(1, dt * 2.5);
+  PM.comp.uniforms.uNeg.value = FX.neg;
   if (fogD > 0) { WU.uFogD.value = fogD; WU.uFogCol.value.setRGB(0.42, 0.42, 0.43).multiplyScalar(Math.min(1, 0.4 + dayK * 0.6)); }
   FX.checkT -= dt;
   if (FX.checkT <= 0) { FX.checkT = 0.25; checkSecrets(); }
 }
 
 function checkSecrets() {
-  const r = PL.room; if (!r || !r.pf.meta.secrets) return;
-  for (const s of r.pf.meta.secrets) {
+  const r = PL.room, list = r && r.pf.meta.meta && r.pf.meta.meta.secrets; if (!list) return;
+  for (const s of list) {
     const key = 'sec:' + r.pf.name + ':' + s.name;
     if (S.flags[key]) continue;
     _fxP.copy(fxPt(s.at)).applyMatrix4(r.m);

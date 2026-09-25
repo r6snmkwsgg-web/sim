@@ -136,7 +136,7 @@ const PM = {
       gl_FragColor = sum / max(ws, 1e-4);
     }`, { tSrc: { value: null }, tDepth: { value: null }, uProjInv: { value: new THREE.Matrix4() }, uStep: { value: new THREE.Vector2() } }),
   comp: passMat(`uniform sampler2D tScene; uniform sampler2D tBloom; uniform float uBloom; uniform sampler2D tAO; uniform float uAOOn; uniform float uExposure; uniform float uTime; uniform float uVig; uniform float uGrain; uniform float uCA;
-    uniform float uDrunk; uniform float uHurt; uniform float uSpeed; uniform float uWet; uniform vec3 uTint; uniform sampler2D tExpo; varying vec2 vUv;
+    uniform float uNeg; uniform float uDrunk; uniform float uHurt; uniform float uSpeed; uniform float uWet; uniform vec3 uTint; uniform sampler2D tExpo; varying vec2 vUv;
     vec3 aces(vec3 x){ return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0); }
     void main(){
       vec2 uv = vUv;
@@ -162,7 +162,8 @@ const PM = {
       col *= 1.0 - uVig * smoothstep(0.3, 0.95, sqrt(r2) * 1.38);
       float n = fract(sin(dot(gl_FragCoord.xy + fract(uTime) * 91.0, vec2(12.9898, 78.233))) * 43758.5453);
       col += (n - 0.5) * uGrain;
-      gl_FragColor = vec4(col, 1.0); }`, { tScene: { value: null }, tBloom: { value: null }, uBloom: { value: 0.6 }, uExposure: { value: 1 }, uTime: { value: 0 }, uVig: { value: 0.42 }, uGrain: { value: 0.03 }, uCA: { value: 0.01 }, uDrunk: { value: 0 }, uHurt: { value: 0 }, uSpeed: { value: 0 }, uWet: { value: 0 }, uTint: { value: new THREE.Vector3(1, 1, 1) }, tAO: { value: null }, uAOOn: { value: 0 }, tExpo: { value: null } }),
+      col = mix(col, vec3(1.0) - col, uNeg);
+      gl_FragColor = vec4(col, 1.0); }`, { tScene: { value: null }, tBloom: { value: null }, uBloom: { value: 0.6 }, uExposure: { value: 1 }, uTime: { value: 0 }, uVig: { value: 0.42 }, uGrain: { value: 0.03 }, uCA: { value: 0.01 }, uDrunk: { value: 0 }, uHurt: { value: 0 }, uSpeed: { value: 0 }, uWet: { value: 0 }, uTint: { value: new THREE.Vector3(1, 1, 1) }, uNeg: { value: 0 }, tAO: { value: null }, uAOOn: { value: 0 }, tExpo: { value: null } }),
 };
 function pass(mat, target) { fsMesh.material = mat; renderer.setRenderTarget(target); renderer.render(fsScene, fsCam); }
 function blurInto(src, dst) { const u = PM.blur.uniforms; u.tSrc.value = src.texture; u.tDepth.value = RT.depthTexture; u.uProjInv.value.copy(camera.projectionMatrixInverse); u.uStep.value.set(1 / src.width, 1 / src.height); pass(PM.blur, dst); }
