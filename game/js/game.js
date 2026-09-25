@@ -1004,6 +1004,11 @@ function roomFirst(name) {
   }[name] || (CATALOG[name] && CATALOG[name].blurb);
   if (t && MODE === 'play') toast(t);
 }
+/* whoever stands on a moving part rides it */
+const MOVE_P = {
+  get x() { return S.x; }, get y() { return S.y; }, get z() { return S.z; }, get onGround() { return PL.onGround && !S.fall; },
+  carry(dx, dy, dz, dyaw) { S.x += dx; S.y += dy; S.z += dz; S.yaw += dyaw; }
+};
 function frame(now) {
   requestAnimationFrame(frame);
   const raw = (now - last) / 1000, dt = Math.min(0.05, raw); last = now;
@@ -1033,6 +1038,7 @@ function frame(now) {
       S.y += PL.vy * dt; wrapPlayer(true); placeCamera(dt);
     } else placeCamera(dt);
     updateThrown(dt); updateStreaks(S.fall && PL.falling ? -PL.vy : 0);
+    updateMovers(t, MODE === 'play' && !PL.dead ? MOVE_P : null);
     PL.shake = Math.max(0, PL.shake - dt * 0.8);
   } else if (WORLD.ready) {
     const k = t * 0.05; camera.position.set(8 + Math.sin(k) * 2.6, 1.65, 8 + Math.cos(k * 0.8) * 2.2); camera.rotation.set(0.1 + Math.sin(k * 1.3) * 0.05, k * 0.6, 0);

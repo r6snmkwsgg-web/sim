@@ -63,7 +63,8 @@ def pack(name):
     # one quantization box for the whole room, so every mesh and the collision agree
     allp = [np.frombuffer(blob, np.float32, g['n'] * 3, g['p']).reshape(-1, 3) for g in src['groups']]
     col = np.frombuffer(blob, np.float32, src['col']['n'] * 9, src['col']['off']).reshape(-1, 3)
-    pts = np.concatenate(allp + [col]) if len(col) else np.concatenate(allp)
+    mcols = [np.frombuffer(blob, np.float32, m['col']['n'] * 9, m['col']['off']).reshape(-1, 3) for m in src.get('movers', [])]
+    pts = np.concatenate(allp + [c for c in [col] + mcols if len(c)])
     lo = pts.min(0) - 0.01; hi = pts.max(0) + 0.01
     step = (hi - lo) / 65535.0
     q = lambda P: np.clip(np.round((P - lo) / step), 0, 65535).astype(np.uint16)
@@ -77,12 +78,20 @@ def pack(name):
                        'p': put(q(P)), 'nr': put(np.frombuffer(blob, np.int8, n * 3, g['nr'])),
                        'u0': put(np.round(U0 / ustep).astype(np.int16)), 'u1': put(np.frombuffer(blob, np.uint16, n * 2, g['u1'])),
                        'ix': put(ix)})
+        if g.get('mv'): groups[-1]['mv'] = g['mv']
     # collision: shared vertices + triangle indices
     cq = q(col)
     uniq, inv = np.unique(cq, axis=0, return_inverse=True)
     inv = inv.reshape(-1)
     cidx = inv.astype(np.uint32 if len(uniq) > 65535 else np.uint16)
     colm = {'nv': int(len(uniq)), 'nt': int(len(col) // 3), 'i32': bool(cidx.dtype == np.uint32), 'v': put(uniq), 'ix': put(cidx)}
+    movers = []
+    for m, mc in zip(src.get('movers', []), mcols):   # moving parts: their own collision, in the same quantization
+        u2, i2 = np.unique(q(mc), axis=0, return_inverse=True) if len(mc) else (np.zeros((0, 3), np.uint16), np.zeros(0, np.int64))
+        i2 = i2.reshape(-1).astype(np.uint32 if len(u2) > 65535 else np.uint16)
+        mm = {k: v for k, v in m.items() if k != 'col'}
+        mm['col'] = {'nv': int(len(u2)), 'nt': int(len(mc) // 3), 'i32': bool(i2.dtype == np.uint32), 'v': put(u2), 'ix': put(i2)}
+        movers.append(mm)
     # shelf rows: 18 floats each (origin, run, normal x/z, height, depth, lightmap corners) instead of JSON
     sl = src.get('slabs', [])
     if sl:
@@ -92,7 +101,8 @@ def pack(name):
         slm = {'off': 0, 'n': 0}
     raw = b''.join(parts)
     z = zlib.compress(raw, 9)
-    out = {k: v for k, v in src.items() if k not in ('bin', 'groups', 'col')}
+    out = {k: v for k, v in src.items() if k not in ('bin', 'groups', 'col', 'movers')}
+    if movers: out['movers'] = movers
     # layout numbers need millimetres, lightmap coordinates a little more: trim the digits
     def rnd(v, d):
         if isinstance(v, float): return round(v, d)

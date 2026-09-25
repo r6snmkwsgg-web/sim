@@ -379,8 +379,24 @@ class Room:
         self.col = Geo()                   # invisible colliders (ramps over stairs, rail walls)
         self.slabs = []; self.water = []; self.spots = []; self.nav = []; self.navlinks = []; self.meta = {}
         self.portals = []
+        self.movers = []                   # moving parts: see mover()
         self.levels_open = set(range(levels))
         self.base.add(box(0, 0, lo, self.W, self.D, self.hi, 'tile'))
+
+    # --- moving parts ----------------------------------------------------------
+    def mover(self, type='spin', pivot=(0.0, 0.0, 0.0), axis='z', speed=0.2, amp=0.5, period=8.0, delta=(0.0, 0.0, 0.0), pause=0.0, phase=0.0):
+        """A part of the room that moves in the game (baked where it stands). Add geometry to the returned
+        object's .parts (collided), .nocol (drawn only) and .col (invisible colliders), in room coordinates.
+        type 'spin': turns about `axis` through `pivot` at `speed` rad/s. 'swing': rocks amp radians,
+        once per `period` s. 'slide': travels `delta` and back once per `period` s, resting `pause` s at
+        each end (lifts, drawers, shelves on rails). Only movers that stay level (spin about 'z', slide)
+        can be stood on and carry you; tilting ones (spin/swing about 'x' or 'y') are drawn but not collided."""
+        class _M: pass
+        M = _M(); M.parts = Geo(); M.nocol = Geo(); M.col = Geo()
+        M.spec = {'type': type, 'pivot': list(pivot), 'axis': axis, 'speed': speed, 'amp': amp, 'period': period,
+                  'delta': list(delta), 'pause': pause, 'phase': phase}
+        self.movers.append(M)
+        return M
 
     # --- the shared doorways, one per boundary cell edge per level -----------
     def cut(self, g):
@@ -553,6 +569,11 @@ def build(R, quick=False, night=True, bake=True):
         p = R.parts.obj('parts', main, fix=False); _face_attr(p, 'nocol', 0); objs.append(p)
     if R.nocol.f:
         p = R.nocol.obj('nocol', main, fix=False); _face_attr(p, 'nocol', 1); objs.append(p)
+    for o in objs: _face_attr(o, 'mover', 0)
+    for k, M in enumerate(R.movers):
+        for g, nc, nm in ((M.parts, 0, 'mvp%d' % k), (M.nocol, 1, 'mvn%d' % k)):
+            if g.f:
+                p = g.obj(nm, main, fix=False); _face_attr(p, 'nocol', nc); _face_attr(p, 'mover', k + 1); objs.append(p)
     # book slabs: one quad per shelf row, tagged so their lightmap rectangle can be read back
     if R.slabs:
         g = Geo()
@@ -564,6 +585,7 @@ def build(R, quick=False, night=True, bake=True):
         so = g.obj('slabs', main, fix=False)
         a = so.data.attributes.new('slab', 'INT', 'FACE'); a.data.foreach_set('value', list(range(1, len(R.slabs) + 1)))
         a = so.data.attributes.new('nocol', 'INT', 'FACE'); a.data.foreach_set('value', [1 if s.get('ghost') else 0 for s in R.slabs])
+        _face_attr(so, 'mover', 0)
         # make sure each slab faces the way the shelf does
         for i, p in enumerate(so.data.polygons):
             n = R.slabs[i]['n']
@@ -702,7 +724,7 @@ def export(R, room, em, maps):
     avg = {}
     for mode, a in maps.items():
         avg[mode] = encode_lightmap(a, os.path.join(OUT, '%s_%s.webp' % (name, mode)))
-    groups = []; blob = bytearray(); col_tris = []
+    groups = []; blob = bytearray(); col_tris = []; mv_tris = {}
     def put(arr):
         nonlocal blob
         while len(blob) % 4: blob += b'\0'
@@ -726,10 +748,13 @@ def export(R, room, em, maps):
         if 'nocol' in me.attributes: me.attributes['nocol'].data.foreach_get('value', nocol)
         slab = np.zeros(len(me.polygons), np.int32)
         if 'slab' in me.attributes: me.attributes['slab'].data.foreach_get('value', slab)
-        tri_mat = pmat[tri_poly]
+        mover = np.zeros(len(me.polygons), np.int32)
+        if 'mover' in me.attributes: me.attributes['mover'].data.foreach_get('value', mover)
+        tri_mat = pmat[tri_poly]; tri_mv = mover[tri_poly]
         for mi, m in enumerate(me.materials):
-            mname = m.name.split('.')[0]
-            sel = np.where(tri_mat == mi)[0]
+          mname = m.name.split('.')[0]
+          for mv in np.unique(tri_mv[tri_mat == mi]):
+            sel = np.where((tri_mat == mi) & (tri_mv == mv))[0]
             if not len(sel): continue
             loops = tri_loops.reshape(-1, 3)[sel]            # (t, 3)
             loops = loops[:, ::-1]                             # Blender (x, y, z) -> game (x, z, y) mirrors, so flip winding
@@ -743,10 +768,13 @@ def export(R, room, em, maps):
                  'p': put(P.astype(np.float32)), 'nr': put(np.clip(np.round(N * 127), -127, 127).astype(np.int8)),
                  'u0': put(U0.astype(np.float32)), 'u1': put(np.clip(np.round(U1 * 65535), 0, 65535).astype(np.uint16)),
                  'ix': put(idx), 'emit': emissive}
+            if mv: g['mv'] = int(mv)
             groups.append(g)
             if not emissive:
                 cs = sel[nocol[tri_poly[sel]] == 0]
-                if len(cs): col_tris.append(co[loop_v[tri_loops.reshape(-1, 3)[cs][:, ::-1].reshape(-1)]][:, [0, 2, 1]])
+                if len(cs):
+                    tris = co[loop_v[tri_loops.reshape(-1, 3)[cs][:, ::-1].reshape(-1)]][:, [0, 2, 1]]
+                    (mv_tris.setdefault(int(mv), []) if mv else col_tris).append(tris)
     dump(room)
     if em: dump(em, True)
     if R.col.f:
@@ -757,6 +785,19 @@ def export(R, room, em, maps):
         col_tris.append(vs[tr.reshape(-1)][:, [0, 2, 1]])
     ct = np.concatenate(col_tris) if col_tris else np.zeros((0, 3), np.float32)
     col_off = put(ct.astype(np.float32))
+    movers = []
+    for k, M in enumerate(R.movers):
+        tl = mv_tris.get(k + 1, [])
+        if M.col.f:
+            o = M.col.obj('mvcol%d' % k, coll('lights'), fix=False); me2 = o.data; me2.calc_loop_triangles()
+            vs = np.array([v.co[:] for v in me2.vertices], np.float32)
+            tr = np.array([[t.vertices[2], t.vertices[1], t.vertices[0]] for t in me2.loop_triangles], np.int32)
+            tl.append(vs[tr.reshape(-1)][:, [0, 2, 1]])
+        mc = np.concatenate(tl) if tl else np.zeros((0, 3), np.float32)
+        sp = dict(M.spec); sp['pivot'] = [sp['pivot'][0], sp['pivot'][2], sp['pivot'][1]]; sp['delta'] = [sp['delta'][0], sp['delta'][2], sp['delta'][1]]
+        sp['axis'] = {'x': 'x', 'y': 'z', 'z': 'y'}[sp['axis']]
+        sp['col'] = {'off': put(mc.astype(np.float32)), 'n': int(len(mc) // 3)}
+        movers.append(sp)
     # slab lightmap rectangles
     me = room.data
     sl = np.zeros(len(me.polygons), np.int32); me.attributes['slab'].data.foreach_get('value', sl)
@@ -779,7 +820,7 @@ def export(R, room, em, maps):
         else: water.append({'x0': wv['x0'], 'z0': wv['y0'], 'x1': wv['x1'], 'z1': wv['y1'], 'top': wv['top'], 'bot': wv['bot']})
     meta = {
         'name': name, 'w': R.w, 'd': R.d, 'levels': R.levels, 'repeat': R.repeat, 'res': R.res,
-        'groups': groups, 'col': {'off': col_off, 'n': int(len(ct) // 3)}, 'slabs': slabs, 'water': water,
+        'groups': groups, 'col': {'off': col_off, 'n': int(len(ct) // 3)}, 'slabs': slabs, 'water': water, 'movers': movers,
         'spots': [dict(s, p=sw(s['p'])) for s in R.spots], 'nav': [sw(p) for p in R.nav], 'links': R.navlinks,
         'avg': avg, 'emit': {k: [list(v[0]), v[1]] for k, v in EMIT.items()}, 'albedo': MATS, 'meta': R.meta,
         'night_on': sorted(NIGHT_ON),

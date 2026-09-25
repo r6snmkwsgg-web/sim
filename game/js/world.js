@@ -633,13 +633,21 @@ async function loadPrefab(name) {
         }
         mats[g.mat] = mat;
       }
-      meshes.push({ geo, mat, name: g.mat, emit: !!g.emit });
+      meshes.push({ geo, mat, name: g.mat, emit: !!g.emit, mv: g.mv || 0 });
     }
     // collision triangles, in room space
     const C_ = meta.col, cv = deq(C_.v, C_.nv), ci = C_.i32 ? new Uint32Array(bin, C_.ix, C_.nt * 3) : new Uint16Array(bin, C_.ix, C_.nt * 3);
     const col = new Float32Array(C_.nt * 9);
     for (let i = 0; i < ci.length; i++) { const v = ci[i] * 3; col[i * 3] = cv[v]; col[i * 3 + 1] = cv[v + 1]; col[i * 3 + 2] = cv[v + 2]; }
     meta.col = { n: C_.nt };
+    // moving parts: each has its own collision, in its rest position
+    const movers = (meta.movers || []).map(m => {
+      const mc = m.col, v = deq(mc.v, mc.nv), ix = mc.i32 ? new Uint32Array(bin, mc.ix, mc.nt * 3) : new Uint16Array(bin, mc.ix, mc.nt * 3);
+      const c = new Float32Array(mc.nt * 9);
+      for (let i = 0; i < ix.length; i++) { const k = ix[i] * 3; c[i * 3] = v[k]; c[i * 3 + 1] = v[k + 1]; c[i * 3 + 2] = v[k + 2]; }
+      const level = m.type === 'slide' || m.axis === 'y';   // stays level: can be stood on
+      return { spec: m, pf: level && mc.nt ? { name: 'mover', col: c, grid: buildColGrid(c), meta: { repeat: true } } : null };
+    });
     // water surfaces
     const waterMat = new THREE.ShaderMaterial({
       uniforms: Object.assign({}, common, { tScene: { value: null }, tDepth: { value: null }, uRes: { value: new THREE.Vector2() }, uProj: { value: new THREE.Matrix4() }, uProjInv: { value: new THREE.Matrix4() },
@@ -658,7 +666,7 @@ async function loadPrefab(name) {
         vertexShader: SHAFT_VS, fragmentShader: SHAFT_FS, side: THREE.BackSide, transparent: true, depthTest: false, depthWrite: false, blending: THREE.AdditiveBlending });
       return { g, m };
     });
-    const pf = { name, meta, meshes, mats, col, waters, waterMat, shafts, cube, cubeN, lmd, lmn, common, grid: buildColGrid(col), bookMat: null, probeDone: false };
+    const pf = { name, meta, meshes, mats, col, movers, waters, waterMat, shafts, cube, cubeN, lmd, lmn, common, grid: buildColGrid(col), bookMat: null, probeDone: false };
     pf.bookMat = new THREE.ShaderMaterial({ uniforms: Object.assign({}, common), vertexShader: BOOK_VS, fragmentShader: BOOK_FS, extensions: { derivatives: true } });
     PREFABS.set(name, pf);
     return pf;
@@ -710,13 +718,20 @@ function buildColGrid(col) {
 const BOOK_GEO = bookGeometry(false);
 function roomInstance(pf) {
   const grp = new THREE.Group(), water = new THREE.Group();
+  // a moving part hangs from a pivot: pivot (at the spec's pivot) > inner (offset back) > its meshes
+  const movers = (pf.movers || []).map(M => {
+    const pivot = new THREE.Group(), inner = new THREE.Group();
+    pivot.matrixAutoUpdate = false; pivot.add(inner); grp.add(pivot);
+    return { M, pivot, inner, local: new THREE.Matrix4(), prev: new THREE.Matrix4(), col: M.pf ? { pf: M.pf, m: new THREE.Matrix4(), inv: new THREE.Matrix4(), box: null, mover: true } : null };
+  });
   for (const m of pf.meshes) {
-    const mesh = new THREE.Mesh(m.geo, m.mat); grp.add(mesh);
+    const mesh = new THREE.Mesh(m.geo, m.mat);
+    (m.mv ? movers[m.mv - 1].inner : grp).add(mesh);
     if (m.name === 'books') grp.userData.slabs = mesh;
   }
   for (const g of pf.waters) water.add(new THREE.Mesh(g, pf.waterMat));
   if (pf.shafts) for (const sh of pf.shafts) { const m = new THREE.Mesh(sh.g, sh.m); m.renderOrder = 5; m.frustumCulled = true; water.add(m); }
-  return { pf, grp, water, books: null };
+  return { pf, grp, water, books: null, movers };
 }
 /* slotFn(slab, p) -> { w, L } for the p-th slot on a slab: w is the slot's width, L the look of the
    book standing in it (null when the slot is empty). Slots run until the slab is full. */
@@ -949,11 +964,13 @@ function makeInst(pl, slot) {
   scene.add(r.grp); waterScene.add(r.water);
   if (!pf.probeDone) captureProbe(pf);
   if (typeof fxPlace === 'function') fxPlace(r);
+  COL_DIRTY = true;
   return r;
 }
 function dropInst(r) {
   scene.remove(r.grp); waterScene.remove(r.water);
   if (typeof fxDrop === 'function') fxDrop(r);
+  COL_DIRTY = true;
   if (r.books) { r.books.geometry.dispose(); r.grp.remove(r.books); r.books = null; }
 }
 function positionInst(r) {
@@ -965,6 +982,7 @@ function positionInst(r) {
   r.lv = pl.lv;
   const f = footprint(r.pl);
   r.box = [(pl.cx - ox) * RC, (pl.lv - oy) * RLH - 2, (pl.cz - oz) * RC, (pl.cx - ox + f[0]) * RC, (pl.lv - oy + f[2]) * RLH, (pl.cz - oz + f[1]) * RC];
+  if (r.movers) for (const mv of r.movers) if (mv.col) { mv.col.m.multiplyMatrices(r.m, mv.local); mv.col.inv.copy(mv.col.m).invert(); mv.col.box = r.box; }
 }
 function updateWorld(px, py, pz, fastFall) {
   const [ox, oy, oz] = WORLD.origin, want = new Map(), R = WORLD.radius;
@@ -1096,8 +1114,16 @@ function bandOf(inst) {
   return null;
 }
 const triY = (c, t) => (c[t * 9 + 1] + c[t * 9 + 4] + c[t * 9 + 7]) / 3;
+/* what collision tests against: every placed room, and every moving part that can be stood on */
+let COL_LIST = [], COL_DIRTY = true;
+function colList() {
+  if (!COL_DIRTY) return COL_LIST;
+  COL_LIST = [];
+  for (const r of WORLD.inst.values()) { COL_LIST.push(r); if (r.movers) for (const mv of r.movers) if (mv.col) { mv.col.box = r.box; COL_LIST.push(mv.col); } }
+  COL_DIRTY = false; return COL_LIST;
+}
 function pushSphere(p, r, onlyWalls, info) {
-  for (const inst of WORLD.inst.values()) {
+  for (const inst of colList()) {
     const b = inst.box;
     if (p.x < b[0] - r || p.x > b[3] + r || p.z < b[2] - r || p.z > b[5] + r || p.y < b[1] - r - 1 || p.y > b[4] + r + 1) continue;
     const pf = inst.pf, c = pf.col, nrm = triNormals(pf), band = bandOf(inst);
@@ -1129,10 +1155,15 @@ function pushSphere(p, r, onlyWalls, info) {
 /* Highest walkable surface under (x, z) between y - down and y + up (world space); -Infinity if none. */
 function groundAt(x, y, z, up, down) {
   let best = -Infinity;
-  for (const inst of WORLD.inst.values()) {
+  for (const inst of colList()) { const g = groundOne(inst, x, y, z, up, down); if (g > best) best = g; }
+  return best;
+}
+function groundOne(inst, x, y, z, up, down) {
+  let best = -Infinity;
+  {
     const b = inst.box;
-    if (x < b[0] - 0.1 || x > b[3] + 0.1 || z < b[2] - 0.1 || z > b[5] + 0.1) continue;
-    if (y + up < b[1] - 1 || y - down > b[4] + 1) continue;
+    if (x < b[0] - 0.1 || x > b[3] + 0.1 || z < b[2] - 0.1 || z > b[5] + 0.1) return best;
+    if (y + up < b[1] - 1 || y - down > b[4] + 1) return best;
     const pf = inst.pf, c = pf.col, nrm = triNormals(pf), band = bandOf(inst);
     _v.set(x, y, z).applyMatrix4(inst.inv);
     const lx = _v.x, ly = _v.y, lz = _v.z, oyw = y - ly;   // rooms never tilt, so world y = local y + offset
@@ -1176,7 +1207,7 @@ function waterAt(x, y, z) {
 /* ---------- rays: the first bit of room a ray hits, and the book under your crosshair ---------- */
 function rayHit(o, d, maxT) {
   let best = maxT;
-  for (const inst of WORLD.inst.values()) {
+  for (const inst of colList()) {
     const b = inst.box;
     // ray vs box
     let t0 = 0, t1 = best;
@@ -1229,6 +1260,48 @@ function bookRay(o, d, maxT) {
     }
   }
   return best;
+}
+/* ---------- moving parts: pose each one for the time t; carry whoever stands on one ---------- */
+const _mq = new THREE.Quaternion(), _ma = new THREE.Vector3(), _mp = new THREE.Vector3(), _mr = new THREE.Matrix4(), _mt = new THREE.Matrix4(), _mx = new THREE.Vector3();
+function moverPose(spec, t, out) {
+  const p = spec.pivot; out.identity();
+  if (spec.type === 'slide') {
+    const P = spec.period || 8, pa = spec.pause || 0, run = Math.max(0.1, P / 2 - pa);
+    let u = ((t + (spec.phase || 0) * P) % P + P) % P, k;
+    if (u < run) k = u / run; else if (u < run + pa) k = 1; else if (u < 2 * run + pa) k = 1 - (u - run - pa) / run; else k = 0;
+    k = k * k * (3 - 2 * k);
+    out.makeTranslation(spec.delta[0] * k, spec.delta[1] * k, spec.delta[2] * k);
+    return out;
+  }
+  const ang = spec.type === 'swing' ? spec.amp * Math.sin(2 * Math.PI * (t / (spec.period || 8) + (spec.phase || 0))) : spec.speed * t + (spec.phase || 0);
+  _ma.set(spec.axis === 'x' ? 1 : 0, spec.axis === 'y' ? 1 : 0, spec.axis === 'z' ? 1 : 0);
+  _mq.setFromAxisAngle(_ma, ang);
+  out.makeTranslation(p[0], p[1], p[2]).multiply(_mr.makeRotationFromQuaternion(_mq)).multiply(_mt.makeTranslation(-p[0], -p[1], -p[2]));
+  return out;
+}
+const _mw = new THREE.Matrix4(), _mdelta = new THREE.Matrix4();
+function updateMovers(t, player) {
+  for (const r of WORLD.inst.values()) {
+    if (!r.movers || !r.movers.length) continue;
+    for (const mv of r.movers) {
+      moverPose(mv.M.spec, t, mv.local);
+      // the pivot object carries the pose relative to its own position: pose = T(p) R T(-p), pivot sits at p with inner at -p
+      mv.pivot.matrix.copy(mv.local); mv.pivot.matrixWorldNeedsUpdate = true;
+      if (!mv.col) continue;
+      _mw.multiplyMatrices(r.m, mv.local);
+      // carry the player if they were standing on this part before it moved
+      if (player && player.onGround) {
+        const g = groundOne(mv.col, player.x, player.y, player.z, 0.2, 0.35);
+        if (g > -Infinity && Math.abs(g - player.y) < 0.15) {
+          _mdelta.copy(mv.col.inv).premultiply(_mw);
+          _mp.set(player.x, player.y, player.z).applyMatrix4(_mdelta);
+          _mx.set(1, 0, 0).transformDirection(_mdelta);
+          player.carry(_mp.x - player.x, _mp.y - player.y, _mp.z - player.z, Math.atan2(-_mx.z, _mx.x));
+        }
+      }
+      mv.col.m.copy(_mw); mv.col.inv.copy(_mw).invert();
+    }
+  }
 }
 /* where a local point of a placed room lands in world (render) space */
 function instPoint(inst, p, out) { return (out || new THREE.Vector3()).fromArray(p).applyMatrix4(inst.m); }
