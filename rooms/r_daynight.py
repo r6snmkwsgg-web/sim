@@ -21,15 +21,19 @@ def make():
     rng = random.Random(41)
     R.sockets(floor='terrazzo', wall='tile')
     pr = arch_profile(YC, YN - YS, 0, JAMB, 24, rise=RISE)
+    # noon in pale stone and cream marble; midnight the same hall in dark slate, so no light carries
     mats = ['terrazzo'] + ['tile'] * 2 + ['plaster'] * (len(pr) - 4) + ['tile']
-    R.cut(prism(pr, 'x', T - 0.02, W - T + 0.02, mats, cap='tile'))
+    R.cut(prism(pr, 'x', T - 0.02, XL, mats, cap='tile'))
+    mats = ['slate'] + ['slate'] * (len(pr) - 1)
+    R.cut(prism(pr, 'x', XL, W - T + 0.02, mats, cap='slate'))
     dp = arch_profile(0, DW, 0, DJ)
     for x in (8.0, 24.0):
-        R.cut(prism([(p + x, q) for p, q in dp], 'y', T, YS + 0.05, arch_mats(len(dp), 'terrazzo', 'tile')))
+        f, w = ('terrazzo', 'tile') if x < XL else ('slate', 'slate')
+        R.cut(prism([(p + x, q) for p, q in dp], 'y', T, YS + 0.05, arch_mats(len(dp), f, w)))
     # transverse ribs across the vault every four metres, the one on the line gilded
     for k in range(1, 8):
         x = k * 4.0
-        m = 'gilt' if abs(x - XL) < 0.1 else 'tile'
+        m = 'gilt' if abs(x - XL) < 0.1 else ('tile' if x < XL else 'slate')
         n = 12
         pts = []
         for j in range(n + 1):
@@ -92,7 +96,7 @@ def windows(R, rng):
     wp = arch_profile(0, 1.9, WZ0, WZ1 - WZ0 - 0.95, 12)
     for k in range(8):
         x = 2.0 + k * 4.0
-        if abs(x - XL) < 1.0: continue
+        if abs(x - XL) < 3.0: continue
         noon = x < XL
         for (y0, y1, yb) in ((YN - 0.05, YN + 0.3, YN + 0.27), (YS - 0.3, YS + 0.05, YS - 0.27)):
             R.cut(prism([(p + x, q) for p, q in wp], 'y', y0, y1, 'tile', cap='tile'))
@@ -143,10 +147,16 @@ def dusk(R, rng):
     # the window: a long low horizon, orange at the bottom, going to blue
     wx0, wx1 = DX0 + 0.6, DX1 - 0.6
     R.cut(box(wx0, DY0 - 0.2, 0.8, wx1, DY0 + 0.05, 2.9, 'tile'))
-    R.light(box(wx0, DY0 - 0.2, 0.8, wx1, DY0 - 0.16, 1.25, 'e_pool'))
-    R.light(box(wx0, DY0 - 0.2, 1.25, wx1, DY0 - 0.16, 1.55, 'e_amber'))
-    R.light(box(wx0, DY0 - 0.2, 1.55, wx1, DY0 - 0.16, 1.85, 'e_red'))
-    R.light(box(wx0, DY0 - 0.2, 1.85, wx1, DY0 - 0.16, 2.9, 'e_blue'))
+    R.light(box(wx0, DY0 - 0.2, 0.8, wx1, DY0 - 0.16, 1.15, 'e_amber'))
+    R.light(box(wx0, DY0 - 0.2, 1.15, wx1, DY0 - 0.16, 1.4, 'e_red'))
+    R.light(box(wx0, DY0 - 0.2, 1.4, wx1, DY0 - 0.16, 1.7, 'e_blue'))
+    R.parts.add(box(wx0, DY0 - 0.21, 1.7, wx1, DY0 - 0.2, 2.9, 'black'))
+    for j in range(14):
+        sx = rng.uniform(wx0 + 0.1, wx1 - 0.1); sz = rng.uniform(2.0, 2.85)
+        R.light(box(sx - 0.012, DY0 - 0.2, sz - 0.012, sx + 0.012, DY0 - 0.19, sz + 0.012, 'e_kiosk'))
+    for k in range(5):   # a line of hills against the glow
+        x0 = wx0 + (wx1 - wx0) * k / 5
+        R.nocol.add(slope_box(x0, x0 + (wx1 - wx0) / 5, DY0 - 0.17, DY0 - 0.15, 0.8, 0.8, 0.95 + 0.12 * (k % 2), 1.0 + 0.1 * ((k + 1) % 3), 'black'))
     n = 8
     for k in range(n + 1):
         x = wx0 + (wx1 - wx0) * k / n

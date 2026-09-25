@@ -209,7 +209,7 @@ def galleries(R, rnd):
         p = 3.2 + k * (W - 6.4) / 5
         for (x, y) in ((2.2, p), (W - 2.0, p), (p, 2.0), (p, W - 2.0)):
             bulb(R, x, y, 6.2, r=0.15, top=TOP)
-            bulb(R, x, y, LH + 4.2, r=0.15, top=R.hi - 0.6, m='e_dim')
+            bulb(R, x, y, LH + 4.2, r=0.2, top=R.hi - 0.6, m='e_lamp')
     for (x, y) in ((GW - 0.1, 8.0), (GW - 0.1, 24.0), (W - GW + 0.1, 8.0), (W - GW + 0.1, 24.0), (10.0, GW - 0.1), (22.0, GW - 0.1), (10.0, W - GW + 0.1), (22.0, W - GW + 0.1)):
         R.light(sphere(x, y, LH + 1.28, 0.1, 8, 4, 'e_amber'))
 

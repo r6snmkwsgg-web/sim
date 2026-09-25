@@ -47,7 +47,7 @@ def ramp(R, p0, p1, w):
     R.col.add(g)
 
 
-def climb_ladder(R, xt, yt, z0, z1, ang, run=None, w=0.62, m='oak', rails='brass', side_rails=True):
+def climb_ladder(R, xt, yt, z0, z1, ang, run=None, w=0.8, m='oak', rails='brass', side_rails=True):
     """A walkable library ladder: its top at (xt, yt, z1) against a face; it stands out toward angle ang,
     the foot `run` out at z0. Drawn as a ladder (nocol), walked as a steep invisible ramp with
     invisible side walls. The checker needs slope <= 0.55/grid (0.25 m grid: ~65 deg; 0.5 m: ~47 deg)."""
@@ -68,9 +68,9 @@ def climb_ladder(R, xt, yt, z0, z1, ang, run=None, w=0.62, m='oak', rails='brass
         g.add(cyl(xf + px * s, yf + py * s, z0, z0 + 0.08, 0.045, 6, side=rails, top=rails))
     R.nocol.add(g)
     # the ramp the feet use: from a little beyond the foot to the top
-    ramp(R, (xf + ca * 0.1, yf + sa * 0.1, z0), (xt - ca * 0.05, yt - sa * 0.05, z1), w + 0.1)
+    ramp(R, (xf + ca * 0.1, yf + sa * 0.1, z0), (xt - ca * 0.05, yt - sa * 0.05, z1), w + 0.5)
     if side_rails:
-        for s in (-(w / 2 + 0.08), w / 2 + 0.08):
+        for s in (-(w / 2 + 0.26), w / 2 + 0.26):
             p0 = (xf + px * s, yf + py * s); p1 = (xt + px * s, yt + py * s)
             wall_col(R, p0, p1, z0, z1, 1.3)
 
@@ -275,3 +275,28 @@ def flip_z(g, z0):
     g.v = [(a, b, 2 * z0 - c) for a, b, c in g.v]
     g.f = [tuple(reversed(f)) for f in g.f]; g.uv = [list(reversed(u)) for u in g.uv]
     return g
+
+
+def hung_flight(R, x0, y0, z0, width, n, rise, run, axis, m='oak', riser='walnut', side='walnut', under='plaster', th=0.4, rails_=(0, 1)):
+    """A flight like R.flight (same arguments: (x0, y0) the foot's corner, climbing along axis), drawn
+    as a ribbon with a sloped soffit so you can walk underneath it; collided, with the invisible ramp
+    and handrails."""
+    g = ribbon_stair(n, rise, run, width, th=th, m=m, riser=riser, side=side, under=under)
+    if axis == '+x': g.xform(0.0, x0, y0, z0)
+    elif axis == '-x': g.xform(math.pi, x0, y0 + width, z0)
+    elif axis == '+y': g.xform(math.pi / 2, x0 + width, y0, z0)
+    else: g.xform(-math.pi / 2, x0, y0, z0)
+    R.parts.add(g)
+    save = R.nocol; R.nocol = Geo()
+    R.flight(x0, y0, z0, width, n, rise, run, axis)     # only for its ramp
+    R.nocol = save
+    L, H = n * run, n * rise
+    for k in rails_:
+        if axis in ('+y', '-y'):
+            x = x0 + 0.05 if k == 0 else x0 + width - 0.05
+            yb = y0 + L if axis == '+y' else y0 - L
+            stair_rail(R, x, y0, z0 + rise * 0.5, x, yb, z0 + H)
+        else:
+            y = y0 + 0.05 if k == 0 else y0 + width - 0.05
+            xb = x0 + L if axis == '+x' else x0 - L
+            stair_rail(R, x0, y, z0 + rise * 0.5, xb, y, z0 + H)

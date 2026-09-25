@@ -64,8 +64,6 @@ def little_room(R, x0, x1, z0, z1, depth, rnd, lamps, inner):
     g = Geo()
     g.add(box(x0 - 0.03, YF - 0.04, z0 - 0.04, x1 + 0.03, YF, z0, 'ivory', skip=('+y',)))
     g.add(box(x0 - 0.03, YF - 0.03, z1, x1 + 0.03, YF, z1 + 0.03, 'ivory', skip=('+y',)))
-    xm = (x0 + x1) / 2
-    g.add(box(xm - 0.006, YF - 0.012, z0, xm + 0.006, YF - 0.002, z1, 'walnut', skip=('+y', '-z', '+z')))
     return g
 
 
@@ -161,11 +159,11 @@ def gallery(R):
     n = 16
     for k in range(n):
         x0 = GX0 + 0.25 + k * (GX1 - GX0 - 0.5) / n; x1 = x0 + (GX1 - GX0 - 0.5) / n - 0.12
-        if abs((x0 + x1) / 2 - 20.45) < 0.4: continue      # keep the way out clear
+        if abs((x0 + x1) / 2 - 20.45) < 0.75: continue      # keep the way out clear
         R.cut(box(x0, YG1 - 0.05, 0, x1, YG1 + 0.2, 1.05, 'walnut', bottom='floor', top='walnut'))
-        for r in range(8):
-            z = 0.02 + r * 0.125
-            slab(R, x0 + 0.02, x1 - 0.02, YG1 + 0.2, z, 0.1, 0.12)
+        for r in range(12):
+            z = 0.02 + r * 0.082
+            slab(R, x0 + 0.02, x1 - 0.02, YG1 + 0.2, z, 0.055, 0.1)
             g.add(box(x0, YG1 - 0.05, z - 0.012, x1, YG1 + 0.2, z, 'walnut', skip=('-z', '+y', '-x', '+x')))
         # pilasters between
         g.add(box(x1 + 0.01, YG1 - 0.06, 0, x1 + 0.11, YG1, 1.15, 'ivory', skip=('+y', '-z')))
@@ -182,7 +180,7 @@ def gallery(R):
     R.parts.add(weld(g))
     R.light(lamps)
     # the way out: a hole in the skirting at the east end, into the wall
-    R.cut(box(20.1, YG1 - 0.05, 0, 20.8, HR[2] + 0.05, 1.2, 'plaster', bottom='floor', top='plaster'))
+    R.cut(box(19.9, YG1 - 0.05, 0, 21.0, HR[2] + 0.05, 1.25, 'plaster', bottom='floor', top='plaster'))
     # somebody's things left in the crawlway
     R.light(box(20.35, YG1 + 0.4, 0.01, 20.55, YG1 + 0.45, 0.04, 'e_candle'))
     a, b, c = R.navpt(16.0, YF - 1.2), R.navpt(16.0, (YG0 + YG1) / 2), R.navpt(20.45, (YG0 + YG1) / 2)
@@ -227,6 +225,8 @@ def hall(R, W, D):
     sh(R, '+y', T, 26.0, W - 0.6, rows=rows, frame='walnut')
     sh(R, '+x', T, 0.6, 6.0, rows=rows, frame='walnut')
     sh(R, '-x', W - T, 0.6, 6.0, rows=rows, frame='walnut')
+    # full-size books over the little library's roof
+    sh(R, '-y', YF, 0.6, W - 0.6, z=4.35, rows=5, frame='walnut')
     # coffered ceiling with lay-lights
     for k in range(4):
         x = 4.0 + k * 8.0

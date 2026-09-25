@@ -117,7 +117,7 @@ def shrooms_on_slabs(R, ids, rng, per=0.5, big=0.0, cap='e_blue'):
                      lean_dir=math.atan2(n[1], n[0]) + rng.uniform(-0.6, 0.6), segs=6)
 
 
-def leaves(R, cx, cy, cz, r, n, rng, m='green', flat=0.6, light=None):
+def leaves(R, cx, cy, cz, r, n, rng, m='damask', flat=0.6, light=None):
     """A cluster of leafy blobs round (cx, cy, cz)."""
     for k in range(n):
         a = rng.uniform(0, 2 * math.pi); d = r * math.sqrt(rng.random())
@@ -126,14 +126,21 @@ def leaves(R, cx, cy, cz, r, n, rng, m='green', flat=0.6, light=None):
                          s, s * rng.uniform(0.7, 1.1), s * flat, 7, 3, m))
 
 
-def vine(R, x, y, z0, z1, rng, m='green', w=0.03, a=0.0):
-    """A hanging strand of ivy (drawn, not collided): a thin stem with leaves along it."""
+def vine(R, x, y, z0, z1, rng, m='damask', w=0.03, a=0.0):
+    """A hanging strand of ivy (drawn, not collided): a thin stem with flat leaves along it."""
     R.nocol.add(box(x - w / 2, y - w / 2, z0, x + w / 2, y + w / 2, z1, 'walnut', skip=('-z', '+z')))
+    g = Geo()
     z = z1 - 0.1
     while z > z0:
-        s = rng.uniform(0.09, 0.16)
-        R.nocol.add(blob(x + rng.uniform(-0.08, 0.08), y + rng.uniform(-0.08, 0.08), z, s, s * rng.uniform(0.7, 1.2), s * 0.35, 5, 2, m))
-        z -= rng.uniform(0.16, 0.32)
+        s = rng.uniform(0.1, 0.18)
+        b = rng.uniform(0, 2 * math.pi); c, sn = math.cos(b), math.sin(b)
+        px, py = x + c * 0.03, y + sn * 0.03
+        tip = (px + c * s * 1.4, py + sn * s * 1.4, z - s * 0.5)
+        side = (-sn * s * 0.5, c * s * 0.5)
+        mid = (px + c * s * 0.6, py + sn * s * 0.6, z - s * 0.1)
+        leaf_poly(g, [(px, py, z), (mid[0] + side[0], mid[1] + side[1], mid[2] + 0.03), tip, (mid[0] - side[0], mid[1] - side[1], mid[2] + 0.03)], m, off=0.003)
+        z -= rng.uniform(0.1, 0.22)
+    R.nocol.add(g)
 
 
 # ---------------------------------------------------------------------------
@@ -222,11 +229,11 @@ def petal(g, x, y, z, yaw, tilt, L, w, m='ivory', text=False):
         px, pz = u * ct - lift * st, u * st + lift * ct
         return (x + px * c - v * s, y + px * s + v * c, z + pz)
     cup = w * 0.12
-    pts = [P(0, 0), P(0.3 * L, -w / 2, cup), P(0.75 * L, -w * 0.42, cup), P(L, 0), P(0.75 * L, w * 0.42, cup), P(0.3 * L, w / 2, cup)]
+    pts = [P(0, 0), P(0.45 * L, -w / 2, cup), P(L, -w * 0.12, cup * 0.5), P(L, w * 0.12, cup * 0.5), P(0.45 * L, w / 2, cup)]
     leaf_poly(g, pts, m)
     if text:
-        for k in range(4):
-            u = (0.28 + 0.12 * k) * L; hw = w * (0.3 - 0.03 * k)
+        for k in range(3):
+            u = (0.3 + 0.14 * k) * L; hw = w * (0.3 - 0.03 * k)
             q = [P(u - 0.006, -hw, cup + 0.006), P(u + 0.006, -hw, cup + 0.006), P(u + 0.006, hw, cup + 0.006), P(u - 0.006, hw, cup + 0.006)]
             ids = [g.vert(p) for p in q]
             g.face(ids, 'black', [(0, 0), (1, 0), (1, 1), (0, 1)])
@@ -236,7 +243,7 @@ def flower(R, x, y, z, h, L, rng, m=None, n=None, text=None, lean=0.15):
     """A paper flower: a green stem, two leaves, two rings of printed petals and a gilt heart."""
     m = m or rng.choice(('ivory', 'bed', 'ivory', 'plaster'))
     n = n or rng.randint(6, 9)
-    text = (L > 0.35) if text is None else text
+    text = (L > 0.6) if text is None else text
     la = rng.uniform(0, 2 * math.pi)
     hx, hy, hz = x + math.cos(la) * lean * h * 0.3, y + math.sin(la) * lean * h * 0.3, z + h
     R.nocol.add(beam((x, y, z), (hx, hy, hz), max(0.02, L * 0.06), 'green'))
@@ -247,8 +254,8 @@ def flower(R, x, y, z, h, L, rng, m=None, n=None, text=None, lean=0.15):
     a0 = rng.uniform(0, 2 * math.pi)
     for k in range(n):
         petal(g, hx, hy, hz, a0 + 2 * math.pi * k / n, rng.uniform(0.25, 0.55), L, L * 0.62, m, text)
-    for k in range(max(4, n - 2)):
-        petal(g, hx, hy, hz + 0.01, a0 + math.pi / n + 2 * math.pi * k / max(4, n - 2), rng.uniform(0.9, 1.2), L * 0.6, L * 0.45, m, False)
+    for k in range(max(3, n - 3)):
+        petal(g, hx, hy, hz + 0.01, a0 + math.pi / n + 2 * math.pi * k / max(3, n - 3), rng.uniform(0.9, 1.2), L * 0.6, L * 0.45, m, False)
     R.nocol.add(g)
     R.nocol.add(blob(hx, hy, hz + L * 0.05, L * 0.16, L * 0.16, L * 0.1, 8, 3, rng.choice(('gilt', 'oxblood', 'gilt'))))
 

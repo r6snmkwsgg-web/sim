@@ -40,7 +40,8 @@ def make():
 
 def roof(R, top):
     """A long skylight down the middle, stone ribs across the vault every eight metres."""
-    R.light(box(27.0, 3.5, top - 0.06, 37.0, D - 3.5, top - 0.03, 'e_sky', skip=('+z',)))
+    for y0 in range(4, 60, 8):
+        R.light(box(29.0, y0 + 0.6, top - 0.06, 35.0, y0 + 7.4, top - 0.03, 'e_sky', skip=('+z',)))
     for k in range(9):
         y = 0.35 + k * 7.9
         R.parts.add(box(T, y - 0.35, top - 0.7, W - T, y + 0.35, top, 'tile', bottom='plaster'))
@@ -95,7 +96,7 @@ def hollow_pencil(R):
     hex_shell(R, cx, cy, SR * 1.0, ST, 1.3, 2.4, outer='brass', inner='oak', a0=a0)
     hex_shell(R, cx, cy, SR, ST, 2.4, STOP, outer='gilt', inner='oak', a0=a0)
     # the crown: the wood where the point snapped, splintered, as a parapet round the nest
-    for k, hh in enumerate((1.05, 1.5, 0.98, 1.3, 1.1, 1.62)):
+    for k, hh in enumerate((0.98, 1.2, 0.96, 1.08, 1.0, 1.3)):
         hex_shell(R, cx, cy, SR, ST, STOP, STOP + hh, outer='oak', inner='oak', a0=a0, faces=(k,))
     # a painted scallop where the sharpener began
     R.nocol.add(cone(cx, cy, STOP - 0.02, STOP + 0.25, SR * 1.005, SR * 0.87, 6, side='gilt', top='gilt', bottom='gilt', a0=a0))
@@ -117,6 +118,8 @@ def hollow_pencil(R):
         z = min(STOP - 0.5, (a - HA0) / (2 * math.pi) * RISE + 1.6)
         rr = SR * math.cos(math.pi / 6) - ST - 0.04
         R.light(sphere(cx + rr * math.cos(a), cy + rr * math.sin(a), z, 0.06, 6, 3, 'e_candle'))
+    for z in (2.6, 5.6, 8.6, 11.6):
+        bulb(R, cx + 0.9, cy + 0.9, z, r=0.1, m='e_dim', top=z + 0.22)
     am = a1 + la / 2
     mx, my = cx + 1.05 * math.cos(am), cy + 1.05 * math.sin(am)
     R.spot('plaque', mx, my, STOP)
@@ -141,7 +144,7 @@ def shavings(R, rnd):
         if not (4.0 < x < W - 4.0 and 6.5 < y < D - 6.5): continue
         if abs(x - SC[0]) < 5 and abs(y - SC[1]) < 5 and x > SC[0]: continue
         r1 = rnd.uniform(0.6, 1.5)
-        g = shaving(r1 * 0.22, r1, r1 * 0.4, rnd.uniform(3.6, 5.4), segs=6)
+        g = shaving(r1 * 0.22, r1, r1 * 0.4, rnd.uniform(3.6, 5.4), segs=9)
         rot(g, 'x', rnd.uniform(-0.5, 0.5)); rot(g, 'y', rnd.uniform(-0.3, 0.3))
         g.xform(rnd.uniform(0, 2 * math.pi), x, y, rnd.uniform(-0.12, 0.05))
         R.nocol.add(g)

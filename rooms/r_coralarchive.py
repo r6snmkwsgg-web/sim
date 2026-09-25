@@ -52,7 +52,7 @@ def make():
 def coral_tree(R, x, y, z, rnd, size=1.0, m=None, up=(0, 0, 1)):
     g = Geo()
     m = m or rnd.choice(CORALS)
-    branches(g, (x, y, z - 0.05), up, 0.95 * size, 0.1 * size, 2, rnd, m, 5, 2, 0.95, 0.55, 0.85, 0.7, 0.3)
+    branches(g, (x, y, z - 0.05), up, 1.15 * size, 0.13 * size, 2, rnd, m, 4, 2, 0.95, 0.5, 0.85, 0.68, 0.3)
     R.nocol.add(g)
 
 
@@ -70,10 +70,10 @@ def stacks(R, rnd):
             sh(R, '+y', y + 0.01, xa, xb, rows=rows, frame='coral')
             sh(R, '-y', y - 0.01, xa, xb, rows=rows, frame='coral')
             # coral branching over the crown, crusting the ends
-            n = 5
+            n = 3
             for k in range(n):
-                x = xa + (k + 0.5) * (xb - xa) / n + rnd.uniform(-0.4, 0.4)
-                coral_tree(R, x, y + rnd.uniform(-0.2, 0.2), top, rnd, rnd.uniform(0.9, 1.5))
+                x = xa + (k + 0.5) * (xb - xa) / n + rnd.uniform(-0.6, 0.6)
+                coral_tree(R, x, y + rnd.uniform(-0.2, 0.2), top, rnd, rnd.uniform(1.2, 1.7))
             for xe in (xa, xb):
                 crust(R, xe, y, 1.0, rnd, 3, 0.5)
                 crust(R, xe, y, 3.2, rnd, 3, 0.5)
@@ -91,7 +91,7 @@ def walls(R, rnd):
         sh(R, '+x', T, a, b, rows=13, frame='coral')
         sh(R, '-x', W - T, a, b, rows=13, frame='coral')
         for (x, y) in ((a, T + 0.3), (b, T + 0.3), (a, W - T - 0.3), (b, W - T - 0.3), (T + 0.3, a), (T + 0.3, b), (W - T - 0.3, a), (W - T - 0.3, b)):
-            crust(R, x, y, rnd.uniform(1.0, 4.5), rnd, 3, 0.4)
+            crust(R, x, y, rnd.uniform(1.0, 4.5), rnd, 2, 0.4)
     for k in range(14):
         side = rnd.randrange(4); p = rnd.uniform(1.0, W - 1.0)
         if 6.0 < p < 10.0 or 22.0 < p < 26.0: continue
@@ -112,7 +112,7 @@ def great_coral(R, rnd):
             if n == 9 and abs(da) < 0.45: zz = z + 0.55
             r = rnd.uniform(r0, r1)
             R.parts.add(blob(cx + rr * math.cos(a), cy + rr * math.sin(a), zz, r, r * rnd.uniform(0.85, 1.0), r * rnd.uniform(0.8, 0.95),
-                             rnd.choice(('coral', 'coral', 'coralw')), 12, 7, rnd.uniform(0, 3)))
+                             rnd.choice(('coral', 'coral', 'coralw')), 10, 6, rnd.uniform(0, 3)))
     R.parts.add(blob(cx, cy, 4.35, 1.1, 1.1, 0.8, 'coral', 12, 6))
     # branching fans and antlers over the top
     for k in range(9):

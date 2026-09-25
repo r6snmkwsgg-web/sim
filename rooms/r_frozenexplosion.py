@@ -238,12 +238,12 @@ def debris(R, rng):
         x, y, z, a = p
         L = rng.uniform(0.3, 1.2)
         R.nocol.add(beam((x, y, z), (x + math.cos(a) * L, y + math.sin(a) * L, z + rng.uniform(-0.3, 0.3)), rng.uniform(0.03, 0.08), 'walnut'))
-    for k in range(26):
+    for k in range(18):
         a = rng.uniform(0, 2 * math.pi); r = rng.uniform(CALM + 0.2, CALM + 3.0)
         z = PZ + rng.uniform(-1.2, 2.8)
         if z < 2.3: z = 2.3 + rng.random()
         s = rng.uniform(0.25, 0.6)
-        R.nocol.add(blob(BX + math.cos(a) * r, BY + math.sin(a) * r, z, s, s * 0.9, s * 0.8, 8, 4, 'plaster'))
+        R.nocol.add(blob(BX + math.cos(a) * r, BY + math.sin(a) * r, z, s, s * 0.9, s * 0.8, 12, 6, 'plaster'))
     # the chandelier that was over the centre, its crystals flung outward
     for k in range(36):
         a = 2 * math.pi * k / 36 + rng.uniform(-0.05, 0.05); r = rng.uniform(CALM + 0.3, CALM + 2.5)

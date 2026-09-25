@@ -134,7 +134,7 @@ def heart(R, rng):
             R.nocol.add(beam(p0, p1, 0.12, 'ivory', 0.16))
     # the heart, hung in the west lobe
     hx, hy, hz = HX0 + r, cy, 1.9
-    R.nocol.add(blob(hx, hy, hz, 0.75, 0.62, 0.85, 12, 6, 'oxblood'))
+    R.nocol.add(blob(hx, hy, hz, 0.75, 0.62, 0.85, 12, 6, 'oxblood'))  # the heart wraps a glowing core
     R.nocol.add(blob(hx + 0.35, hy - 0.2, hz - 0.35, 0.5, 0.5, 0.6, 10, 5, 'velvet'))
     R.nocol.add(blob(hx - 0.3, hy + 0.3, hz + 0.6, 0.42, 0.4, 0.38, 10, 4, 'oxblood'))
     R.col.add(cyl(hx, hy, 0.9, HZ, 0.8, 10))
@@ -146,7 +146,8 @@ def heart(R, rng):
         p0 = (hx + math.cos(a) * 0.55, hy + math.sin(a) * 0.45, hz + rng.uniform(-0.4, 0.5))
         p1 = (hx + math.cos(a + 0.4) * 0.7, hy + math.sin(a + 0.4) * 0.58, p0[2] - 0.35)
         R.light(beam(p0, p1, 0.03, 'e_red'))
-    R.light(box(hx - 0.5, hy - 0.5, 0.0, hx + 0.5, hy + 0.5, 0.03, 'e_red'))
+    R.light(cyl(hx, hy, 0.0, 0.02, 0.3, 16, side='e_red', top='e_red', bottom='e_red'))
+    R.light(blob(hx + 0.45, hy - 0.42, hz - 0.2, 0.22, 0.2, 0.26, 8, 4, 'e_red'))
     # in the east lobe: a chair facing it, a table, a book, a candle
     ex = HX1 - r
     R.parts.add(chair(ex - 0.2, cy, math.pi))

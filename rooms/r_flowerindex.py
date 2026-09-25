@@ -26,7 +26,7 @@ def make():
         sh(R, '-x', W - T, a, b, rows=rows, frame='walnut')
     # flower beds in the blocks between the aisles
     for (x0, y0, x1, y1) in ((11.0, 1.6, 21.0, 5.2), (11.0, 26.8, 21.0, 30.4), (1.6, 11.0, 5.2, 21.0), (26.8, 11.0, 30.4, 21.0)):
-        bed_of_flowers(R, x0, y0, x1, y1, rng, hmin=0.4, hmax=1.6, lmin=0.2, lmax=0.45, dens=0.3)
+        bed_of_flowers(R, x0, y0, x1, y1, rng, hmin=0.4, hmax=1.7, lmin=0.2, lmax=0.5, dens=0.42)
         # giants: three in each bed, taller than you
         long_x = x1 - x0 > y1 - y0
         for t in (0.2, 0.5, 0.8):
@@ -206,7 +206,7 @@ def shed(R, rng):
     # a watering can
     R.nocol.add(cyl(x0 + 0.5, y0 + 0.6, 0.0, 0.3, 0.13, 10, side='brass', top='brass'))
     R.nocol.add(beam((x0 + 0.6, y0 + 0.6, 0.15), (x0 + 0.85, y0 + 0.6, 0.35), 0.03, 'brass'))
-    bulb(R, (x0 + x1) / 2, (y0 + y1) / 2, SZ - 0.5, r=0.1, m='e_lamp', top=SZ, shade='green')
+    bulb(R, (x0 + x1) / 2, (y0 + y1) / 2, SZ - 0.6, r=0.13, m='e_lamp', top=SZ)
     R.light(sphere(bx0 + 0.3, y1 - 0.8, 1.05, 0.06, 8, 4, 'e_candle'))
     secret(R, (x0 + x1) / 2, (y0 + y1) / 2, 0, 'The Potting Shed',
            'Behind the ivy, somebody keeps the seeds. The catalogue on the bench lists every flower in the glasshouse, and a few that have not come up yet.', r=1.6)

@@ -22,7 +22,7 @@ def make():
     rng = random.Random(42)
     R.sockets(floor='floor', wall='tile')
     mats = [('terrazzo', 'tile', 'plaster'), ('floor', 'tile', 'plaster'), ('floor', 'plaster', 'plaster'),
-            ('slate', 'plaster', 'plaster'), ('slate', 'tile', 'slate'), ('green', 'tile', 'slate')]
+            ('slate', 'plaster', 'plaster'), ('slate', 'tile', 'slate'), ('damask', 'tile', 'slate')]
     for k, (x0, x1) in enumerate(BAYS):
         f, w, c = mats[k]
         R.cut(box(x0 + (PW if k else -0.02), T - 0.02, 0, x1 - (PW if k < 5 else -0.02), D - T + 0.02, H, w, bottom=f, top=c))
@@ -204,24 +204,27 @@ def bay6(R, rng):
     """The last room: the roof is gone, grass on the floor, and a tree has grown up through it all."""
     x0, x1 = BAYS[5]
     R.light(box(x0 + PW, T, H - 0.02, x1, D - T, H, 'e_skydome'))
-    R.light(box(x0 + PW + 0.2, 9.0, H - 0.05, x1 - 0.3, 14.8, H - 0.03, 'e_sky'))
     # the tree
     tx, ty = 29.6, 12.2
-    R.parts.add(cone(tx, ty, 0, 5.2, 0.95, 0.6, 14, 'wood'))
-    for k in range(7):
-        a = 2 * math.pi * k / 7 + 0.3
-        L = rng.uniform(1.4, 2.4)
+    R.parts.add(cone(tx, ty, 0, 6.0, 1.15, 0.7, 16, 'walnut'))
+    for k in range(9):   # roots
+        a = 2 * math.pi * k / 9 + 0.3
+        L = rng.uniform(1.6, 2.8)
         ex, ey = tx + math.cos(a) * L, ty + math.sin(a) * L
         ex = min(max(ex, x0 + PW + 0.3), x1 - 0.2); ey = min(max(ey, T + 0.2), D - T - 0.2)
-        R.nocol.add(beam((tx + math.cos(a) * 0.7, ty + math.sin(a) * 0.7, 0.35), (ex, ey, -0.02), 0.28, 'wood', 0.22))
+        R.nocol.add(beam((tx + math.cos(a) * 0.8, ty + math.sin(a) * 0.8, 0.5), (ex, ey, -0.02), 0.32, 'walnut', 0.24))
+    # boughs spreading under the open sky, over this room and the last one
+    for k in range(9):
+        a = 2 * math.pi * k / 9 + 0.5
+        reach = rng.uniform(2.4, 4.2) if math.cos(a) > 0.3 else rng.uniform(3.0, 6.5)
+        p0 = (tx, ty, rng.uniform(3.8, 5.4))
+        p1 = (tx + math.cos(a) * reach, ty + math.sin(a) * reach * 0.8, 6.2 + rng.uniform(-0.3, 0.8))
+        p1 = (min(max(p1[0], 22.0), x1 - 0.2), min(max(p1[1], T + 0.3), D - T - 0.3), min(p1[2], 7.1))
+        R.nocol.add(beam(p0, p1, 0.36, 'walnut', 0.3))
+        leaves(R, p1[0], p1[1], min(6.9, p1[2]), 1.7, 8, rng)
+    leaves(R, tx, ty, 6.6, 2.2, 12, rng)
     for k in range(6):
-        a = 2 * math.pi * k / 6 + 0.5
-        p0 = (tx, ty, 4.4 + 0.3 * k % 1.0)
-        p1 = (tx + math.cos(a) * 2.6, ty + math.sin(a) * 2.2, 6.4 + rng.uniform(-0.3, 0.6))
-        p1 = (min(max(p1[0], x0 + PW + 0.2), x1 - 0.2), min(max(p1[1], T + 0.2), D - T - 0.2), p1[2])
-        R.nocol.add(beam(p0, p1, 0.3, 'wood', 0.26))
-        leaves(R, p1[0], p1[1], min(7.0, p1[2] + 0.2), 1.3, 6, rng)
-    leaves(R, tx, ty, 6.6, 1.6, 8, rng)
+        vine(R, tx + rng.uniform(-2.5, 1.5), ty + rng.uniform(-2.5, 2.5), rng.uniform(2.6, 4.0), 6.4, rng)
     # grass tufts and ferns, a rotten case against the north wall, vines everywhere
     for k in range(40):
         x, y = rng.uniform(x0 + PW + 0.3, x1 - 0.3), rng.uniform(T + 0.3, D - T - 0.3)
@@ -282,5 +285,6 @@ def crypt(R, rng):
         x = rng.uniform(CX0 + 3, CX1 - 0.5); y = rng.uniform(CY0 + 0.3, CY1 - 0.3)
         R.nocol.add(beam((x, y, CZ + 3.2), (x + rng.uniform(-0.5, 0.5), y + rng.uniform(-0.4, 0.4), CZ + rng.uniform(1.8, 2.5)), 0.08, 'wood'))
     R.light(sphere(CX0 + 0.5, (CY0 + CY1) / 2, CZ + 1.6, 0.08, 8, 4, 'e_amber'))
+    bulb(R, sx, sy, CZ + 2.3, r=0.1, m='e_dim', top=CZ + 2.75)
     secret(R, sx, sy, CZ, 'The Crypt',
            'Under the rubble the wing goes on, older still. Whoever was buried here was buried with their library, and the candles are somehow still lit.', r=2.2)

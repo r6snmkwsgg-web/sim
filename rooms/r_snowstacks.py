@@ -124,14 +124,14 @@ def drifts(R):
     for (y, a, b) in stacks():
         for x in (a, b):
             if any(abs(x - v) < 0.4 for v in (AV0, AV1, 9.7, 6.3, 22.3, 25.7)):
-                ends.append((x, y, 0.9 + 0.35 * math.sin(x * 1.3 + y * 0.7)))
+                ends.append((x, y, 0.75 + 0.2 * math.sin(x * 1.3 + y * 0.7)))
     lines = [(a, y, b, y) for (y, a, b) in stacks()]
     mx, my, rx, ry, mh = MOUND
 
     def fn(x, y):
         z = -0.05
         for (ex, ey, h) in ends:
-            d = math.hypot((x - ex) / 1.9, (y - ey) / 1.3)
+            d = math.hypot((x - ex) / 2.5, (y - ey) / 1.5)
             if d < 1: z = max(z, h * smooth_bump(d, 1.0))
         for (ax, ay, bx, by) in lines:
             d = dist_seg(x, y, ax, ay, bx, by)
@@ -209,5 +209,11 @@ def snow_cave(R):
     candle(R, cx - 0.2, cy + 0.35, 0.3, h=0.18)
     open_book(R, cx + 0.8, cy - 0.05, 0.4, 0.4)
     R.light(sphere(cx - 0.2, cy + 0.35, 0.62, 0.05, 6, 3, 'e_candle'))
+    # a storm lantern hung from the roof of the cave
+    R.nocol.add(cyl(cx + 0.2, cy - 0.2, 1.1, 1.62, 0.01, 6, side='iron', caps=False))
+    R.nocol.add(cyl(cx + 0.2, cy - 0.2, 0.86, 0.9, 0.09, 8, side='iron', top='iron', bottom='iron'))
+    R.nocol.add(cyl(cx + 0.2, cy - 0.2, 1.08, 1.12, 0.09, 8, side='iron', top='iron', bottom='iron'))
+    R.light(cyl(cx + 0.2, cy - 0.2, 0.9, 1.08, 0.07, 8, side='e_amber', top='e_amber', bottom='e_amber'))
+    candle(R, cx - 1.1, cy + 0.6, 0.0, h=0.3)
     a, b = R.navpt((TX0 + TX1) / 2, TY0 - 1.2), R.navpt((TX0 + TX1) / 2, TY1 - 0.4)
     R.link(a, b)

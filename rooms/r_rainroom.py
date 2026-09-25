@@ -21,13 +21,13 @@ def make():
     # the nave: a segmental barrel vault, open at the crown to the sky
     pr = arch_profile(16, NX1 - NX0, 0, JAMB, 32, rise=RISE)
     R.cut(prism(pr, 'y', T - 0.02, NY1, arch_mats(len(pr), 'terrazzo', 'plaster')))
-    R.cut(box(14.4, T - 0.02, 7.0, 17.6, NY1, TOP - 0.02, 'tile', top='plaster'))
-    R.light(box(14.4, T, TOP - 0.06, 17.6, NY1, TOP - 0.04, 'e_skydome', skip=('+z',)))
-    for x in (14.4, 17.6):
+    R.cut(box(15.2, T - 0.02, 7.0, 16.8, NY1, TOP - 0.02, 'tile', top='plaster'))
+    R.light(box(15.2, T, TOP - 0.06, 16.8, NY1, TOP - 0.04, 'e_skydome', skip=('+z',)))
+    for x in (15.2, 16.8):
         R.nocol.add(box(x - 0.08, T, 6.95, x + 0.08, NY1, 7.1, 'iron'))
     for k in range(12):
         y = T + 0.8 + k * (NY1 - T - 1.6) / 11
-        R.nocol.add(box(14.4, y - 0.05, 7.2, 17.6, y + 0.05, 7.3, 'iron'))
+        R.nocol.add(box(15.2, y - 0.05, 7.2, 16.8, y + 0.05, 7.3, 'iron'))
     arcade(R)
     nave(R)
     aisles(R)
@@ -91,7 +91,7 @@ def nave(R):
             for t in (0.25, 0.75):
                 bell_jar(R, (tx0 + tx1) / 2, y0 + 3.2 * t, 0.78, book=('oxblood', 'green', 'leather')[k % 3]); k += 1
     # lamps hung from the ribs, low over the tables
-    for yp in (5.2, 13.2, 21.2):
+    for yp in (1.2, 5.2, 9.2, 13.2, 17.2, 21.2, 25.2):
         for x in (12.3, 19.7):
             pendant(R, x, yp, 3.4, 7.0)
     for y in (1.6, NY1 - 0.9):
@@ -141,7 +141,8 @@ def dry_room(R):
     R.parts.add(box(19.4, y0 + 0.3, 0, 20.6, y0 + 1.6, 0.9, 'walnut'))  # a chest of dry books
     book_pile(R, 20.0, y0 + 1.0, 0.9, 6, seed=9)
     R.light(sphere(19.9, y1 - 0.4, 2.2, 0.06, 8, 4, 'e_candle'))
-    bulb(R, 16.8, 29.6, 2.6, r=0.1, m='e_dim', top=3.3)
+    bulb(R, 16.8, 29.6, 2.6, r=0.14, m='e_lamp', top=3.3)
+    bulb(R, 13.2, 28.6, 2.7, r=0.1, m='e_amber', top=3.3)
     R.spot('read', 14.45, 29.4, 0.62, 0.0)
     R.spot('plaque', 16.0, y1 - 0.05, 1.5, -math.pi / 2, text='WET BOOKS WILL NOT BE ACCEPTED')
     a, b = R.navpt(18.5, 26.2), R.navpt(18.5, 28.6)

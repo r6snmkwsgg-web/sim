@@ -94,7 +94,7 @@ def air_pocket(R):
     open_book(R, 29.1, 14.1, 0.74, 0.3)
     desk_lamp(R, 29.4, 14.4, 0.74)
     c = chair(28.3, 14.1, 0.0); R.parts.add(c); R.spot('sit', 28.3, 14.1, 0.48, 0.0)
-    R.light(cyl(x0 + 0.5, y1 - 0.4, 0, 0.04, 0.12, 8, side='brass', top='brass'))
+    R.parts.add(cyl(x0 + 0.5, y1 - 0.4, 0, 0.04, 0.12, 8, side='brass', top='brass'))
     candle(R, x0 + 0.5, y1 - 0.4, 0.04, h=0.2)
     # a porthole in the north wall onto the sea
     R.cut(box(29.45, y1 - 0.02, 1.25, 30.35, y1 + 0.3, 2.15, 'brass'))
@@ -102,7 +102,7 @@ def air_pocket(R):
     R.nocol.add(box(29.85, y1 + 0.2, 1.25, 29.95, y1 + 0.25, 2.15, 'brass'))
     R.nocol.add(box(29.45, y1 + 0.2, 1.65, 30.35, y1 + 0.25, 1.75, 'brass'))
     R.spot('plaque', 28.4, y1 - 0.05, 1.6, -math.pi / 2, text='HIGH WATER MARK, and a date nobody can read')
-    bulb(R, 29.6, 12.6, 2.4, r=0.1, m='e_dim', top=3.1)
+    bulb(R, 29.6, 12.6, 2.4, r=0.12, m='e_lamp', top=3.1)
 
 
 def windows(R):

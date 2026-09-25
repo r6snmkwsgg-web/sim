@@ -110,7 +110,7 @@ def belly_rows(R, xa, xb, side, sag, rnd, shape='full', top_z=5.9, z0=0.0):
         for (p, q) in zip(pts, pts[1:]):
             L = math.hypot(q[0] - p[0], q[1] - p[1])
             ang = math.atan2(q[1] - p[1], q[0] - p[0]) + math.pi / 2
-            row_case(R, p[0], p[1], z, L + 0.02, ang, frame='walnut', top=last, ends=(shape in ('rise', 'fall')))
+            row_case(R, p[0], p[1], z, L + 0.02, ang, frame='walnut', top=last, ends=(shape in ('rise', 'fall')), back=(shape in ('rise', 'fall')))
         z += ROW; i += 1
 
 

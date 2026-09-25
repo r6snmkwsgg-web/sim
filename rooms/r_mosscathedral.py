@@ -54,6 +54,7 @@ def make():
     for (a, b) in ((GX0 - 0.1, NX0 + 0.1), (NX1 - 0.1, GX1 + 0.1)):
         R.cut(box(a, T_, LH, b, 3.4, LH + 3.0, 'tile', bottom='floor', top='tile'))
 
+    overgrowth(R, rnd)
     windows(R, rnd)
     stair(R, rnd)
     chancel(R, rnd)
@@ -77,6 +78,32 @@ def make():
     secret(R, 15.0, 27.5, -1.8, 'The Crypt',
            'Behind the altar a stair goes down under the floor. The dead are shelved here like everyone else, and someone keeps their candles lit.', r=2.5)
     return tidy(R)
+
+
+def overgrowth(R, rnd):
+    """Moss climbing the nave walls and piers, carpeting the flags, bearding every ledge."""
+    for k in range(70):
+        side = rnd.choice((0, 1))
+        x = NX0 + 0.03 if side == 0 else NX1 - 0.03
+        y = rnd.uniform(3.6, W - 0.6)
+        z = rnd.uniform(0.0, 7.5) ** 1.0
+        ry, rz = rnd.uniform(0.5, 1.6), rnd.uniform(0.5, 2.2)
+        R.nocol.add(blob(x, y, z, 0.1, ry, rz, rnd.choice(('moss', 'moss', 'mossdk')), 8, 4))
+    for k in range(40):
+        x = rnd.choice((rnd.uniform(0.6, GX0 - 0.3), rnd.uniform(GX1 + 0.3, W - 0.6)))
+        y = rnd.choice((T + 0.03, W - T - 0.03))
+        R.nocol.add(blob(x, y, rnd.uniform(0.0, 6.0), rnd.uniform(0.5, 1.4), 0.1, rnd.uniform(0.6, 1.8), 'moss', 8, 4))
+    for k in range(45):
+        x, y = rnd.uniform(NX0 + 0.3, NX1 - 0.3), rnd.uniform(3.6, CY - 2.0)
+        R.nocol.add(blob(x, y, 0.0, rnd.uniform(0.6, 1.6), rnd.uniform(0.6, 1.6), 0.05, 'moss', 8, 3, rnd.uniform(0, 3)))
+    for k in range(20):
+        x, y = rnd.uniform(NX0 + 0.5, NX1 - 0.5), rnd.uniform(CY + 0.3, W - 0.8)
+        if 14.0 < x < 18.0 and y > 27.0: continue
+        R.nocol.add(blob(x, y, CZ, rnd.uniform(0.5, 1.3), rnd.uniform(0.5, 1.3), 0.05, 'moss', 8, 3, rnd.uniform(0, 3)))
+    # beards off the triforium sills and the gallery floor edges into the nave
+    for x in (NX0 - 0.05, NX1 + 0.05):
+        strands(R, x, 4.0, x, W - 1.0, TOP - 0.1, 40, 4.5, rnd, m='mossdk', w=0.09)
+        strands(R, x, 4.0, x, W - 1.0, TOP - 0.1, 30, 2.5, rnd, m='moss', w=0.07)
 
 
 def windows(R, rnd):
@@ -173,6 +200,9 @@ def crypt(R, rnd):
         candle(R, x, y, zf, h=0.25, stand=0.9)
     R.spot('plaque', 16.0, 28.8, zf, math.pi / 2, text='HERE LIE THE READERS WHO FINISHED. There are not very many of them.')
     R.light(sphere(16.0, 28.0, 0.35, 0.08, 8, 4, 'e_dim'))
+    for x in (13.0, 19.0):
+        R.nocol.add(cyl(x, 26.4, -0.3, 0.6, 0.01, 4, side='iron', caps=False))
+        R.light(sphere(x, 26.4, -0.35, 0.1, 8, 4, 'e_lamp'))
 
 
 def pews(R, rnd):

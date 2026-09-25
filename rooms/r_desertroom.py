@@ -20,6 +20,12 @@ DOORS = ((8, 0), (24, 0), (8, D), (24, D), (0, 8), (0, 24), (W, 8), (W, 24))
 
 def dune(x, y):
     z = 0.42 + 0.3 * math.sin((x + y) * 0.42) + 0.16 * math.sin(x * 0.9 - y * 0.55 + 1.3) + 0.08 * math.sin(y * 2.1 + x * 0.3)
+    # ridges blown across the room between the rows of tables, crests leaning north
+    for (yc, h, ph) in ((7.4, 1.25, 0.0), (13.0, 1.1, 1.7), (18.9, 1.35, 3.1), (24.5, 1.2, 4.4)):
+        yy = yc + 0.8 * math.sin(x * 0.35 + ph)
+        d = y - yy
+        prof = smooth_bump(-d / 2.4, 1.0) if d < 0 else smooth_bump(d / 1.1, 1.0)
+        z = max(z, 0.3 + h * prof * (0.75 + 0.25 * math.sin(x * 0.6 + ph)))
     # the great dune in the west, over the cellar
     d = math.hypot((x - 4.0) / 7.0, (y - 16.0) / 6.5)
     z = max(z, 3.2 * smooth_bump(max(0.0, d - 0.4) / 0.6, 1.0))
@@ -141,7 +147,7 @@ def facade(R):
     door = box(0, 0, 0, 0.05, DY1 - DY0 - 0.05, DTOP - 0.05, 'oak')
     for (z0, z1) in ((0.2, 1.0), (1.2, 2.1)):
         door.add(box(0.05, 0.12, z0, 0.07, DY1 - DY0 - 0.2, z1, 'walnut'))
-    door.xform(0.55, FX - t - 0.02, DY0 + 0.02, 0)
+    door.xform(1.5, FX - t - 0.02, DY0 + 0.08, 0)
     R.nocol.add(door)
     R.parts.add(box(FX - 0.4, DY0 + 0.3, DTOP + 0.3, FX - 0.1, DY1 - 0.3, DTOP + 0.5, 'black'))
     R.light(box(FX + 0.13, 15.75, DTOP + 0.05, FX + 0.15, 16.25, DTOP + 0.17, 'e_exit'))
@@ -186,5 +192,6 @@ def cellar(R):
     R.spot('sit', 4.5, 16.0, RZ + 0.48, math.pi)
     R.spot('read', 3.5, 16.0, RZ + 0.74, math.pi)
     R.light(sphere(CX1 - 0.3, CY0 + 0.3, RZ + 1.2, 0.05, 6, 3, 'e_candle'))
+    bulb(R, 3.4, 16.0, CEIL - 0.6, r=0.12, m='e_lamp', top=CEIL)
     a, b = R.navpt(FX + 0.8, 16.0, SAND_AT_DOOR), R.navpt(CX1 - 0.9, 16.0, RZ)
     R.link(a, b)

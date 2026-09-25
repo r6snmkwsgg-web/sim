@@ -253,8 +253,9 @@ def drawer(R):
     cx, cy = 16.0, y1 - 2.0
     R.parts.add(cyl(cx, cy, DRZ, DRZ + 0.08, 0.45, 16, side='brass', top='brass'))
     R.parts.add(cyl(cx, cy, DRZ + 0.08, DRZ + 0.9, 0.16, 12, side='ivory', top='ivory'))
-    R.light(sphere(cx, cy, DRZ + 1.02, 0.07, 8, 4, 'e_candle'))
-    R.light(cyl(cx, cy, DRZ + 0.9, DRZ + 0.95, 0.02, 6, side='e_candle', top='e_candle'))
+    R.light(sphere(cx, cy, DRZ + 1.05, 0.12, 8, 4, 'e_candle'))
+    bulb(R, 12.0, PY0 + 1.0, 2.6, r=0.08, m='e_dim', top=3.4)
+    R.light(cyl(cx, cy, DRZ + 0.9, DRZ + 0.95, 0.02, 6, side='e_candle', top='e_candle', bottom='e_candle'))
     R.parts.add(box(cx + 0.9, cy - 0.3, DRZ, cx + 1.5, cy + 0.2, DRZ + 0.06, 'ivory'))
     R.spot('read', cx + 1.2, cy - 0.6, DRZ, math.pi / 2)
     R.spot('plaque', cx, cy - 0.8, DRZ)
@@ -270,7 +271,7 @@ def desk_things(R, rnd):
     zs = [rim - 0.55 - 0.5 * k for k in range(5)]
     for k, z in enumerate(zs):
         r = ri - 0.6 * k
-        R.parts.add(cyl(cx, cy, DZ, z, r, 32, side='slate', top='slate', bottom='slate'))
+        R.parts.add(cyl(cx, cy, DZ, z, r, 32, side='black', top='black', bottom='black'))
     R.parts.add(cyl(cx, cy, DZ, DZ + 0.02, ri - 3.0, 24, side='black', top='black'))
     R.water.append(dict(cx=cx, cy=cy, r=ri - 0.02, top=rim - 0.4, bot=DZ))
     # books spilt against it as steps up to the rim
@@ -318,8 +319,9 @@ def underside(R, rnd):
         R.parts.add(box(x - 0.35, DY0, DB - 0.8, x + 0.35, DY1, DB, 'walnut'))
     for y in (26.0, 38.0):
         R.parts.add(box(DX0, y - 0.35, DB - 0.8, DX1, y + 0.35, DB, 'walnut'))
-    for (x, y) in ((26, 16), (38, 20), (30, 32), (40, 42), (22, 44), (50, 34)):
-        bulb(R, x, y, 5.2, r=0.14, m='e_dim', top=DB - 0.8)
+    for (x, y, m) in ((26, 16, 'e_lamp'), (38, 20, 'e_dim'), (30, 32, 'e_lamp'), (40, 42, 'e_lamp'), (22, 44, 'e_dim'), (50, 34, 'e_lamp'),
+                      (34, 50, 'e_dim'), (26, 24, 'e_dim'), (46, 28, 'e_dim')):
+        bulb(R, x, y, 5.0, r=0.16, m=m, top=DB - 0.8)
     for (x, y) in ((24.5, 28.8), (41.5, 44.0), (6.0, 45.0)):
         floor_lamp(R, x, y, 1.7)
     for (x, y) in ((19.0, 46.0), (39.5, 26.0)):

@@ -88,7 +88,7 @@ def leaves(R, cx, cy, cz, r, rnd, n=5):
     for k in range(n):
         a = rnd.uniform(0, 2 * math.pi); d = rnd.uniform(0.2, 0.7) * r if k else 0.0
         rr = r * rnd.uniform(0.55, 0.85)
-        R.nocol.add(blob(cx + math.cos(a) * d, cy + math.sin(a) * d, cz + rnd.uniform(-0.3, 0.3) * r, rr, rr, rr * 0.75, 'leaf', 8, 4, rnd.uniform(0, 3)))
+        R.nocol.add(blob(cx + math.cos(a) * d, cy + math.sin(a) * d, cz + rnd.uniform(-0.3, 0.3) * r, rr, rr, rr * 0.75, 'leaf', 6, 4, rnd.uniform(0, 3)))
 
 
 def fruit(R, x, y, ztop, rnd):
@@ -114,11 +114,11 @@ def tree(R, x, y, rnd, h=3.0, spread=2.1, seed=0):
         end = (top[0] + math.cos(a) * d, top[1] + math.sin(a) * d, h + rnd.uniform(0.4, 1.2))
         mid = (top[0] + math.cos(a) * d * 0.45, top[1] + math.sin(a) * d * 0.45, h * 0.62 + (end[2] - h * 0.62) * 0.7)
         R.nocol.add(tube([top, mid, end], [0.15, 0.09, 0.04], 6, 'bark'))
-        leaves(R, end[0], end[1], end[2] + 0.2, rnd.uniform(0.9, 1.2), rnd, 4)
+        leaves(R, end[0], end[1], end[2] + 0.2, rnd.uniform(1.1, 1.4), rnd, 2)
         for j in range(rnd.randint(2, 3)):
             fx_, fy = end[0] + rnd.uniform(-0.8, 0.8), end[1] + rnd.uniform(-0.8, 0.8)
             fruit(R, fx_, fy, end[2] - 0.35, rnd)
-    leaves(R, top[0], top[1], h + 1.0, 1.4, rnd, 3)
+    leaves(R, top[0], top[1], h + 1.0, 1.5, rnd, 2)
     # windfalls
     for k in range(rnd.randint(2, 5)):
         a = rnd.uniform(0, 2 * math.pi); d = rnd.uniform(0.7, 2.4)
@@ -183,7 +183,7 @@ def big_tree(R, rnd):
 
 def grass(R, rnd):
     # tufts, and a few flowers of paper
-    for k in range(140):
+    for k in range(0):
         x, y = rnd.uniform(1.2, W - 1.2), rnd.uniform(1.2, W - 1.2)
         if 14.2 < x < 17.8 or (15.0 < y < 17.0) or math.hypot(x - BT[0], y - BT[1]) < 4.4: continue
         h = rnd.uniform(0.08, 0.22)

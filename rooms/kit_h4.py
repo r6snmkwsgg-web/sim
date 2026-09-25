@@ -12,18 +12,18 @@ import random
 # ---------------------------------------------------------------------------
 # extra materials (albedo) and emitters, registered with the kit so the bake and the export see them
 NEW_MATS = {
-    'moss':   (0.15, 0.25, 0.07),   # thick green moss
-    'mossdk': (0.09, 0.17, 0.05),   # moss in shadow / hanging strands
+    'moss':   (0.10, 0.18, 0.05),   # thick green moss
+    'mossdk': (0.06, 0.11, 0.035),   # moss in shadow / hanging strands
     'ice':    (0.34, 0.74, 0.78),   # turquoise ice
     'icedk':  (0.12, 0.46, 0.54),   # deep ice
-    'coral':  (0.88, 0.48, 0.48),   # pink coral
+    'coral':  (0.90, 0.36, 0.42),   # pink coral
     'coralw': (0.92, 0.88, 0.82),   # white coral
     'wax':    (0.86, 0.58, 0.16),   # golden comb wax
     'honey':  (0.78, 0.42, 0.04),   # dripping honey
-    'root':   (0.74, 0.68, 0.56),   # pale roots
+    'root':   (0.78, 0.72, 0.60),   # pale roots
     'bark':   (0.30, 0.23, 0.16),
-    'leaf':   (0.20, 0.36, 0.10),
-    'grass':  (0.24, 0.40, 0.12),
+    'leaf':   (0.12, 0.25, 0.06),
+    'grass':  (0.14, 0.26, 0.07),
     'foam':   (0.86, 0.92, 0.94),   # falling water
 }
 NEW_EMIT = {

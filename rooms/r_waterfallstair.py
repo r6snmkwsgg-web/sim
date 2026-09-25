@@ -52,6 +52,8 @@ def make():
     galleries(R, rnd)
     books(R, rnd)
     lights(R, rnd)
+    # the game tints underwater views for the first few volumes only: the big ones first
+    R.water.sort(key=lambda w: -(w['r'] ** 2 * 3.14 if 'r' in w else (w['x1'] - w['x0']) * (w['y1'] - w['y0'])))
 
     # walkers
     navloop(R, [(2.2, 2.2), (8, 2.4), (16, 2.6), (24, 2.4), (W - 2.2, 2.2), (W - 2.2, 16), (W - 2.2, W - 2.2),
@@ -147,10 +149,11 @@ def river(R, rnd):
         zb = LH + 0.38
         g = Geo()
         pts = [(x + w / 2, yo, 14.0), (x + w / 2, yo - 0.18, 12.2), (x + w / 2, yo - 0.3, 10.2), (x + w / 2, yo - 0.34, zb)]
+        m = rnd.choice(('foam', 'foam', 'ice', 'icedk'))
         for p0, p1 in zip(pts, pts[1:]):
-            g.add(bar(p0, p1, w, 0.04, 'foam'))
+            g.add(bar(p0, p1, w, 0.04, m))
         R.nocol.add(g)
-        x += w * rnd.uniform(0.75, 1.0)
+        x += w * rnd.uniform(0.8, 1.25)
     R.nocol.add(box(13.0, BY0 - 1.3, LH + 0.36, 19.0, BY0 - 0.3, LH + 0.42, 'foam'))
 
 
@@ -178,6 +181,8 @@ def grotto(R, rnd):
         a = rnd.uniform(0, 2 * math.pi); d = rnd.uniform(0.4, 2.3)
         R.nocol.add(blob(cx + d * math.cos(a), cy + d * math.sin(a), LH, rnd.uniform(0.25, 0.6), rnd.uniform(0.25, 0.6), 0.06, 'moss', 8, 3))
     R.light(sphere(cx, cy, LH + 4.4, 0.12, 8, 4, 'e_dim'))
+    R.nocol.add(cyl(cx - 1.2, cy - 1.0, LH + 2.3, LH + 4.9, 0.012, 5, side='iron', caps=False))
+    R.light(sphere(cx - 1.2, cy - 1.0, LH + 2.2, 0.13, 8, 4, 'e_lamp'))
     R.light(sphere(cx + 1.3, cy + 0.9, LH - 0.2, 0.1, 8, 4, 'e_pool'))
 
 
@@ -201,7 +206,7 @@ def galleries(R, rnd):
     strands(R, PX[1][1] + 0.2, SY1 - 0.05, W - g - 0.3, SY1 - 0.05, TOP - 0.45, 10, 3.2, rnd)
     # columns under the gallery edges, moss climbing them
     cols = [(g - 0.1, y) for y in (4.2, 9.0, 13.8, 18.6)] + [(W - g + 0.1, y) for y in (4.2, 9.0, 13.8, 18.6)] + \
-           [(x, g - 0.1) for x in (11.0, 16.0, 21.0)] + [(g - 0.1, SY1 - 0.1), (W - g + 0.1, SY1 - 0.1)]
+           [(x, g - 0.1) for x in (9.5, 22.5)] + [(g - 0.1, SY1 - 0.1), (W - g + 0.1, SY1 - 0.1)]
     for (x, y) in cols:
         x = min(max(x, g - 0.1), W - g + 0.1)
         R.parts.add(cyl(x, y, 0.3, TOP - 0.45, 0.32, 16, side='tile', caps=False))

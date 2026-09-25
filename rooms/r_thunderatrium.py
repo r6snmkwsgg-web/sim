@@ -47,9 +47,15 @@ def make():
 
 def dome(R):
     """Glazing on iron ribs (a painted night sky) and the storm cloud hanging under it."""
+    # the glazing: a painted storm sky showing round the cloud's edge; dark glass behind it
     g = dome_cap(CX, CY, DZ - 0.02, RV - 0.02, 1.48, 48, 8, m='e_skydome', bottom='e_skydome')
     g.f = [tuple(reversed(f)) for f in g.f[:-1]]; g.m = g.m[:-1]; g.uv = [list(reversed(u)) for u in g.uv[:-1]]
-    R.light(g)
+    rim, mid = Geo(), Geo()
+    for f, m, uv in zip(g.f, g.m, g.uv):
+        r = max(math.hypot(g.v[v][0] - CX, g.v[v][1] - CY) for v in f)
+        (rim if r > 7.2 else mid).face([rim.vert(g.v[v]) for v in f] if r > 7.2 else [mid.vert(g.v[v]) for v in f], 'e_skydome' if r > 7.2 else 'black', uv)
+    R.light(rim)
+    R.nocol.add(mid)
     for k in range(16):
         a = 2 * math.pi * k / 16
         pts = []
@@ -70,12 +76,12 @@ def dome(R):
     # the storm: black heavy lumps, lower in the middle
     rnd = random.Random(11)
     g = Geo()
-    g.add(puffs(CX, CY, 12.6, 4.2, 7, 'slate', seed=1, flat=0.5, segs=12, rings=6))
+    g.add(puffs(CX, CY, 12.6, 4.2, 7, 'black', seed=1, flat=0.5, segs=12, rings=6))
     for k in range(14):
         a = rnd.uniform(0, 2 * math.pi); d = rnd.uniform(2.5, 8.0)
         x, y = CX + math.cos(a) * d, CY + math.sin(a) * d
         z = min(dome_z(d, RV, DZ, 1.5) - 1.0, 13.8) - rnd.uniform(0, 0.8) + d * 0.05
-        g.add(puffs(x, y, z, rnd.uniform(1.6, 2.6), 4, rnd.choice(('slate', 'black', 'slate')), seed=10 + k, flat=0.5, segs=10, rings=5))
+        g.add(puffs(x, y, z, rnd.uniform(1.6, 2.6), 4, rnd.choice(('black', 'black', 'slate')), seed=10 + k, flat=0.5, segs=10, rings=5))
     for k in range(6):
         a = rnd.uniform(0, 2 * math.pi); d = rnd.uniform(0, 2.0)
         g.add(puffs(CX + math.cos(a) * d, CY + math.sin(a) * d, 11.3 + rnd.uniform(-0.3, 0.3), 1.5, 3, 'black', seed=40 + k, flat=0.6, segs=10, rings=5))
@@ -243,6 +249,9 @@ def secret_passage(R):
         R.spot('sit', x, y, PZ0 + 0.48, aa + math.pi)
         R.light(sphere(CX + (PR1 - 0.1) * math.cos(aa + 0.13), CY + (PR1 - 0.1) * math.sin(aa + 0.13), PZ0 + 1.9, 0.06, 6, 3, 'e_candle'))
     book_pile(R, 30.5, 30.5, PZ0, 6, seed=8)
+    for k in range(0, 24, 4):
+        aa = 2 * math.pi * (k + 2) / 24
+        bulb(R, CX + (PR0 + PR1) / 2 * math.cos(aa), CY + (PR0 + PR1) / 2 * math.sin(aa), PZ1 - 0.5, r=0.08, m='e_dim', top=PZ1)
     bulb(R, 29.0, 29.0, PZ1 - 0.6, r=0.1, m='e_dim', top=PZ1)
     bulb(R, 29.0, 27.2, UP + 3.2, r=0.1, m='e_dim', top=PZ1)
     R.spot('plaque', CX + PR1 * math.cos(-2.4), CY + PR1 * math.sin(-2.4), PZ0 + 1.5, -2.4 + math.pi, text='DO NOT FEED THE WEATHER')

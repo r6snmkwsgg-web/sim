@@ -26,7 +26,7 @@ def make():
     H = 7.5
     shell(R, y1=YW, h=H, wall='tile', floor='floor', ceil='plaster')
     # the honeycomb band: the little rooms are cut this deep into the north wall
-    R.cut(box(T - 0.02, YW - 0.05, 0, C - T + 0.02, YB, H, 'walnut', bottom='floor', top='plaster'))
+    R.cut(box(T - 0.02, YW - 0.05, 0, C - T + 0.02, YB, H, 'plaster', bottom='floor', top='plaster'))
     honeycomb(R, H)
     workshop(R)
     hall(R, H)
@@ -108,10 +108,10 @@ def honeycomb(R, H):
         dy = YB - 0.26 - rnd.random() * 0.06
         inner.add(box(dx - 0.07, dy - 0.035, z, dx + 0.07, dy + 0.035, z + 0.075, 'walnut', skip=('-z', '+y', '-x', '+x')))
         if kind < 0.85:
-            lamps.add(box(dx + 0.025, dy - 0.01, z + 0.105, dx + 0.055, dy + 0.01, z + 0.115, 'e_fluor', skip=('-z',)))
+            lamps.add(box(dx + 0.025, dy - 0.01, z + 0.105, dx + 0.055, dy + 0.01, z + 0.115, 'e_candle', skip=('-z',)))
             inner.add(box(dx + 0.022, dy - 0.014, z + 0.115, dx + 0.058, dy + 0.014, z + 0.125, 'green', skip=('-z', '-x', '+x', '+y')))
         else:   # a hanging bulb instead, brighter
-            lamps.add(box(x0 + 0.235, YB - 0.2, z + RH - 0.17, x0 + 0.265, YB - 0.17, z + RH - 0.14, 'e_lamp'))
+            lamps.add(box(x0 + 0.235, YB - 0.2, z + RH - 0.17, x0 + 0.265, YB - 0.17, z + RH - 0.14, 'e_amber'))
     R.parts.add(fr)
     R.nocol.add(inner)
     R.light(lamps)

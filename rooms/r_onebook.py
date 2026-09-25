@@ -169,8 +169,8 @@ def book(R):
                 for k in range(n):
                     x0 = x + wl * k / n; x1 = x + wl * (k + 1) / n
                     z0, z1 = base_z(x0, y) + 0.012, base_z(x1, y) + 0.012
-                    word.add(hexa([(x0, y - 0.09, z0 - 0.01), (x1, y - 0.09, z1 - 0.01), (x1, y + 0.09, z1 - 0.01), (x0, y + 0.09, z0 - 0.01),
-                                   (x0, y - 0.09, z0), (x1, y - 0.09, z1), (x1, y + 0.09, z1), (x0, y + 0.09, z0)], 'black'))
+                    word.add(hexa([(x0, y - 0.07, z0 - 0.01), (x1, y - 0.07, z1 - 0.01), (x1, y + 0.07, z1 - 0.01), (x0, y + 0.07, z0 - 0.01),
+                                   (x0, y - 0.07, z0), (x1, y - 0.07, z1), (x1, y + 0.07, z1), (x0, y + 0.07, z0)], 'slate'))
                 tx.add(weld(word))
                 x += wl + 0.22 + rnd.random() * 0.1
             y += 0.52 if rnd.random() > 0.1 else 1.1
@@ -267,7 +267,7 @@ def gallery(R, W, D, HT):
     rail(R, gx0, gy1, SX1 - 0.4, gy1, z, h=1.0, solid=True, mat='tile')
     rail(R, SX1 + 1.9, gy1, gx1, gy1, z, h=1.0, solid=True, mat='tile')
     # the stair: along the north, climbing east, and a landing out to the gallery
-    railed_flight(R, SX0, SY0, 0.0, SY1 - SY0, SN, z / SN, 0.3, '+x', m='oak', riser='walnut', side='walnut', which=(0,))
+    railed_flight(R, SX0, SY0, 0.0, SY1 - SY0, SN, z / SN, 0.3, '+x', m='oak', riser='walnut', side='walnut', which=(0, 1))
     R.parts.add(box(SX1, SY0, z - 0.4, SX1 + 1.8, gy1 + 0.05, z, 'plaster', top='floor'))
     rail(R, SX1, SY0 + 0.05, SX1 + 1.8, SY0 + 0.05, z)
     rail(R, SX1 + 1.75, SY0 + 0.05, SX1 + 1.75, gy1, z)
@@ -321,7 +321,7 @@ def hall(R, W, D, HT):
     ids = navloop(R, [(2.2, 2.2), (8.0, 2.4), (NAV_flap_x(), 2.4), (24.0, 2.4), (W - 2.2, 2.2), (W - 1.9, 8.0), (W - 1.9, LADY), (W - 1.9, 24.0), (W - 2.2, D - 2.2),
                       (24.0, D - 2.0), (16.0, D - 2.3), (8.0, D - 2.3), (2.2, D - 2.2), (1.9, 24.0), (1.9, 16.0), (1.9, 8.0)])
     R.link(ids[2], NAV['flap'][0], NAV['flap'][1])
-    lf = R.navpt(W - 1.9 - 0.9, LADY, 0.0)
+    lf = R.navpt(XB + CB + 1.9, LADY, 0.0)
     R.link(ids[6], lf, NAV['lad'])
     R.link(ids[14], NAV['cave'])
     R.link(ids[11], NAV['stair'])

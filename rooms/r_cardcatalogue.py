@@ -13,7 +13,7 @@ CH = NROW * DHT                # its height
 OC = 4                         # the open drawer's column
 GAL = 3.0                      # the south gallery's depth
 WZ = LH                        # walkway and gallery floor
-WY = CY0 - 1.4                 # the walkway's outer edge
+WY = CY0 - 2.0                 # the walkway's outer edge
 TUN = (15.5 - 1.1, 15.5 + 1.1)  # the tunnel inside the cabinet (y range)
 RR = (43.0, 49.6, 13.7, 18.3)  # the reading room at the end of it
 RRH = 3.2
@@ -37,7 +37,7 @@ def make():
         R.cut(box(x0, y0, 0, x1, y1, HT, 'tile', bottom='marble', top='plaster'))
     for (x0, y0, x1, y1) in ((X0 - 0.3, CY0 - 0.3, X1 + 0.3, CY0), (X0 - 0.3, CY1, X1 + 0.3, CY1 + 0.3),
                              (X0 - 0.3, CY0 - 0.3, X0, CY1 + 0.3), (X1, CY0 - 0.3, X1 + 0.3, CY1 + 0.3)):
-        R.cut(box(x0, y0, 0, x1, y1, HT, 'walnut', bottom='marble', top='plaster'))
+        R.cut(box(x0, y0, 0, x1, y1, HT, 'oak', bottom='marble', top='plaster'))
     R.cut(box(X0 - 0.3, CY0 - 0.3, CH, X1 + 0.3, CY1 + 0.3, HT, 'plaster', bottom='walnut'))
     cabinet(R, X0, X1)
     open_drawer(R, X0)
@@ -243,7 +243,7 @@ def upper(R, W, D, X0, X1):
         desk(R, x - 0.8, CY0 - 0.52, x + 0.8, CY0 - 0.12, z=z, h=0.95)
         green_lamp(R, x, CY0 - 0.32, z + 0.95)
     ids = navloop(R, [(1.6, 1.6), (10.0, 1.6), (24.0, 1.6), (40.0, 1.6), (54.0, 1.6), (W - 1.6, 1.6)], z=z, close=False)
-    wk = navloop(R, [(X0 + 0.6, CY0 - 0.95), (10.0, CY0 - 0.95), (32.0, CY0 - 0.95), (54.0, CY0 - 0.95), (X1 - 0.6, CY0 - 0.95)], z=z, close=False)
+    wk = navloop(R, [(X0 + 0.6, CY0 - 1.3), (10.0, CY0 - 1.3), (32.0, CY0 - 1.3), (54.0, CY0 - 1.3), (X1 - 0.6, CY0 - 1.3)], z=z, close=False)
     R.link(ids[1], wk[1]); R.link(ids[4], wk[3])
     a, b = R.navpt(SX0 - 0.7, (SY0 + SY1) / 2, 0.0), R.navpt(SX1 + 0.9, (SY0 + SY1) / 2 - 0.3, z)
     c = R.navpt(SX1 + 0.9, 1.6, z)

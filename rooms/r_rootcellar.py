@@ -14,7 +14,7 @@ ARC = (4.0, 10.0, 16.0, 22.0, 28.0)   # arcade openings between nave and aisles
 
 def aisle_vault(x0, x1, y0, y1, jamb=2.8, rise=2.6):
     pr = arch_profile((x0 + x1) / 2, x1 - x0, 0, jamb, 24, rise=min(rise, (x1 - x0) / 2))
-    return prism(pr, 'y', y0, y1, arch_mats(len(pr), 'tile', 'tile'))
+    return prism(pr, 'y', y0, y1, arch_mats(len(pr), 'tile', 'slate'))
 
 
 def root(R, pts, r0, r1, col=True, segs=9, m='root'):
@@ -29,14 +29,14 @@ def make():
     rnd = random.Random(31)
     T_ = T - 0.02
     pr = arch_profile(16.0, NX1 - NX0, 0, 3.2, 32, rise=4.2)
-    R.cut(prism(pr, 'y', T_, W - T_, arch_mats(len(pr), 'tile', 'tile')))
+    R.cut(prism(pr, 'y', T_, W - T_, arch_mats(len(pr), 'tile', 'slate')))
     R.cut(aisle_vault(T_, AW0, T_, W - T_))
     R.cut(aisle_vault(AE0, W - T_, T_, BY))
     R.cut(aisle_vault(AE0, BX, BY - 0.1, W - T_, jamb=2.8, rise=2.1))
     for y in ARC:
         ap = arch_profile(y, 3.4, 0, 2.2, 16)
-        R.cut(prism(ap, 'x', AW0 - 0.05, NX0 + 0.05, arch_mats(len(ap), 'tile', 'tile')))
-        R.cut(prism(ap, 'x', NX1 - 0.05, AE0 + 0.05, arch_mats(len(ap), 'tile', 'tile')))
+        R.cut(prism(ap, 'x', AW0 - 0.05, NX0 + 0.05, arch_mats(len(ap), 'tile', 'slate')))
+        R.cut(prism(ap, 'x', NX1 - 0.05, AE0 + 0.05, arch_mats(len(ap), 'tile', 'slate')))
     # stone ribs across the nave vault
     rib = arch_profile(16.0, NX1 - NX0 - 0.02, 0, 3.2, 32, rise=4.2)[2:-1]
     for y in (2.3, 8.3, 14.3, 20.3, 26.3):
@@ -107,12 +107,33 @@ def roots(R, rnd):
             t = rnd.uniform(0.25, 0.7); i = int(t * 9)
             branches(g, mid[i], (rnd.uniform(-1, 1), rnd.uniform(-1, 1), -0.6), 1.4, r * 0.35, 1, rnd, 'root', 6, 2, 0.8, -0.2)
         R.nocol.add(g)
+    # a web of roots across the vaults, wall to wall, sagging
+    vault = arch_profile(16.0, NX1 - NX0 - 0.5, 0, 3.2, 16, rise=3.95)[2:-1]
+    for k in range(16):
+        y = 1.0 + k * 1.95 + rnd.uniform(-0.5, 0.5)
+        pts = [(p, y + math.sin(i * 1.3 + k) * 0.35, q - 0.1 - 0.5 * math.sin(math.pi * i / (len(vault) - 1)) * rnd.uniform(0.3, 1.0)) for i, (p, q) in enumerate(vault)]
+        pts = [(x, yy, z) for (x, yy, z) in pts if z > 2.6]
+        root(R, pts, rnd.uniform(0.12, 0.3), rnd.uniform(0.08, 0.2), col=False, segs=6)
+    for (x0, x1, ymax) in ((T, AW0, W - T), (AE0, W - T, BY)):
+        av = arch_profile((x0 + x1) / 2, x1 - x0 - 0.4, 0, 2.8, 12, rise=2.4)[2:-1]
+        for k in range(int(ymax / 2.6)):
+            y = 1.3 + k * 2.6 + rnd.uniform(-0.4, 0.4)
+            pts = [(p, y + math.sin(i + k) * 0.3, q - 0.08 - 0.35 * math.sin(math.pi * i / (len(av) - 1))) for i, (p, q) in enumerate(av)]
+            pts = [(x, yy, z) for (x, yy, z) in pts if z > 2.2]
+            root(R, pts, rnd.uniform(0.1, 0.24), 0.08, col=False, segs=6)
+    # more of the great roots, coming down in the aisles over the cases
+    for (x, y, dx) in ((2.5, 12.5, 1), (7.5, 26.0, 1), (29.5, 6.5, -1), (24.5, 17.5, -1)):
+        pts = [(x - dx * 1.2, y, 5.6), (x - dx * 0.4, y + 0.6, 4.0), (x, y + 0.2, 2.2), (x + dx * 0.3, y - 0.5, 0.8), (x + dx * 1.8, y - 0.8, 0.12)]
+        root(R, pts, 0.42, 0.14)
+        g = Geo()
+        branches(g, pts[1], (dx * 0.3, rnd.uniform(-1, 1), -0.4), 1.6, 0.18, 1, rnd, 'root', 6, 2, 0.8, -0.2)
+        R.nocol.add(g)
     # a root running the length of the vault's crown
     crown = [(16.0 + math.sin(k * 0.9) * 0.9, T + 0.2 + k * (W - 2 * T - 0.4) / 12, 6.95 - 0.35 * math.sin(k * 0.7) ** 2) for k in range(13)]
     root(R, crown, 0.42, 0.42, col=False, segs=10)
     # tangles on the aisle walls, gripping the bookcases
     for (x, s) in ((T + 0.42, 1), (W - T - 0.42, -1)):
-        for y0 in (1.6, 4.4, 11.0, 14.5, 18.0, 27.0, 29.6):
+        for y0 in (1.6, 3.6, 5.2, 10.6, 12.8, 14.9, 17.1, 19.4, 21.0, 26.6, 28.4, 30.0):
             if s < 0 and y0 > BY - 1: continue
             pts = []
             y, z = y0, 4.6 + rnd.uniform(-0.6, 0.6)
@@ -122,7 +143,7 @@ def roots(R, rnd):
                 y = min(max(y, 0.8), W - 0.8)
                 pts.append((x + s * rnd.uniform(-0.05, 0.1), y, max(0.12, z)))
             pts.append((x + s * 1.4, y + rnd.uniform(-0.8, 0.8), 0.05))
-            root(R, pts, 0.24, 0.08, col=False, segs=7)
+            root(R, pts, 0.3, 0.1, col=False, segs=7)
             for p in pts[1:-1]:
                 if rnd.random() < 0.7:
                     R.nocol.add(book(p[0] + s * 0.18, p[1] + rnd.uniform(-0.3, 0.3), p[2] - 0.12, rnd.uniform(0, 3.1), rnd.choice(BOOKM), 0.17, 0.25, 0.05, rnd.uniform(-1.2, 1.2)))
@@ -194,6 +215,8 @@ def hollow(R, rnd):
     book_pile(R, cx - 0.9, cy + 0.8, 0.0, 6, rnd)
     candle(R, cx - 0.2, cy - 0.9, 0.0, h=0.2)
     R.light(sphere(cx, cy, 3.1, 0.07, 8, 4, 'e_dim'))
+    R.nocol.add(cyl(cx + 0.9, cy - 0.6, 1.9, 3.3, 0.01, 4, side='iron', caps=False))
+    R.light(sphere(cx + 0.9, cy - 0.6, 1.85, 0.1, 8, 4, 'e_lamp'))
     R.spot('plaque', cx - 0.4, cy - 0.6, 0.0, 0.0, text='The tree does not know it is in a library. It thinks the books are a kind of weather.')
 
 
