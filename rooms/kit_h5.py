@@ -293,12 +293,12 @@ def clock(R, x, y, z, r, a, rng, style=None, face='ivory', rim='brass'):
         g.add(disc_v(x, y, z, r * 1.08, a, n, rim, off=o + 0.005))
         if style == 'pend':
             L = hh - r * 1.3
-            sw = rng.uniform(-0.2, 0.2)
-            ux, uy = -ny, nx
             top = z - r * 1.1
-            bx, by, bz = x + ux * math.sin(sw) * L * 0.8, y + uy * math.sin(sw) * L * 0.8, top - L * 0.8 * math.cos(sw)
-            g.add(beam((x + nx * 0.11, y + ny * 0.11, top), (bx + nx * 0.11, by + ny * 0.11, bz), 0.012, 'brass'))
-            g.add(disc_v(bx, by, bz, r * 0.28, a, 8, 'brass', off=0.12))
+            bz = top - L * 0.8
+            pg = Geo()
+            pg.add(beam((x + nx * 0.11, y + ny * 0.11, top), (x + nx * 0.11, y + ny * 0.11, bz), 0.012, 'brass'))
+            pg.add(disc_v(x, y, bz, r * 0.28, a, 8, 'brass', off=0.12))
+            pendulum(R, pg, (x + nx * 0.11, y + ny * 0.11, top), a, rng)
     g.add(disc_v(x, y, z, r, a, n, face, off=o + 0.015))
     hr, mn = rng.uniform(0, 12), rng.uniform(0, 60)
     for (frac, L, w) in ((hr / 12, r * 0.55, r * 0.09), (mn / 60, r * 0.85, r * 0.055)):
@@ -323,5 +323,25 @@ def grandfather(R, x, y, a, h, rng, w=0.62, d=0.42, lit=False):
     fx_, fy_ = x + nx * (d + 0.02), y + ny * (d + 0.02)
     clock(R, fx_ - nx * 0.04, fy_ - ny * 0.04, fz, w * 0.36, a, rng, style='round', rim='gilt')
     bz = 0.6 + (h - w - 1.0) * 0.35
-    R.nocol.add(disc_v(fx_, fy_, bz, 0.1, a, 10, 'brass', off=0.0))
-    R.nocol.add(quad_v(fx_, fy_, bz, a, (h - w - 0.45) - bz, 0.02, math.pi / 2, 'brass', off=-0.002))
+    pg = Geo()
+    pg.add(disc_v(fx_, fy_, bz, 0.1, a, 10, 'brass', off=0.0))
+    pg.add(quad_v(fx_, fy_, bz, a, (h - w - 0.45) - bz, 0.02, math.pi / 2, 'brass', off=-0.002))
+    pendulum(R, pg, (fx_, fy_, h - w - 0.45), a, rng, amp=0.08)
+
+
+PEND_MAX = 40
+
+
+def pendulum(R, g, pivot, a, rng, amp=None, period=None):
+    """A pendulum that really swings (a nocol swing mover) in the plane of a wall facing plan angle a;
+    past PEND_MAX movers per room it is drawn still instead."""
+    n = getattr(R, '_pends', 0)
+    if n >= PEND_MAX:
+        R.nocol.add(g); return
+    R._pends = n + 1
+    axis = 'y' if abs(math.sin(a)) > abs(math.cos(a)) else 'x'
+    L = max(0.2, pivot[2] - min(p[2] for p in g.v))
+    per = period or 2 * math.pi * math.sqrt(L / 9.81) * rng.uniform(0.95, 1.05)
+    M = R.mover('swing', pivot=tuple(round(c, 3) for c in pivot), axis=axis, amp=amp or rng.uniform(0.12, 0.2),
+                period=round(per, 2), phase=round(rng.random(), 2))
+    M.nocol.add(g)

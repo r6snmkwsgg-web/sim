@@ -228,6 +228,8 @@ def igloo(R):
     R.nocol.add(cyl(cx + 1.1, cy - 0.9, 0.38, 0.62, 0.012, 6, side='brass', caps=False))
     R.light(cyl(cx + 1.1, cy - 0.9, 0.62, 0.66, 0.1, 8, side='e_lamp', top='e_lamp', bottom='e_lamp'))
     R.light(sphere(cx + 0.9, cy + 1.0, 0.35, 0.04, 6, 3, 'e_candle'))
+    R.light(sphere(cx, cy, IH - 0.55, 0.1, 8, 4, 'e_amber'))
+    R.nocol.add(cyl(cx, cy, IH - 0.47, IH, 0.01, 6, side='iron', caps=False))
     R.nocol.add(cyl(cx + 0.9, cy + 1.0, 0.0, 0.3, 0.03, 6, side='ivory', top='ivory'))
     open_book(R, cx + 0.5, cy + 0.2, 0.12, 0.5)
     R.spot('read', cx + 0.5, cy + 0.2, 0.12, 0.0)

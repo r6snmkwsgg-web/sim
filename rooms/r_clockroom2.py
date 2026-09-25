@@ -77,7 +77,7 @@ def make():
     R.meta.update(label='The Hall of Clocks', weight=4,
                   blurb='A thousand clocks and not one of them agrees. You check your wrist out of habit. There is nothing there, and it is also wrong.')
     R.meta['box'] = [[T, 0, T], [W - T, H, YN]]
-    fx(R, 'pendulums', [T, 0, T, W - T, H, YN])
+    # the pendulums swing for real: swing movers (see kit_h5.pendulum)
     return tidy(R)
 
 
@@ -145,8 +145,11 @@ def great_clock(R, rng):
     for x in (GX0 + 0.08, GX1 - 0.08):
         R.nocol.add(box(x - 0.05, y0 - 0.05, 0.2, x + 0.05, y0, GH - 1.9, 'gilt'))
     R.nocol.add(box(DX0 + 0.1, y0 - 0.02, DH + 0.3, DX1 - 0.1, y0, GH - 2.3, 'black'))
-    R.nocol.add(quad_v(16.0, y0 - 0.03, GH - 2.4, -math.pi / 2, (GH - 2.4) - (DH + 1.0), 0.04, -math.pi / 2, 'brass'))
-    R.nocol.add(disc_v(16.0, y0 - 0.03, DH + 0.95, 0.3, -math.pi / 2, 16, 'brass', off=0.01))
+    pg = Geo()
+    pg.add(quad_v(16.0, y0 - 0.03, GH - 2.4, -math.pi / 2, (GH - 2.4) - (DH + 1.0), 0.04, -math.pi / 2, 'brass'))
+    pg.add(disc_v(16.0, y0 - 0.03, DH + 0.95, 0.3, -math.pi / 2, 16, 'brass', off=0.01))
+    M = R.mover('swing', pivot=(16.0, y0 - 0.03, GH - 2.4), axis='y', amp=0.06, period=4.0)
+    M.nocol.add(pg)
     # the face
     fz = GH - 0.95
     R.nocol.add(disc_v(16.0, y0 - 0.2, fz, 0.9, -math.pi / 2, 28, 'gilt', off=0.01))
@@ -195,10 +198,11 @@ def works(R, rng):
         a = 2 * math.pi * k / 32
         R.nocol.add(box(-0.06, -0.06, -1.0, 0.06, 0.06, -0.88, 'brass').xform(a, gx + math.cos(a) * 1.64, gy + math.sin(a) * 1.64, 0))
     R.nocol.add(cyl(gx, gy, -0.88, -0.6, 0.08, 10, side='iron', caps=False))
-    R.nocol.add(beam((gx, gy, -0.9), (gx + 0.5, gy, CZ + 0.75), 0.04, 'brass'))
-    R.nocol.add(disc_v(gx + 0.5, gy, CZ + 0.75, 0.35, math.pi / 2, 16, 'brass', off=0.0))
-    R.nocol.add(disc_v(gx + 0.5, gy, CZ + 0.75, 0.35, -math.pi / 2, 16, 'brass', off=0.0))
-    R.col.add(cyl(gx + 0.5, gy, CZ, CZ + 1.1, 0.35, 8))
+    M = R.mover('swing', pivot=(gx, gy, -0.9), axis='y', amp=0.22, period=6.0)
+    M.nocol.add(beam((gx, gy, -0.9), (gx, gy, CZ + 0.75), 0.04, 'brass'))
+    M.nocol.add(disc_v(gx, gy, CZ + 0.75, 0.35, math.pi / 2, 16, 'brass', off=0.0))
+    M.nocol.add(disc_v(gx, gy, CZ + 0.75, 0.35, -math.pi / 2, 16, 'brass', off=0.0))
+    R.col.add(box(gx - 0.75, gy - 0.25, CZ, gx + 0.75, gy + 0.25, CZ + 1.3))   # keeps you out of its swing
     # the bench, the lamp, the one right clock
     R.parts.add(table(20.5, WY0 + 0.3, 23.0, WY0 + 1.1, 0.9, 'oak').xform(0, 0, 0, CZ))
     for k in range(5):

@@ -17,7 +17,7 @@ vec3 wrapIn(vec3 p) { return uMin + mod(p - uMin, uSize); }`;
 
 /* falling streaks: two vertices per drop, the second a little above the first */
 function rainFx(b, o) {
-  const n = Math.min(3200, Math.max(200, Math.round((b.x1 - b.x0) * (b.z1 - b.z0) * 3.2)));
+  const n = Math.min(4000, Math.max(60, Math.round((b.x1 - b.x0) * (b.z1 - b.z0) * 3.2 * (o.density || 1))));
   const seed = new Float32Array(n * 8), end = new Float32Array(n * 2), pos = new Float32Array(n * 6);
   for (let i = 0; i < n; i++) {
     const s = [Math.random(), Math.random(), Math.random(), Math.random()];
@@ -45,7 +45,7 @@ function rainFx(b, o) {
 /* soft round points: snow drifts down and sways; dust hangs and wanders; embers rise */
 function pointFx(b, o, kind) {
   const vol = (b.x1 - b.x0) * (b.z1 - b.z0) * (b.y1 - b.y0);
-  const n = kind === 'snow' ? Math.min(2600, Math.max(200, Math.round(vol * 0.35))) : kind === 'dust' ? Math.min(700, Math.max(80, Math.round(vol * 0.05))) : Math.min(500, Math.max(60, Math.round(vol * 0.04)));
+  const n = kind === 'snow' ? Math.min(3000, Math.max(60, Math.round(vol * 0.35 * (o.density || 1)))) : kind === 'dust' ? Math.min(700, Math.max(80, Math.round(vol * 0.05))) : Math.min(500, Math.max(60, Math.round(vol * 0.04)));
   const seed = new Float32Array(n * 4), pos = new Float32Array(n * 3);
   for (let i = 0; i < n * 4; i++) seed[i] = Math.random();
   const g = new THREE.BufferGeometry();

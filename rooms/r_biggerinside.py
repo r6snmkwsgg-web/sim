@@ -11,8 +11,8 @@ VH = 3.0              # their ceiling
 HT = 15.35
 BAY = None
 CAT = 11.4            # the catwalk
-SR = (43.4, 50.4, 59.75, 63.2)    # the room behind the door in the sky (x0, x1, y0, y1), floor at CAT
-SKYD = 46.6           # the door's x
+SR = (54.6, 59.25, 59.75, 63.2)    # the room behind the door in the sky (x0, x1, y0, y1), floor at CAT
+SKYD = 56.4           # the door's x
 
 
 def make():
@@ -223,21 +223,21 @@ def climb(R, W, D):
     # library ladder that runs along the bookcases
     L1, L2 = 3.8, 7.6
     lw = 1.6
-    yl = 58.5                  # the ladders' line
+    yl = 58.3                  # the ladders' line
     run = 3.8
-    P1, P2, P3 = (45.6, 52.0), (50.4, 55.0), (42.9, 50.7)
+    P1, P2, P3 = (45.6, 52.0), (50.4, 55.0), (55.2, 59.35)
     for (z, (x0, x1)) in ((L1, P1), (L2, P2), (CAT, P3)):
         R.parts.add(box(x0, yf - lw, z - 0.2, x1, yf, z, 'iron', top='oak'))
         rails(R, [(x0 + 0.3, yf - lw + 0.04), (x1 - 0.3, yf - lw + 0.04)], z=z)
         for x in (x0 + 0.3, (x0 + x1) / 2, x1 - 0.3):
             R.parts.add(beam((x, yf, z - 1.2), (x, yf - lw + 0.1, z - 0.2), 0.08, 'iron'))
     # end rails, open where a ladder arrives
-    rails(R, [(P1[0] + 0.04, yf - lw), (P1[0] + 0.04, yl - 0.45)], z=L1); rails(R, [(P1[0] + 0.3, yf - lw + 0.04), (P1[0] + 0.04, yf - lw + 0.04)], z=L1)
+    rails(R, [(P1[0] + 0.04, yf - lw), (P1[0] + 0.04, yl - 0.6)], z=L1); rails(R, [(P1[0] + 0.3, yf - lw + 0.04), (P1[0] + 0.04, yf - lw + 0.04)], z=L1)
     rails(R, [(P1[1] - 0.04, yf - lw), (P1[1] - 0.04, yf)], z=L1); rails(R, [(P1[1] - 0.3, yf - lw + 0.04), (P1[1] - 0.04, yf - lw + 0.04)], z=L1)
-    rails(R, [(P2[0] + 0.04, yf - lw), (P2[0] + 0.04, yl - 0.45)], z=L2); rails(R, [(P2[0] + 0.3, yf - lw + 0.04), (P2[0] + 0.04, yf - lw + 0.04)], z=L2)
+    rails(R, [(P2[0] + 0.04, yf - lw), (P2[0] + 0.04, yl - 0.6)], z=L2); rails(R, [(P2[0] + 0.3, yf - lw + 0.04), (P2[0] + 0.04, yf - lw + 0.04)], z=L2)
     rails(R, [(P2[1] - 0.04, yf - lw), (P2[1] - 0.04, yf)], z=L2); rails(R, [(P2[1] - 0.3, yf - lw + 0.04), (P2[1] - 0.04, yf - lw + 0.04)], z=L2)
-    rails(R, [(P3[0] + 0.04, yf - lw), (P3[0] + 0.04, yf)], z=CAT); rails(R, [(P3[0] + 0.3, yf - lw + 0.04), (P3[0] + 0.04, yf - lw + 0.04)], z=CAT)
-    rails(R, [(P3[1] - 0.04, yf - lw), (P3[1] - 0.04, yl - 0.45)], z=CAT); rails(R, [(P3[1] - 0.3, yf - lw + 0.04), (P3[1] - 0.04, yf - lw + 0.04)], z=CAT)
+    rails(R, [(P3[0] + 0.04, yf - lw), (P3[0] + 0.04, yl - 0.6)], z=CAT); rails(R, [(P3[0] + 0.3, yf - lw + 0.04), (P3[0] + 0.04, yf - lw + 0.04)], z=CAT)
+    rails(R, [(P3[1] - 0.04, yf - lw), (P3[1] - 0.04, yf)], z=CAT); rails(R, [(P3[1] - 0.3, yf - lw + 0.04), (P3[1] - 0.04, yf - lw + 0.04)], z=CAT)
     # the bookcases here carry on up the wall
     sh(R, '-y', yw, 42.6, 53.8, rows=12, frame='walnut')
     sh(R, '-y', yw, 42.6, 53.8, z=5.4, rows=14, frame='walnut')
@@ -245,12 +245,12 @@ def climb(R, W, D):
     # the ladders
     climb_ladder(R, P1[0] + 0.05, yl, 0.0, L1, math.pi, run=run)
     climb_ladder(R, P2[0] + 0.05, yl, L1, L2, math.pi, run=run)
-    climb_ladder(R, P3[1] - 0.05, yl, L2, CAT, 0.0, run=run)
+    climb_ladder(R, P3[0] + 0.05, yl, L2, CAT, math.pi, run=3.65)
     # the door in the sky: a patch of painted sky on the wall round it, the door ajar
     dx, dw, dh = SKYD, 1.2, 2.2
     R.cut(box(dx - dw / 2, yw - 0.05, CAT, dx + dw / 2, SR[2] + 0.05, CAT + dh, 'oak', bottom='oak', top='oak'))
     R.light(box(dx - 3.2, yw - 0.02, CAT - 0.4, dx - dw / 2 - 0.15, yw - 0.005, CAT + 3.4, 'e_skydome'))
-    R.light(box(dx + dw / 2 + 0.15, yw - 0.02, CAT - 0.4, dx + 3.2, yw - 0.005, CAT + 3.4, 'e_skydome'))
+    R.light(box(dx + dw / 2 + 0.15, yw - 0.02, CAT - 0.4, W - B - 0.02, yw - 0.005, CAT + 3.4, 'e_skydome'))
     R.light(box(dx - dw / 2 - 0.15, yw - 0.02, CAT + dh + 0.15, dx + dw / 2 + 0.15, yw - 0.005, CAT + 3.4, 'e_skydome'))
     for xx in (dx - dw / 2 - 0.15, dx + dw / 2):
         R.parts.add(box(xx, yw - 0.08, CAT, xx + 0.15, yw, CAT + dh + 0.15, 'ivory'))
@@ -280,7 +280,7 @@ def climb(R, W, D):
            'Up three ladders and along a catwalk under the clouds there is a door, painted round with sky. Behind it, a garret with a bed, a lamp and a window looking down on all of it.', r=2.2)
     # nav up the ladders
     ids = [R.navpt(P1[0] - run - 0.8, yl, 0.0), R.navpt(P1[0] + 0.6, yl, L1), R.navpt(P2[0] - run - 0.2, yl, L1), R.navpt(P2[0] + 0.6, yl, L2),
-           R.navpt(P3[1] + run + 0.2, yl, L2), R.navpt(P3[1] - 0.6, yl, CAT), R.navpt(dx, yl, CAT), R.navpt(dx, y0 + 0.9, CAT)]
+           R.navpt(P3[0] - 3.65 - 0.6, yl, L2), R.navpt(P3[0] + 0.6, yl, CAT), R.navpt(dx, yl, CAT), R.navpt(dx, y0 + 0.9, CAT)]
     R.link(*ids)
     best = min(NAV['ring'], key=lambda b: math.hypot(R.nav[b][0] - R.nav[ids[0]][0], R.nav[b][1] - R.nav[ids[0]][1]))
     R.link(ids[0], best)
