@@ -419,7 +419,7 @@ h1,h2,h3{font-family:var(--display);font-weight:400;margin:0;text-wrap:balance}
 <script>
 /* Load three.js (with a second CDN as fallback), then the game's own scripts in order */
 (function () {
-  const libs = ['https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js', 'https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js'];
+  const libs = ['https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js', 'https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js', 'js/vendor/three.min.js'];
   const game = ['js/core.js', 'js/post.js', 'js/world.js', 'js/props.js', 'js/story.js', 'js/fx.js', 'js/portal.js', 'js/game.js'];
   const fail = msg => { const el = document.createElement('div'); el.style.cssText = 'position:fixed;left:16px;right:16px;bottom:16px;z-index:99;background:#14171c;border:1px solid #c05a40;color:#ddd0b3;padding:12px 16px;font:15px Georgia,serif'; el.textContent = msg; document.body.appendChild(el); };
   const load = (src, ok, bad) => { const s = document.createElement('script'); s.src = src; s.async = false; s.onload = ok; s.onerror = bad; document.body.appendChild(s); };
