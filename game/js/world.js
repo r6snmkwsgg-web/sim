@@ -964,12 +964,14 @@ function makeInst(pl, slot) {
   scene.add(r.grp); waterScene.add(r.water);
   if (!pf.probeDone) captureProbe(pf);
   if (typeof fxPlace === 'function') fxPlace(r);
+  if (typeof portalPlace === 'function') portalPlace(r);
   COL_DIRTY = true;
   return r;
 }
 function dropInst(r) {
   scene.remove(r.grp); waterScene.remove(r.water);
   if (typeof fxDrop === 'function') fxDrop(r);
+  if (typeof portalDrop === 'function') portalDrop(r);
   COL_DIRTY = true;
   if (r.books) { r.books.geometry.dispose(); r.grp.remove(r.books); r.books = null; }
 }

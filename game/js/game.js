@@ -1028,7 +1028,7 @@ function frame(now) {
   WU.uTime.value = t;
   if (live) {
     if (MODE === 'play' && !nightBusy && !PL.dead) {
-      updatePlayer(dt); updateTime(dt); syncRoom(); fxTick(dt); storyTick(dt); updateCaptions(dt);
+      updatePlayer(dt); portalCross(); updateTime(dt); syncRoom(); fxTick(dt); storyTick(dt); updateCaptions(dt);
       if (PL.edgeArm > 0) { PL.edgeArm -= dt; const sh = shaftNear(); if (!sh || sh.d > 1.8) PL.edgeArm = 0; }
       TARGET = findTarget(); updateHUD(dt);
       PL.hurtT = Math.max(0, PL.hurtT - dt * 1.5);

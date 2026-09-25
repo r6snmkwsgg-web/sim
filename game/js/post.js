@@ -167,9 +167,11 @@ const PM = {
 function pass(mat, target) { fsMesh.material = mat; renderer.setRenderTarget(target); renderer.render(fsScene, fsCam); }
 function blurInto(src, dst) { const u = PM.blur.uniforms; u.tSrc.value = src.texture; u.tDepth.value = RT.depthTexture; u.uProjInv.value.copy(camera.projectionMatrixInverse); u.uStep.value.set(1 / src.width, 1 / src.height); pass(PM.blur, dst); }
 let beforeWater = null;   // hook: the world sets water uniforms that need this frame's targets
+let beforeScene = null;   // hook: portals draw their views before the main pass
 function renderFrame() {
   makeTargets();
   camera.updateMatrixWorld();
+  if (beforeScene) beforeScene();
   renderer.setRenderTarget(RT); renderer.clear(); renderer.render(scene, camera);
   const deep = !!RT.depthTexture, gfx = gfxSettings().gfx !== undefined ? gfxSettings().gfx : 2;
   if (deep && waterScene.children.length) {
