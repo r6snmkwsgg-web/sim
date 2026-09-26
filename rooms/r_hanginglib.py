@@ -24,10 +24,9 @@ CASES = {
     'top': (32.25, 40.25, 2.0, 12.6, 9.0),     # the tallest (the secret)
     'j': (21.25, 43.85, 1.2, 9.8, 2.0),        # the one you jump to
 }
-NET = (17.6, 41.1, 22.6, 45.4, 7.3)            # the net under the jump
-LADX_NET = 18.75
-BRK = (29.1, 36.3, 30.25, 44.2, 9.8)           # the bracket on the tallest case's west face (x0, y0, x1, y1, z)
-LADY_TOP = (37.1, 12.6 - 9.8)
+NET = (16.1, 41.1, 22.6, 46.4, 7.3)            # the net under the jump
+LADX_NET = 19.25
+BRK = (28.0, 36.3, 30.25, 45.4, 9.8)           # the bracket on the tallest case's west face (x0, y0, x1, y1, z)
 
 
 def make():
@@ -62,7 +61,7 @@ def gallery(R):
                              (T - 0.02, D - LE, W - T + 0.02, D - T + 0.02), (T - 0.02, LE, LE, D - LE), (W - LE, LE, W - T + 0.02, D - LE)):
         R.parts.add(box(x0, y0, UP - th, x1, y1, UP, 'tile', top='floor', bottom='plaster'))
     # rail round the gallery's edge, open where the planks leave (x or y centre of each opening)
-    r_ = 0.1
+    r_ = -0.1                  # rails stand just inside the edge (so the walk check sees them)
     opens = {'S': [20.25], 'N': [44.25], 'W': [26.25], 'E': [26.25]}
     def edge(a, b, fixed, along_x, gaps):
         p = a
@@ -81,7 +80,7 @@ def gallery(R):
     wall_cases(R, z=UP, rows=11, frame='walnut')
     wall_cases(R, rows=13, frame='walnut', sides='NWE')
     sh(R, '+y', T, 0.6, 6.2, rows=13, frame='walnut')
-    sh(R, '+y', T, 25.8, 39.8, rows=13, frame='walnut')
+    sh(R, '+y', T, 25.8, 38.2, rows=13, frame='walnut')
     sh(R, '+y', T, 41.8, 54.2, rows=13, frame='walnut')
     sh(R, '+y', T, 57.8, W - 0.6, rows=13, frame='walnut')
     # lamps: little ones on the rail, dim ones under the gallery, a few hanging
@@ -119,11 +118,11 @@ def case(R, name, cx, cy, s, top, h):
     sh(R, '+x', cx + s - d, cy - s + d, cy + s - d, z=z0, rows=rows, frame='walnut')
     R.parts.add(box(cx - s - 0.06, cy - s - 0.06, top - 0.28, cx + s + 0.06, cy + s + 0.06, top, 'walnut', top='oak'))
     R.parts.add(box(cx - s + 0.3, cy - s + 0.3, z0 - 0.35, cx + s - 0.3, cy + s - 0.3, z0, 'walnut'))
-    R.parts.add(box(cx - s - 0.04, cy - s - 0.04, z0, cx + s + 0.04, cy + s + 0.04, top - 0.28, 'walnut', skip=('+z',))) if False else None
     for (px, py) in ((cx - s + 0.12, cy - s + 0.12), (cx + s - 0.12, cy - s + 0.12), (cx - s + 0.12, cy + s - 0.12), (cx + s - 0.12, cy + s - 0.12)):
         chain(R, px, py, top + 1.0, R.hi - 0.1, link=0.32, w=0.05)
         R.nocol.add(box(px - 0.03, py - 0.03, top, px + 0.03, py + 0.03, top + 1.05, 'iron'))
     # a lantern hung under it
+    if name == 'j': return
     R.nocol.add(cyl(cx, cy, z0 - 1.1, z0 - 0.35, 0.01, 4, side='iron', caps=False))
     R.light(sphere(cx, cy, z0 - 1.25, 0.14, 10, 5, 'e_amber'))
     R.nocol.add(box(cx - 0.16, cy - 0.16, z0 - 1.1, cx + 0.16, cy + 0.16, z0 - 1.05, 'iron'))
@@ -251,17 +250,18 @@ def tallest(R):
     rail_line(R, [(x0 + 0.05, y0 + 0.05), (x0 + 0.05, 39.5)], z, m='iron')
     rail_line(R, [(x0 + 0.05, 41.0), (x0 + 0.05, y1 - 0.05), (x1, y1 - 0.05)], z, m='iron')
     rail_line(R, [(x0 + 0.05, y0 + 0.05), (x1, y0 + 0.05)], z, m='iron')
-    ladder_up(R, 29.75, 41.1, z, top, '+y', w=1.0, m='oak', rail='iron', ang=math.radians(45)) if False else None
-    ladder_up(R, 29.75, 39.4, z, top, '-y', w=1.0, m='oak', rail='iron', ang=math.radians(45)) if False else None
-    # the ladder climbs -y along the face, from the bracket's north part up to the top's west edge
+    rail_line(R, [(x1 - 0.05, y0 + 0.05), (x1 - 0.05, CASES['top'][1] - CASES['top'][2])], z, m='iron')
+    rail_line(R, [(x1 - 0.05, 44.0), (x1 - 0.05, y1 - 0.05)], z, m='iron')
+    # the ladder climbs -y along the face, from the bracket's north end up to the top's west edge;
+    # a walk beside it on the bracket leads round to its foot
     L = top - z
-    ladder_up(R, 29.75, y1 - 0.3, z, top, '-y', w=1.0, m='oak', rail='iron', ang=math.radians(45))
+    yf = 41.2 + L
+    ladder_up(R, 29.75, yf, z, top, '-y', w=1.0, m='oak', rail='iron', ang=math.radians(45))
     # a landing at the top of the ladder, joined to the deck
-    ly1 = y1 - 0.3 - L
-    R.parts.add(box(x0 + 0.1, ly1 - 1.2, top - 0.2, cx - s + 0.1, ly1 + 0.02, top, 'oak', bottom='walnut', sides='walnut'))
-    rail_line(R, [(x0 + 0.15, ly1 + 0.02), (x0 + 0.15, ly1 - 1.15), (cx - s, ly1 - 1.15)], top, m='iron')
+    R.parts.add(box(29.2, 39.9, top - 0.2, cx - s + 0.1, 41.25, top, 'oak', bottom='walnut', sides='walnut'))
+    rail_line(R, [(29.25, 41.2), (29.25, 39.95), (cx - s, 39.95)], top, m='iron')
     # rails round the top deck, open on the west where the landing joins
-    deck_rails_top(R, cx, cy, s, top, (ly1 - 1.2, ly1))
+    deck_rails_top(R, cx, cy, s, top, (39.9, 41.25))
     # the nook: an armchair, a lamp, a little table, a rug, books, a canopy on posts
     armchair(R, cx + 0.6, cy + 0.6, -3 * math.pi / 4, m='velvet', z=top)
     R.parts.add(cyl(cx - 0.4, cy + 1.1, top, top + 0.6, 0.25, 12, side='walnut', top='walnut'))
@@ -308,7 +308,7 @@ def swingers(R):
             for (fa, fb, along) in (((y - s), -1, 'x'), ((y + s), 1, 'x'), ((x - s), -1, 'y'), ((x + s), 1, 'y')):
                 p = -s + 0.08
                 while p < s - 0.1:
-                    wbk = rnd.uniform(0.12, 0.4)
+                    wbk = rnd.uniform(0.5, 1.0)
                     hb = rnd.uniform(0.26, 0.38)
                     m = rnd.choice(('oxblood', 'green', 'leather', 'walnut', 'velvet', 'ivory', 'bronze'))
                     q = min(p + wbk, s - 0.08)

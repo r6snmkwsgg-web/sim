@@ -14,7 +14,9 @@ const PORTAL_MAX = 2;
 
 const pv3 = p => new THREE.Vector3(p[0], p[2], p[1]);
 function portalFrame(c, n, up) {
-  const Z = n.clone().normalize(), Y = (up || new THREE.Vector3(0, 1, 0)).clone().normalize();
+  const Z = n.clone().normalize();
+  let Y = (up || new THREE.Vector3(0, 1, 0)).clone().normalize();
+  if (Math.abs(Y.dot(Z)) > 0.99) Y = new THREE.Vector3(0, 0, -1);   // a floor or ceiling rectangle: its "up" runs along the room
   const X = new THREE.Vector3().crossVectors(Y, Z).normalize(); Y.crossVectors(Z, X);
   return new THREE.Matrix4().makeBasis(X, Y, Z).setPosition(c);
 }

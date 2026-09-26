@@ -11,8 +11,8 @@ from kit_f import rail_line, rect_rails, balus
 from kit_h3 import field, smooth_bump, ellipsoid, fill_under, window, pendant
 
 NEW_MATS = {
-    'sand':     (0.60, 0.57, 0.50),   # grey beach sand
-    'wetsand':  (0.38, 0.36, 0.32),
+    'sand':     (0.47, 0.45, 0.40),   # grey beach sand
+    'wetsand':  (0.31, 0.30, 0.27),
     'wheat':    (0.80, 0.60, 0.26),   # ripe wheat
     'wheatdk':  (0.52, 0.37, 0.15),
     'earth':    (0.30, 0.22, 0.15),   # beaten earth path

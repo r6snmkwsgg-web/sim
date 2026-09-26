@@ -26,7 +26,7 @@ def on_path(x, y):
 def make():
     R = Room('wheatfield', 2, 2, res=2048)
     R.sockets(floor='earth', wall='tile')
-    R.cut(box(T - 0.02, T - 0.02, 0, W - T + 0.02, YN, TOP - 0.1, 'tile', bottom='earth', top='plaster'))
+    R.cut(box(T - 0.02, T - 0.02, 0, W - T + 0.02, YN, TOP - 0.1, 'tile', bottom='earth', top='damask'))
     tunnel_y(R, 8.0, YN - 0.05, D - T - 0.5, floor='earth')
     tunnel_y(R, 24.0, YN - 0.05, D - T - 0.5, floor='earth')
     walls(R)
@@ -54,10 +54,10 @@ def walls(R):
         sh(R, '+x', T, a, min(b, YN - 0.3), rows=rows, frame='walnut')
         sh(R, '-x', W - T, a, min(b, YN - 0.3), rows=rows, frame='walnut')
     for (a, b) in ((0.6, 6.2), (9.8, AX0 - 0.6), (AX1 + 0.6, 22.2), (25.8, W - 0.6)):
-        sh(R, '-y', YN, a, b, rows=rows, frame='walnut')
+        sh(R, '-y', YN, a, b, rows=14, frame='walnut')
     for c in (8.0, 24.0):
         sh(R, '+y', T, c - 1.8, c + 1.8, z=4.4, rows=7, frame='walnut')
-        sh(R, '-y', YN, c - 1.8, c + 1.8, z=4.4, rows=7, frame='walnut')
+        sh(R, '-y', YN, c - 1.8, c + 1.8, z=4.4, rows=4, frame='walnut')
         sh(R, '+x', T, c - 1.8, c + 1.8, z=4.4, rows=7, frame='walnut')
         sh(R, '-x', W - T, c - 1.8, c + 1.8, z=4.4, rows=7, frame='walnut')
     # stone piers between the bookcases, green lamps on them
@@ -71,8 +71,17 @@ def walls(R):
             for z in (3.2, 6.2):
                 R.nocol.add(frustum(lx, ly, z - 0.1, z + 0.12, 0.2, 0.07, 10, 'green', inner='ivory'))
                 R.light(cyl(lx, ly, z - 0.06, z - 0.03, 0.1, 8, side='e_lamp', top='e_lamp', bottom='e_lamp'))
-    # the sky over the field
-    R.light(panel_z(TOP - 0.12, T + 0.4, T + 0.4, W - T - 0.4, YN - 0.4, 'e_skydome', up=False))
+    # a dark coffered ceiling far overhead, and a clerestory of evening light along the top of the north wall
+    for k in range(1, 8):
+        x = T + k * (W - 2 * T) / 8
+        R.nocol.add(box(x - 0.15, T, TOP - 0.45, x + 0.15, YN, TOP - 0.1, 'walnut'))
+        y = T + k * (YN - T) / 8
+        R.nocol.add(box(T, y - 0.15, TOP - 0.45, W - T, y + 0.15, TOP - 0.1, 'walnut'))
+    for (a, b) in ((1.0, 6.8), (9.2, 22.8), (25.2, W - 1.0)):
+        R.cut(box(a, YN - 0.3, 6.5, b, YN + 0.3, 7.2, 'tile', bottom='tile', top='tile'))
+        R.light(panel_y(YN + 0.28, a, b, 6.5, 7.2, 'e_dusk', face=-1))
+        for x in range(int(a) + 1, int(b), 1):
+            R.nocol.add(box(x - 0.04, YN - 0.1, 6.5, x + 0.04, YN, 7.2, 'walnut'))
     # rolling ladders leaning here and there
     R.nocol.add(ladder_on(T + 0.34, 4.0, 0.0, 5.5))
     R.nocol.add(ladder_on(W - T - 0.34, 19.0, math.pi, 5.5))
@@ -136,7 +145,7 @@ def rise(R):
     R.nocol.add(box(AX0, YN, 0.0, AX1, D - T, 0.006, 'earth'))
 
 
-def wheat_row(R, x0, x1, y, rnd, gfn, h0=0.9, ear=0.25, step=0.09, m='wheat', seg=3.0):
+def wheat_row(R, x0, x1, y, rnd, gfn, h0=0.9, ear=0.25, step=0.13, m='wheat', seg=3.0):
     """A row of wheat: a thin sheet with a ragged top of ears (both faces drawn, not collided)."""
     x = x0
     while x < x1 - 0.2:
@@ -178,7 +187,7 @@ def wheat(R):
             if TY0 - 0.3 < y < TY1 + 0.6: cuts.append((TX0 - 0.6, TX1 + 0.6))
             for (a, b) in spans_(1.2, W - 1.2, cuts):
                 wheat_row(R, a, b, y, rnd, ground, h0=rnd.uniform(0.86, 1.0), ear=0.3, m='wheat' if k % 3 else 'wheatdk')
-        y += 0.56
+        y += 0.62
         k += 1
     # a few poppies and cornflowers
     for i in range(60):
@@ -262,5 +271,6 @@ def cellar(R):
         R.nocol.add(cyl(13.55 + i * 0.15, 17.35, KZ + 0.74, KZ + 0.92, 0.05, 8, side='ivory', top='wheat', bottom='ivory'))
     candle(R, 14.4, 18.0, KZ + 0.74, h=0.14, r=0.03)
     R.parts.add(chair(14.0, 18.7, -math.pi / 2).xform(0, 0, 0, KZ)); R.spot('sit', 14.0, 18.7, KZ + 0.48, -math.pi / 2)
-    bulb(R, 17.6, 18.0, KZ + 1.4, r=0.08, m='e_amber', top=-0.22)
-    bulb(R, 13.6, 16.5, KZ + 1.4, r=0.07, m='e_lamp', top=-0.22)
+    bulb(R, 17.6, 18.0, KZ + 1.45, r=0.1, m='e_amber', top=-0.22)
+    bulb(R, 13.8, 16.2, KZ + 1.45, r=0.13, m='e_lamp', top=-0.22)
+    bulb(R, 18.4, 15.6, KZ + 1.45, r=0.12, m='e_lamp', top=-0.22)

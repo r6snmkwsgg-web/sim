@@ -112,7 +112,11 @@ def seats(R):
             n = int((b - a) / 0.6)
             for i in range(n):
                 x = a + (b - a) * (i + 0.5) / n
-                c = lchair(x, y, math.pi / 2, frame='velvet', seat='velvet', back_h=1.05)
+                c = Geo()
+                c.add(box(-0.2, -0.25, 0, 0.2, 0.25, 0.4, 'walnut', skip=('-z', '+z')))
+                c.add(box(-0.22, -0.26, 0.4, 0.22, 0.26, 0.5, 'velvet', skip=('-z',)))
+                c.add(box(-0.3, -0.27, 0.35, -0.18, 0.27, 1.1, 'velvet', top='gilt', skip=('-z',)))
+                c.xform(math.pi / 2, x, y, 0)
                 g.add(c.xform(0, 0, 0, z))
                 if rs.random() < 0.01:
                     R.spot('sit', x, y, z + 0.48, math.pi / 2)
