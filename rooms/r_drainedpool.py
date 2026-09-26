@@ -60,7 +60,10 @@ def hall(R):
         window(R, 'N', c, 3.4, 2.2, 2.6, em='e_sky', mull=2, trans=2)
     # the glass roof over the pool: panes of sky in an iron grid
     zc = TOP - 0.12
-    R.light(panel_z(zc, PX0 - 1.0, PY0 - 1.0, PX1 + 1.0, PY1 + 1.0, 'e_sky', up=False))
+    R.nocol.add(panel_z(zc + 0.005, PX0 - 1.0, PY0 - 1.0, PX1 + 1.0, PY1 + 1.0, 'iron', up=False))
+    for k in range(4):
+        y = PY0 + 1.0 + k * (PY1 - PY0 - 2.0) / 3
+        R.light(panel_z(zc - 0.01, PX0 - 0.6, y - 0.7, PX1 + 0.6, y + 0.7, 'e_sky', up=False))
     for k in range(12):
         x = PX0 - 1.0 + k * (PX1 - PX0 + 2.0) / 11
         R.nocol.add(box(x - 0.06, PY0 - 1.0, zc - 0.25, x + 0.06, PY1 + 1.0, zc, 'iron'))
@@ -213,7 +216,7 @@ def pump_room(R):
     R.parts.add(cyl(27.6, 16.0, KZ, KZ + 0.5, 0.18, 10, side='oak', top='oak', bottom='oak'))
     R.spot('sit', 27.6, 16.0, KZ + 0.5, 0.0)
     sh(R, '-x', KX1, 15.0, 17.0, z=KZ, rows=3, frame='iron', depth=0.3)
-    bulb(R, 28.8, 16.0, -0.7, r=0.08, m='e_lamp', top=-0.25)
-    bulb(R, 29.5, 13.9, -0.7, r=0.06, m='e_dim', top=-0.25)
-    bulb(R, 29.5, 18.1, -0.7, r=0.06, m='e_dim', top=-0.25)
+    bulb(R, 28.8, 16.0, -0.75, r=0.12, m='e_lamp', top=-0.25)
+    bulb(R, 29.2, 13.4, -0.75, r=0.1, m='e_lamp', top=-0.25)
+    bulb(R, 29.2, 18.6, -0.75, r=0.1, m='e_amber', top=-0.25)
     R.light(box(PX1 + 0.1, HD0 + 0.2, -0.55, PX1 + 0.14, HD1 - 0.2, -0.45, 'e_amber'))

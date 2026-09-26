@@ -16,7 +16,7 @@ NEW_MATS = {
     'wheat':    (0.80, 0.60, 0.26),   # ripe wheat
     'wheatdk':  (0.52, 0.37, 0.15),
     'earth':    (0.30, 0.22, 0.15),   # beaten earth path
-    'wtile':    (0.86, 0.87, 0.85),   # white glazed tile (pool, subway)
+    'wtile':    (0.78, 0.79, 0.77),   # white glazed tile (pool, subway)
     'turf':     (0.13, 0.30, 0.10),   # floodlit pitch
     'turf2':    (0.10, 0.25, 0.08),   # the mown stripes
     'seat':     (0.09, 0.22, 0.16),   # green stadium / airport seats

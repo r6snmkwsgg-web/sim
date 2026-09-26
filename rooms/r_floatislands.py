@@ -130,7 +130,7 @@ def island_ropes(H, cx, cy, r, top, opens, inset=0.3, posts=None):
             me = (cx + n[0] * (r * AP - 0.2), cy + n[1] * (r * AP - 0.2))
             for sg in (-1, 1):
                 px, py = me[0] + t[0] * sg * (hw + 0.2), me[1] + t[1] * sg * (hw + 0.2)
-                g = box(px - 0.2, py - 0.2, top, px + 0.2, py + 0.2, top + 1.0, 'tile', skip=('-z',))
+                g = box(px - 0.2, py - 0.2, top, px + 0.2, py + 0.2, top + 1.0, 'walnut', skip=('-z',))
                 g.add(box(px - 0.24, py - 0.24, top + 1.0, px + 0.24, py + 0.24, top + 1.08, 'brass'))
                 (posts if posts is not None else H.parts).add(g)
         else:
@@ -167,11 +167,11 @@ def island(R, H, cx, cy, r, top, opens, rnd, hole=False, parts=None, nocol=None)
 def furnish(R, k, cx, cy, r, top, rnd):
     """Each island keeps its desk, its chair, its green lamp; some a rug, a stack of books, a globe."""
     a = rnd.choice((0.0, math.pi / 2, math.pi, -math.pi / 2)) + rnd.uniform(-0.3, 0.3)
-    dx, dy = 0.35 * math.cos(a), 0.35 * math.sin(a)
-    desk(R, cx + dx, cy + dy, a, z=top, w=1.4, d=0.7)
-    desk_lamp(R, cx + dx + 0.45 * math.cos(a), cy + dy + 0.45 * math.sin(a), top + 0.78)
-    open_book(R, cx + dx - 0.2 * math.cos(a), cy + dy - 0.2 * math.sin(a), top + 0.78, a)
-    px, py = cx + dx - 0.75 * math.sin(a), cy + dy + 0.75 * math.cos(a)
+    dx, dy = 0.0, 0.0
+    desk(R, cx, cy, a, z=top, w=1.2, d=0.6)
+    desk_lamp(R, cx + 0.4 * math.cos(a), cy + 0.4 * math.sin(a), top + 0.78)
+    open_book(R, cx - 0.2 * math.cos(a), cy - 0.2 * math.sin(a), top + 0.78, a)
+    px, py = cx - 0.62 * math.sin(a), cy + 0.62 * math.cos(a)
     R.parts.add(chair(px, py, a - math.pi / 2).xform(0, 0, 0, top))
     R.spot('sit', px, py, top + 0.48, a - math.pi / 2)
     if rnd.random() < 0.7:
@@ -236,7 +236,7 @@ def big(R):
     # the ladder climbs +x from the room's floor to the trapdoor; its centre line on the walk-check grid
     ly = math.floor(cy / 0.5) * 0.5 + 0.25
     RZ = top - 3.0
-    lx0 = cx - 1.6                        # foot
+    lx0 = cx - 1.2                        # foot
     lx1 = lx0 + 3.0                       # top (45 degrees)
     hx0, hx1, hy0, hy1 = lx0 + 0.8, lx1, ly - 0.6, ly + 0.6
     # the floor with the hole: convex pieces of the octagon round the rectangle
@@ -277,10 +277,10 @@ def big(R):
     desk(R, x1 - 1.0, y0 + 0.5, 0.0, z=RZ, w=1.4, d=0.65)
     desk_lamp(R, x1 - 1.4, y0 + 0.5, RZ + 0.78)
     open_book(R, x1 - 0.8, y0 + 0.5, RZ + 0.78, 0.1)
-    R.parts.add(chair(x1 - 1.0, y0 + 1.15, -math.pi / 2).xform(0, 0, 0, RZ))
-    R.spot('sit', x1 - 1.0, y0 + 1.15, RZ + 0.48, -math.pi / 2)
-    sh(R, '+x', x0 + 0.1, y0 + 0.15, ly - 0.8, z=RZ, rows=5, frame='walnut', depth=0.28)
-    sh(R, '+x', x0 + 0.1, ly + 0.8, y1 - 0.15, z=RZ, rows=5, frame='walnut', depth=0.28)
+    R.parts.add(chair(x1 - 1.9, y0 + 0.55, 0.0).xform(0, 0, 0, RZ))
+    R.spot('sit', x1 - 1.9, y0 + 0.55, RZ + 0.48, 0.0)
+    sh(R, '+y', y0 + 0.1, x0 + 0.2, x0 + 2.6, z=RZ, rows=5, frame='walnut', depth=0.28)
+    sh(R, '-y', y1 - 0.1, x0 + 0.2, x0 + 2.4, z=RZ, rows=5, frame='walnut', depth=0.28)
     candle(R, x0 + 1.0, y1 - 0.3, RZ, h=0.22)
     R.light(sphere(cx, cy - 1.1, zt - 0.4, 0.1, 8, 4, 'e_lamp'))
     R.nocol.add(cyl(cx, cy - 1.1, zt - 0.3, zt, 0.008, 4, side='iron', caps=False))

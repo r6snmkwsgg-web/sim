@@ -23,6 +23,7 @@ def sand(x, y):
     # ripples and a low drift along the library wall
     z += 0.035 * math.sin(x * 1.3 + y * 0.4) * min(1.0, max(0.0, (y - 12.5) / 3))
     z += 0.12 * smooth_bump(y - LY1, 1.6) * (0.6 + 0.4 * math.sin(x * 0.7))
+    R.meta['water_tint'] = [0.07, 0.13, 0.15]   # a grey northern sea, not a pool
     return z
 
 

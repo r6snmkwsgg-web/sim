@@ -9,8 +9,8 @@ S0, S1 = 4.8, 11.2            # the study's inside
 WT = 0.4                      # its walls
 SH = 6.4                      # its ceiling (a cube)
 DW_, DH_ = 1.4, 2.6           # its doors
-NE = 10.4                     # the hidden corner (x, y > NE)
-SDX0, SDX1 = 10.42, 11.12     # the fifth door, in the study's north wall
+NE = 10.0                     # the hidden corner (x, y > NE)
+SDX0, SDX1 = 10.02, 10.77     # the fifth door, in the study's north wall
 
 
 def make():
@@ -57,8 +57,8 @@ def ring(R):
     sh(R, '-x', W - T, 0.9, 6.3, rows=rows, frame='walnut')
     sh(R, '-y', D - T, 0.9, 6.3, rows=rows, frame='walnut')
     # the dead ends of the north and east corridors
-    sh(R, '-x', NE - 0.4, S1 + WT + 0.2, D - 0.8, rows=rows, frame='walnut')
-    sh(R, '-y', NE - 0.4, S1 + WT + 0.2, W - 0.8, rows=rows, frame='walnut')
+    sh(R, '-x', NE - 0.4, S1 + WT + 0.2, 13.3, rows=rows, frame='walnut')
+    sh(R, '-y', NE - 0.4, S1 + WT + 0.2, 13.3, rows=rows, frame='walnut')
     # the study's outside: panelled, with the doors' surrounds and their leaves standing open
     for (face, x, y, hx, hy, la) in ((-math.pi / 2, 8.0, S0 - WT, 8.0 + DW_ / 2, S0 - WT, -math.pi / 2),
                                      (0.0, S1 + WT, 8.0, S1 + WT, 8.0 + DW_ / 2, 0.0),
@@ -123,12 +123,12 @@ def study(R):
 
 def hidden(R):
     """Behind the fifth door: a plain corridor, then a small room with the only window."""
-    R.cut(box(NE + 0.02, S1 + WT, 0, 11.4, 14.2, 2.6, 'plaster', bottom='floor', top='plaster'))
+    R.cut(box(NE + 0.02, S1 + WT - 0.02, 0, NE + 1.0, 14.2, 2.6, 'plaster', bottom='floor', top='plaster'))
     R.cut(box(NE + 0.02, 13.2, 0, 12.8, 14.2, 2.6, 'plaster', bottom='floor', top='plaster'))
     R.cut(box(12.4, 11.9, 0, W - T, D - T, 3.2, 'plaster', bottom='floor', top='plaster'))
-    R.nocol.add(box(NE + 0.25, S1 + WT + 0.1, 0, 11.15, 13.9, 0.01, 'carpet'))
-    R.nocol.add(box(11.15, 13.45, 0, 12.6, 13.9, 0.01, 'carpet'))
-    bulb(R, 10.9, 12.6, 2.2, r=0.08, m='e_dim', top=2.6)
+    R.nocol.add(box(NE + 0.2, S1 + WT + 0.1, 0, NE + 0.8, 13.95, 0.01, 'carpet'))
+    R.nocol.add(box(NE + 0.8, 13.45, 0, 12.6, 13.95, 0.01, 'carpet'))
+    bulb(R, NE + 0.5, 12.6, 2.2, r=0.08, m='e_dim', top=2.6)
     window(R, 'E', 13.8, 1.0, 1.3, 1.1, depth=0.3, mull=1, trans=1)
     R.parts.add(lchair(14.9, 13.8, 0.0, seat='velvet'))
     R.spot('sit', 14.9, 13.8, 0.48, 0.0)

@@ -675,7 +675,7 @@ async function loadPrefab(name) {
     // water surfaces
     const waterMat = new THREE.ShaderMaterial({
       uniforms: Object.assign({}, common, { tScene: { value: null }, tDepth: { value: null }, uRes: { value: new THREE.Vector2() }, uProj: { value: new THREE.Matrix4() }, uProjInv: { value: new THREE.Matrix4() },
-        uDeep: { value: new THREE.Vector3(0.05, 0.3, 0.36) }, uGlow: { value: 0 }, uSSR: { value: 1 } }),
+        uDeep: { value: new THREE.Vector3().fromArray((meta.meta && meta.meta.water_tint) || [0.05, 0.3, 0.36]) }, uGlow: { value: 0 }, uSSR: { value: 1 } }),
       vertexShader: WATER_VS, fragmentShader: WATER_FS, extensions: { derivatives: true }, side: THREE.DoubleSide, depthWrite: false
     });
     const waters = meta.water.map(w => {

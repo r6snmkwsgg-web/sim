@@ -231,3 +231,5 @@ A floor mirror (`n` = [0, 0, 1], `c` on the floor, `w` along x, `h` along y) mak
 **More effects** for `R.meta['fx']`: `negative` (inside the box the picture inverts, like a photographic
 negative), `afterimage` (inside the box, pale copies of you trail a few seconds behind, and one pale figure
 that is not you walks its own loop).
+
+**Water colour**: `R.meta['water_tint'] = [r, g, b]` sets the colour of the room's deep water (default pool turquoise [0.05, 0.3, 0.36]; a grey sea is about [0.07, 0.13, 0.15], ink about [0.01, 0.01, 0.015]).

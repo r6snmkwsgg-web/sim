@@ -17,9 +17,9 @@ KX0, KX1, KY0, KY1, KH = 0.6, 6.2, YN + 0.3, D - T - 0.05, 3.1   # the reader's 
 def make():
     R = Room('lastreader', 2, 2, res=2048)
     R.sockets(floor='terrazzo', wall='tile')
-    vault_cut(R, 'y', 16.0, NX1 - NX0 + 0.04, T - 0.02, YN, 0.0, JAMB, rise=RISE, m='plaster', floor='terrazzo', wall='tile')
+    vault_cut(R, 'y', 16.0, NX1 - NX0 + 0.04, T - 0.02, YN, 0.0, JAMB, rise=RISE, m='slate', floor='terrazzo', wall='tile')
     for c, w in (((T + NX0) / 2, NX0 - T + 0.3), ((NX1 + W - T) / 2, W - T - NX1 + 0.3)):
-        vault_cut(R, 'y', c, w, T - 0.02, YN, 0.0, AJ, rise=AR, m='plaster', floor='terrazzo', wall='tile')
+        vault_cut(R, 'y', c, w, T - 0.02, YN, 0.0, AJ, rise=AR, m='slate', floor='terrazzo', wall='tile')
     ribs(R, 'y', 16.0, NX1 - NX0, [4.0 * k for k in range(1, 7)], 0.0, JAMB, rise=RISE, d=0.3, t=0.35)
     tunnel_y(R, 8.0, YN - 0.05, D - T - 0.5, floor='terrazzo')
     tunnel_y(R, 24.0, YN - 0.05, D - T - 0.5, floor='terrazzo')
@@ -50,7 +50,7 @@ def arcades(R):
                 g.add(cyl(x + dx, y + dy, 0.45, AJ, 0.16 if (dx or dy) else 0.3, 10, side='tile', caps=False))
             g.add(box(x - 0.5, y - 0.5, AJ - 0.35, x + 0.5, y + 0.5, AJ, 'tile', skip=('+z',)))
             R.parts.add(g)
-            sconce(R, x + (0.52 if x < 16 else -0.52), y, 2.8, 0.0 if x < 16 else math.pi, m='e_dim', r=0.07)
+            if k % 2: sconce(R, x + (0.52 if x < 16 else -0.52), y, 2.8, 0.0 if x < 16 else math.pi, m='e_candle', r=0.05)
         R.parts.add(box(x - 0.3, T, AJ, x + 0.3, YN, JAMB, 'tile'))
         # arches between the piers (a thin arched screen from the pier tops up to the vault spring)
         for k in range(0, 7):
@@ -75,8 +75,8 @@ def walls(R):
     sh(R, '-y', YN, NX0 + 0.1, 14.6, rows=rows, frame='walnut')
     sh(R, '-y', YN, 17.4, NX1 - 0.1, rows=rows, frame='walnut')
     # tall windows at both ends of the nave: moonlight, the only light apart from the lamp
-    window(R, 'N', 16.0, 2.2, 2.4, 3.6, depth=0.3, em='e_moon', frame='iron', mull=2, trans=3, wallpos=YN)
-    window(R, 'S', 16.0, 2.2, 2.4, 3.6, depth=0.3, em='e_moon', frame='iron', mull=2, trans=3)
+    window(R, 'N', 16.0, 2.6, 1.6, 2.8, depth=0.3, em='e_moon', frame='iron', mull=1, trans=3, wallpos=YN)
+    window(R, 'S', 16.0, 2.6, 1.6, 2.8, depth=0.3, em='e_moon', frame='iron', mull=1, trans=3)
     # a black-and-cream band down the nave floor
     for x in (14.2, 17.8):
         R.nocol.add(box(x - 0.08, T, 0, x + 0.08, YN, 0.008, 'slate', skip=('-z',)))
@@ -123,7 +123,7 @@ def tables(R):
 def reader(R):
     """The one lit table: the chair pushed out, the book open, the tea."""
     R.parts.add(ltable(LX0, LY0, LX1, LY1, 0.78, 'walnut', top='leather'))
-    llamp(R, LX0 + 0.6, (LY0 + LY1) / 2 + 0.1, 0.78, 0.15, lit=True, m='e_lamp')
+    llamp(R, LX0 + 0.6, (LY0 + LY1) / 2 + 0.1, 0.78, 0.15, lit=True, m='e_reader')
     # the chair, pushed back and turned
     R.parts.add(lchair_legs(LX0 + 1.9, LY0 - 1.45, math.pi / 2 - 0.5, frame='walnut', seat='green'))
     R.spot('sit', LX0 + 1.9, LY0 - 1.45, 0.48, math.pi / 2 - 0.5)

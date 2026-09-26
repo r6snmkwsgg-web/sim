@@ -214,8 +214,8 @@ def room(R):
         R.nocol.add(box(x - 0.4, y, RZ + 1.3, x + 0.4, y + 0.01, RZ + 1.9, 'ivory'))
     candle(R, 33.3, 16.8, RZ, h=0.2)
     book_pile(R, 33.8, 17.2, RZ, 7, seed=2)
-    R.light(sphere(32.0, 16.2, 6.9, 0.1, 8, 4, 'e_lamp'))
-    R.nocol.add(cyl(32.0, 16.2, 7.0, 7.42, 0.008, 4, side='iron', caps=False))
+    hanging(R, 32.0, 16.4, 7.4, 6.5, r=0.35, e='e_lamp', shade='green')
+    hanging(R, 29.6, 18.9, 7.4, 6.6, r=0.2, e='e_candle')
     R.light(sphere(x0 + 0.4, y1 - 0.4, LZ + 1.2, 0.08, 8, 4, 'e_amber'))
     R.spot('plaque', 30.6, 14.83, RZ + 1.6, math.pi / 2, text='IN CASE OF FALLING, YOU ARE ALREADY HALFWAY.')
     secret(R, 32.0, 16.5, RZ, 'The Room Under the Bridge',

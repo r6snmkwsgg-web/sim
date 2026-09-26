@@ -45,10 +45,11 @@ NEW_EMIT = {
     'e_moon':   ((0.55, 0.68, 1.00), 3.2),    # moonlight through a window
     'e_digit':  ((0.30, 1.00, 0.55), 6.0),    # the number display: stays lit
     'e_flame':  ((1.00, 0.50, 0.18), 8.0),    # a stove's low fire: stays lit
+    'e_reader': ((1.00, 0.80, 0.52), 24.0),   # the one lamp left on: stays lit
 }
 for _k, _v in NEW_MATS.items(): lib.MATS.setdefault(_k, _v)
 for _k, _v in NEW_EMIT.items(): lib.EMIT.setdefault(_k, _v)
-lib.NIGHT_ON.update({'e_digit', 'e_flame', 'e_moon'})
+lib.NIGHT_ON.update({'e_digit', 'e_flame', 'e_moon', 'e_reader'})
 
 
 def rng(seed):

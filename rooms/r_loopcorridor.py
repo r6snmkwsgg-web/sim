@@ -25,11 +25,11 @@ def make():
     # the portal: the last doorway (its west face) opens onto the first
     portal(R, P((FX[5] - FT, 8.0, 0.0), (1, 0, 0), OW, OH), P((FX[0] - FT, 8.0, 0.0), (1, 0, 0), OW, OH))
     # walkers: round the strips and vestibules, and along the corridor as far as the last door
-    navloop(R, [(2.5, 2.5), (8.0, 2.8), (16.0, 2.8), (24.0, 2.8), (29.0, 2.8), (29.0, 8.0), (29.0, 13.0), (24.0, 13.2),
-                (29.0, 8.0), (29.0, 2.8), (16.0, 2.8), (2.5, 2.8), (2.5, 8.0), (2.5, 13.0), (7.5, 13.2), (2.5, 13.0)], close=False)
+    navloop(R, [(2.5, 2.5), (8.0, 4.8), (16.0, 4.8), (24.0, 4.8), (29.0, 2.8), (29.0, 8.0), (29.0, 13.0), (24.0, 13.2),
+                (29.0, 8.0), (29.0, 2.8), (24.0, 4.8), (8.0, 4.8), (2.5, 2.8), (2.5, 8.0), (2.5, 13.0), (7.5, 13.2), (2.5, 13.0)], close=False)
     c = [R.navpt(x, 8.0) for x in (3.5, 7.8, 11.4, 15.0, 18.6, 22.0)]
     R.link(*c)
-    s0, s1 = R.navpt(18.6, 7.0), R.navpt(18.6, 3.5)
+    s0, s1 = R.navpt(18.6, 7.0), R.navpt(18.6, 4.8)
     R.link(c[4], s0, s1)
     secret(R, 15.0, 13.0, 0.0, 'The Reading Room Outside the Loop',
            'Behind the bookcase that is the same as every other bookcase there is a quiet room, and in it nothing repeats: one chair, one lamp, one book open at a page you have not read. You sit for a while. The corridor goes on without you.', r=2.2)

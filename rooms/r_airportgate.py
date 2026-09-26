@@ -161,6 +161,7 @@ def fog(R):
         R.cut(box(a, FY0, ZF, b, GY + 0.02, -0.3, 'concrete', bottom='slate', top='concrete'))
     # the fog itself: glowing walls at the back and the ends
     R.light(panel_y(FY0 + 0.02, T, W - T, ZF, zt, 'e_fog', face=1))
+    R.light(panel_z(zt - 0.02, T, FY0, W - T, GY - 0.3, 'e_fog', up=False))
     R.light(panel_x(T + 0.02, FY0, GY, ZF, zt, 'e_fog', face=1))
     R.light(panel_x(W - T - 0.02, FY0, GY, ZF, zt, 'e_fog', face=-1))
     # markings on the apron
@@ -204,8 +205,9 @@ def fuselage(x0, x1, r, m, inner=False, segs=24, door=None):
             P = [(xa, PCY + r * math.cos(a0), PCZ + r * math.sin(a0)), (xb, PCY + r * math.cos(a0), PCZ + r * math.sin(a0)),
                  (xb, PCY + r * math.cos(a1), PCZ + r * math.sin(a1)), (xa, PCY + r * math.cos(a1), PCZ + r * math.sin(a1))]
             ids = [g.vert(p) for p in P]
-            if inner: ids = ids[::-1]
-            g.face(ids, m, [(p[0], a0 * r) for p in P] if not inner else [(p[0], a0 * r) for p in P[::-1]])
+            uv = [(p[0], a0 * r) for p in P]
+            if not inner: ids, uv = ids[::-1], uv[::-1]     # the outside faces out, the lining faces in
+            g.face(ids, m, uv)
     return g
 
 
@@ -241,7 +243,7 @@ def plane(R):
             z = PCZ + (PR + 0.01) * math.sin(0.35)
             R.nocol.add(box(x - 0.12, min(y, y + 0.01 * s), z - 0.16, x + 0.12, max(y, y + 0.01 * s), z + 0.16, 'black'))
             yi = PCY + s * (PR - 0.1) * math.cos(0.35)
-            R.light(box(x - 0.1, min(yi, yi - 0.01 * s), z - 0.14, x + 0.1, max(yi, yi - 0.01 * s), z + 0.14, 'e_fog'))
+            R.light(box(x - 0.07, min(yi, yi - 0.01 * s), z - 0.1, x + 0.07, max(yi, yi - 0.01 * s), z + 0.1, 'e_dim'))
     # nose and tail cones, the fin, low wings with their engines
     R.nocol.add(cone_x(PX0 - 0.2, PX0 - 1.2, PR, 0.2, 'fuselage', sharp=2.2))
     R.nocol.add(cone_x(PX1 + 0.2, PX1 + 1.2, PR, 0.5, 'fuselage', sharp=1.0))

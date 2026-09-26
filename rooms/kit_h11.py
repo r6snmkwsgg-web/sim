@@ -12,6 +12,7 @@ from lib import *
 import lib
 from kit_h10 import *            # noqa: the batch-10 kit (and through it kits a, f, h2..h9)
 from kit_h3 import open_book, reading_table
+from kit_f import flight, deck, pier, lamp, bar, dome_cap, dome_z
 from kit_h10 import rng, lchair, ltable, llamp, candles, candlestick, door_panel, false_case, rects_minus, prune, done, count
 
 
