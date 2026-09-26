@@ -166,6 +166,32 @@
 "label":"The Sunken Court",
 "bytes":236521
 },
+"beach":{
+"size":[
+2,
+2,
+1
+],
+"repeat":false,
+"kind":"quad",
+"weight":3,
+"label":"The Beach",
+"bytes":830282,
+"blurb":"The doors at the end of the reading room are open, and there is a beach outside. The sea is grey and very calm, and the bookcases go on out into it."
+},
+"behindroom":{
+"size":[
+2,
+1,
+1
+],
+"repeat":false,
+"kind":"long",
+"weight":6,
+"label":"The Reading Room",
+"bytes":555447,
+"blurb":"A reading room, quite normal: lamps, tables, bookcases round the walls. It is so normal that you find yourself looking at the bookcases, and wondering what is behind them."
+},
 "benches":{
 "size":[
 1,
@@ -269,6 +295,19 @@
 "label":"The Bridges",
 "bytes":842409,
 "blurb":"Four bridges cross a room eight metres deep, and the floor down there is bookcases as far as the walls. The stair looks like it was an afterthought. It probably was."
+},
+"bridgevoid":{
+"size":[
+4,
+2,
+2
+],
+"repeat":false,
+"kind":"giant",
+"weight":2,
+"label":"The Bridge over the Void",
+"bytes":1189106,
+"blurb":"One bridge, one person wide, across a gap in the library that goes down further than the lamps do. Its parapets are bookcases. People stop in the middle to browse, which seems brave."
 },
 "cages":{
 "size":[
@@ -374,6 +413,19 @@
 "bytes":937438,
 "blurb":"A cathedral, and the light through the rose window is the colour of every sermon you ever slept through. The pews face the glass. There is no altar, only a book."
 },
+"catwalks":{
+"size":[
+4,
+4,
+2
+],
+"repeat":false,
+"kind":"giant",
+"weight":2,
+"label":"The Catwalks",
+"bytes":1770924,
+"blurb":"There is no floor. There is a grid of iron walkways, and bookcases hanging from them on rods, and a long way down, the sky."
+},
 "ceilingdoor":{
 "size":[
 1,
@@ -386,6 +438,19 @@
 "label":"The Door in the Ceiling",
 "bytes":233343,
 "blurb":"A stair climbs to a trapdoor that someone has left open. High in the north wall a door stands ajar, and no ladder in the room is long enough."
+},
+"ceilinggarden":{
+"size":[
+2,
+2,
+2
+],
+"repeat":false,
+"kind":"tall",
+"weight":3,
+"label":"The Ceiling Garden",
+"bytes":1276085,
+"blurb":"The garden is on the ceiling. The trees hang down over the reading tables, and the fountain has decided to go up."
 },
 "chairmountain":{
 "size":[
@@ -698,6 +763,19 @@
 "bytes":313116,
 "blurb":"Every table has the same plan pinned to it, a building with no doors, and every one is exactly as unfinished as the last."
 },
+"drain":{
+"size":[
+2,
+2,
+1
+],
+"repeat":false,
+"kind":"quad",
+"weight":3,
+"label":"The Drain",
+"bytes":987155,
+"blurb":"The floor of this room tilts, very gently, toward a hole in the middle. Everything in it has been sliding that way for a long time. You keep one hand on the rail without meaning to."
+},
 "elevators":{
 "size":[
 1,
@@ -736,6 +814,19 @@
 "label":"The Stair Plaza",
 "bytes":682032,
 "blurb":"Stairs go up to bridges that go over stairs that go down to landings under bridges. You are fairly sure you have been on this one before."
+},
+"floatislands":{
+"size":[
+4,
+4,
+2
+],
+"repeat":false,
+"kind":"giant",
+"weight":2,
+"label":"The Floating Islands",
+"bytes":1474568,
+"blurb":"Pieces of a reading room float in the dark here, each with its desk and its lamp, as if the floor had simply come apart. They are roped off like exhibits. People step between them very carefully."
 },
 "flowerindex":{
 "size":[
@@ -931,6 +1022,19 @@
 "bytes":273551,
 "blurb":"The bookcases hang on chains, some high, some low. The chains creak. You would rather not know what they are fixed to."
 },
+"hanginglib":{
+"size":[
+4,
+4,
+2
+],
+"repeat":false,
+"kind":"giant",
+"weight":2,
+"label":"The Hanging Library",
+"bytes":2179641,
+"blurb":"The bookcases here hang from the ceiling on chains, at every height, a long way above the floor. Planks run between them. The cases creak when you step onto them, but only a little."
+},
 "heap":{
 "size":[
 1,
@@ -982,6 +1086,19 @@
 "label":"The Hypostyle",
 "bytes":890932,
 "blurb":"Pillars of books, three metres apart, in every direction you look. Some of the lamps in the ceiling have not been lit for a very long time."
+},
+"insideout":{
+"size":[
+2,
+2,
+1
+],
+"repeat":false,
+"kind":"quad",
+"weight":3,
+"label":"The Room Inside Out",
+"bytes":603190,
+"blurb":"Someone has built a room inside out. You are outside it, with the backs of its bookcases, and the door is only painted on."
 },
 "keyhole":{
 "size":[
@@ -1060,6 +1177,19 @@
 "label":"The Lift Shaft",
 "bytes":237423,
 "blurb":"An iron cage round an empty shaft, and a gate drawn shut. Above it a dial shows which floor the lift is on. The needle has not moved in living memory, and nobody here is living."
+},
+"lighthouse":{
+"size":[
+4,
+4,
+2
+],
+"repeat":false,
+"kind":"giant",
+"weight":2,
+"label":"The Lighthouse",
+"bytes":2524153,
+"blurb":"The floor of this hall is a sea of books, heaped in long dark waves, and out in the middle of it a lighthouse is keeping watch. Nobody knows what for. The lamp turns anyway."
 },
 "longgallery":{
 "size":[
@@ -1151,6 +1281,19 @@
 "label":"The Moss Cathedral",
 "bytes":1239232,
 "blurb":"Nobody has preached here in a long time, and the congregation is moss. It sits very still, in every pew, and listens."
+},
+"motel":{
+"size":[
+2,
+1,
+1
+],
+"repeat":false,
+"kind":"long",
+"weight":3,
+"label":"The Motel",
+"bytes":596007,
+"blurb":"A motel corridor, carpeted, lit, very long. Every door has a number and every room behind them is the same room. There is no desk, no car park, no road."
 },
 "mushroomstacks":{
 "size":[
@@ -1320,6 +1463,19 @@
 "label":"The Pillar Forest",
 "bytes":914199
 },
+"pneumatic":{
+"size":[
+2,
+2,
+1
+],
+"repeat":false,
+"kind":"quad",
+"weight":3,
+"label":"The Pneumatic Exchange",
+"bytes":1065748,
+"blurb":"Brass tubes run everywhere, and every so often something goes through one with a sigh. You never see where anything is sent."
+},
 "poolhall":{
 "size":[
 2,
@@ -1344,6 +1500,19 @@
 "label":"The Portrait Gallery",
 "bytes":204637,
 "blurb":"Hundreds of frames, and nobody in any of them. One is a window, or a painting of the sky good enough to pass for one."
+},
+"presses":{
+"size":[
+2,
+2,
+2
+],
+"repeat":false,
+"kind":"tall",
+"weight":3,
+"label":"The Press Hall",
+"bytes":1136449,
+"blurb":"The presses are running. Nobody is feeding them and nobody is reading what they print, and the paper has been coming out for long enough to fill the aisles."
 },
 "radial":{
 "size":[
@@ -1577,6 +1746,19 @@
 "bytes":633048,
 "blurb":"The corridor narrows as you go. So do the doors, and the bookcases, and the lamps. You tell yourself it is perspective until you have to duck."
 },
+"singlechair":{
+"size":[
+2,
+2,
+1
+],
+"repeat":false,
+"kind":"quad",
+"weight":2,
+"label":"The Chair",
+"bytes":457211,
+"blurb":"There is one chair, and one lamp, and a great deal of dark. The chair is facing away from you. There is a book on it."
+},
 "snowstacks":{
 "size":[
 2,
@@ -1590,6 +1772,19 @@
 "bytes":1348625,
 "blurb":"Snow is falling between the stacks. It drifts against the shelves and does not melt, and at the end of the long aisle a fire is burning for nobody."
 },
+"sortingengine":{
+"size":[
+2,
+2,
+1
+],
+"repeat":false,
+"kind":"quad",
+"weight":3,
+"label":"The Sorting Engine",
+"bytes":975872,
+"blurb":"The books go round on belts, are turned on turntables, are lifted by brass arms and put down again a little further on. Nothing is ever finished being sorted."
+},
 "stacks":{
 "size":[
 2,
@@ -1601,6 +1796,32 @@
 "weight":50,
 "label":"The Sunken Stacks",
 "bytes":579019
+},
+"stadium":{
+"size":[
+4,
+4,
+2
+],
+"repeat":false,
+"kind":"giant",
+"weight":2,
+"label":"The Stadium",
+"bytes":2690600,
+"blurb":"A football ground at night, every floodlight on, every seat empty. There is a book on each seat. You find yourself looking for yours."
+},
+"stairblack":{
+"size":[
+2,
+2,
+2
+],
+"repeat":false,
+"kind":"tall",
+"weight":3,
+"label":"The Black Stair",
+"bytes":564574,
+"blurb":"A grand stair goes down from the lamps into a dark the lamps do not reach. The handrail is warm at the top, and colder with every step."
 },
 "stairforest":{
 "size":[
@@ -1654,6 +1875,19 @@
 "bytes":272056,
 "blurb":"Up one stair, round the gallery, down the other, and you are back where you began. It is very good exercise, if you have forever."
 },
+"starfloor":{
+"size":[
+2,
+2,
+1
+],
+"repeat":false,
+"kind":"quad",
+"weight":3,
+"label":"The Star Floor",
+"bytes":791259,
+"blurb":"The floor is glass, and under the glass is the night sky, a very long way down. The readers do not look at it. You try not to either."
+},
 "steppedhall":{
 "size":[
 2,
@@ -1693,6 +1927,19 @@
 "bytes":171938,
 "blurb":"A fire, a deep chair, a lamp on the desk: everything a study should have, spread across a room the size of a church. The fire has been lit for you."
 },
+"subway":{
+"size":[
+2,
+1,
+1
+],
+"repeat":false,
+"kind":"long",
+"weight":3,
+"label":"The Station",
+"bytes":700802,
+"blurb":"An underground platform, empty, very clean. A train is standing at it with its doors shut. You wait for someone to get off, and nobody does, and then it goes."
+},
 "sunkenstair":{
 "size":[
 1,
@@ -1705,6 +1952,19 @@
 "label":"The Descent",
 "bytes":296592,
 "blurb":"A staircase as wide as the room goes down to a reading floor and comes up again on the other side. Nobody has ever gone down it and come up the same side."
+},
+"symmetry":{
+"size":[
+2,
+1,
+1
+],
+"repeat":false,
+"kind":"long",
+"weight":4,
+"label":"The Symmetrical Hall",
+"bytes":925484,
+"blurb":"Everything here has a twin across the aisle, down to the books. You find yourself walking exactly down the middle, and you are not sure you chose to."
 },
 "tallroom":{
 "size":[
@@ -1783,6 +2043,19 @@
 "label":"The Little Theatre",
 "bytes":214442,
 "blurb":"The house is dark and the footlights are up. There is an armchair on the stage, and a book on the armchair. You have the feeling you are expected to go on."
+},
+"theedge":{
+"size":[
+2,
+2,
+2
+],
+"repeat":false,
+"kind":"tall",
+"weight":2,
+"label":"The Edge",
+"bytes":1056527,
+"blurb":"The library stops here, cleanly, as if someone had cut it with a very sharp knife. Past the rail there is nothing, and the nothing is very bright."
 },
 "thunderatrium":{
 "size":[
@@ -1887,6 +2160,19 @@
 "bytes":478807,
 "blurb":"Two naves, side by side, the same in every particular. Stand in the arcade between them and try to remember which one you came in by."
 },
+"typewriters":{
+"size":[
+2,
+2,
+1
+],
+"repeat":false,
+"kind":"quad",
+"weight":4,
+"label":"The Typing Pool",
+"bytes":1233248,
+"blurb":"Hundreds of typewriters on hundreds of desks, a sheet wound into every one. Each page has a few lines on it, and each stops mid-word."
+},
 "unfinished":{
 "size":[
 2,
@@ -1912,6 +2198,19 @@
 "label":"The Upside-Down Room",
 "bytes":262913,
 "blurb":"Someone has furnished the ceiling. The books stay on their shelves out of politeness. Try not to look up for too long."
+},
+"upsidedown":{
+"size":[
+2,
+2,
+2
+],
+"repeat":false,
+"kind":"tall",
+"weight":3,
+"label":"The Upside-Down Reading Room",
+"bytes":1104579,
+"blurb":"The reading room is on the ceiling, and nothing has fallen off it. You are the only thing in here the wrong way up."
 },
 "vestibule":{
 "size":[
@@ -1952,6 +2251,19 @@
 "bytes":250516,
 "blurb":"Every chair faces the same door. The clock says ten to four. You find you have already sat down."
 },
+"waterceiling":{
+"size":[
+2,
+2,
+1
+],
+"repeat":false,
+"kind":"quad",
+"weight":3,
+"label":"The Lake Overhead",
+"bytes":957325,
+"blurb":"The ceiling is a lake. It hangs there, green and perfectly still, and fish go over. A rope ladder goes up into it, for anyone who wants to."
+},
 "waterfallstair":{
 "size":[
 2,
@@ -1977,6 +2289,19 @@
 "label":"The Well",
 "bytes":158695
 },
+"wellofstairs":{
+"size":[
+1,
+1,
+1
+],
+"repeat":true,
+"kind":"column",
+"weight":4,
+"label":"The Well of Stairs",
+"bytes":655802,
+"blurb":"A stair goes round and round the inside of a well, and every so often it passes a landing with chairs, as if it expected you to need a rest. Far below, the lamps shrink to a single point and do not stop."
+},
 "whaleribs":{
 "size":[
 2,
@@ -1989,6 +2314,19 @@
 "label":"The Whale",
 "bytes":683194,
 "blurb":"You are inside something that was once alive and very large. The ribs hold up the ceiling now, and the shelves between them are full."
+},
+"wheatfield":{
+"size":[
+2,
+2,
+1
+],
+"repeat":false,
+"kind":"quad",
+"weight":3,
+"label":"The Wheat Field",
+"bytes":1392959,
+"blurb":"Between the bookcases, where the floor should be, there is a field of wheat, ripe and gold and shoulder high. It moves as if in a wind. There is no wind."
 },
 "ziggurat":{
 "size":[
