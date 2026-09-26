@@ -199,6 +199,11 @@ def things(R):
     # a night light by the bed that stays on
     R.light(sphere(13.8, 15.4, 0.3, 0.14, 10, 5, 'e_amber'))
     R.nocol.add(cyl(13.8, 15.4, 0, 0.18, 0.12, 10, side='brass', top='brass'))
+    # two great paper lanterns hanging from the ceiling, the kind a child falls asleep under
+    for (x, y) in ((10.0, 20.0), (22.0, 10.0)):
+        R.light(sphere(x, y, 5.2, 0.7, 12, 6, 'e_lamp'))
+        R.nocol.add(cyl(x, y, 5.85, H - 0.4, 0.015, 4, side='iron', caps=False))
+        R.nocol.add(ring(x, y, 5.1, 5.3, 0.66, 0.74, 16, top='ivory', bottom='ivory', inner='ivory', outer='ivory'))
     # standard lamps in the corners, very dim
     for (x, y) in ((2.0, 2.0), (2.0, 21.0), (22.0, 2.0)):
         floor_lamp(R, x, y, 2.2, m='e_dim', scale=1.4)
@@ -270,5 +275,8 @@ def den(R):
     R.spot('read', KX0 + 3.2, KY1 - 1.2, KZ + 0.03, 0.4)
     sh(R, '+x', KX0, KY0 + 0.3, KY1 - 0.2, z=KZ, rows=3, frame='oak', depth=0.26)
     R.light(sphere(KX1 - 0.4, KY0 + 0.4, KZ + 1.4, 0.06, 6, 3, 'e_candle'))
+    lantern(R, KX0 + 1.4, KY1 - 2.4, KZ, m='e_amber', s=1.4)
+    R.light(sphere(KX0 + 4.0, KY1 - 0.6, KZ + 1.2, 0.1, 8, 4, 'e_amber'))
+    bulb(R, (KX0 + KX1) / 2, (KY0 + KY1) / 2, -0.7, r=0.08, m='e_dim', top=-0.3)
     a, b = R.navpt(16.0, KY0 + 0.9, KZ), R.navpt(KX0 + 3.0, KY1 - 2.2, KZ)
     R.link(a, b)
