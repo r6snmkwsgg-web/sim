@@ -684,7 +684,7 @@ def _set_emit(em_objs, mode):
 
 def _bake(R, room, em, po, mode, res, quick):
     sc = bpy.context.scene
-    sc.cycles.samples = (24 if quick else 96) if mode == 'day' else (16 if quick else 48)
+    sc.cycles.samples = (24 if quick else 64) if mode == 'day' else (16 if quick else 32)
     emitters = [o for o in bpy.data.objects if o.data and hasattr(o.data, 'materials') and any(m and m.name.split('.')[0] in EMIT for m in o.data.materials)]
     _set_emit(emitters, mode)
     img = bpy.data.images.new('LM_' + mode, res, res, float_buffer=True, alpha=True)
