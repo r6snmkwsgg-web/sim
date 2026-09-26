@@ -1100,6 +1100,19 @@
 "bytes":302154,
 "blurb":"All the books from all the shelves, in one pile. It is quite stable. There is an armchair on the top, which raises the question of who carried it up."
 },
+"highway":{
+"size":[
+2,
+1,
+1
+],
+"repeat":false,
+"kind":"long",
+"weight":4,
+"label":"The Motorway",
+"bytes":521837,
+"blurb":"A motorway, three hundred yards of it, lit orange, running through the library from a tunnel to a tunnel. There is no traffic. There has never been any traffic. You look both ways anyway."
+},
 "hive":{
 "size":[
 2,
