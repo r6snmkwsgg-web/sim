@@ -254,7 +254,9 @@ function updatePlayer(dt) {
   const jumpKey = keys.Space || keys.TouchJump; keys.TouchJump = false;
   if (swim) {
     const float = wat.top - 1.45, dive = keys.KeyC || keys.ControlLeft || keys.TouchDive;
-    const ty = dive ? Math.max(wat.bot + 0.1, S.y - 1.5) : jumpKey ? float + 0.5 : float;
+    // water hanging in the air (a lake overhead) has no bed: dive and you drop out of its underside
+    const open = dive && groundAt(S.x, wat.bot + 0.3, S.z, 0.05, 0.8) === -Infinity;
+    const ty = dive ? (open ? S.y - 1.5 : Math.max(wat.bot + 0.1, S.y - 1.5)) : jumpKey ? float + 0.5 : float;
     PL.vy += ((ty - S.y) * 3.5 - PL.vy) * Math.min(1, dt * 3.5);
     PL.onGround = false;
   } else {

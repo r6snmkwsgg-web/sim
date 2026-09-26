@@ -47,19 +47,21 @@ place('i11', 2.6, 9.3, 'i10', 180)
 _i7 = ISL['i7']
 place('i8', (_i7[1] - _i7[2] * AP - GAP - (LE + GAP)) / 2 / AP, 8.1, 'i7', 270)
 # the drifter rests against i4's east side and slides north to the lonely island
-MR = 1.8
+MR = 2.4
 _i4 = ISL['i4']
 MX, MY = _i4[0] + _i4[2] * AP + GAP + MR * AP, _i4[1]
 MD = 9.0                                    # how far it drifts (north)
 LONE = [MX - MR * AP - GAP - 3.0 * AP, MY + MD, 3.0, _i4[3]]
-OPEN = {k: set() for k in ISL}
+SIDE = lambda r: 2 * r * math.sin(math.pi / 8)
+OPEN = {k: {} for k in ISL}
 for (a, b, dn) in LINKS:
-    OPEN[a].add(dn % 360); OPEN[b].add((dn + 180) % 360)
-OPEN['i1'].add(180)                         # onto the west gallery
-OPEN['i8'].add(270)                         # onto the south gallery
-OPEN['i4'].add(0)                           # the drifter's berth
-OPEN['lone'] = {0}
-
+    hw = min(SIDE(ISL[a][2]), SIDE(ISL[b][2])) / 2 - 0.3
+    OPEN[a][dn % 360] = hw; OPEN[b][(dn + 180) % 360] = hw
+OPEN['i1'][180] = SIDE(ISL['i1'][2]) / 2 - 0.3            # onto the west gallery
+OPEN['i8'][270] = SIDE(ISL['i8'][2]) / 2 - 0.3            # onto the south gallery
+HWM = min(SIDE(ISL['i4'][2]), SIDE(MR), SIDE(3.0)) / 2 - 0.3
+OPEN['i4'][0] = HWM                                        # the drifter's berth
+OPEN['lone'] = {0: HWM}
 
 def make():
     R = Room('floatislands', 4, 4, levels=2, res=2048)
@@ -82,7 +84,6 @@ def make():
     navloop(R, [(e, 6), (e, 32), (e, D - e), (32, D - e), (W - e, D - e), (W - e, 32), (W - e, e), (32, 6)])
     navloop(R, [(e, e), (32, e), (W - e, e), (W - e, 32), (W - e, D - e), (32, D - e), (e, D - e), (e, 32)], z=UP)
     b = ISL['big']
-    R.link(R.navpt(ISL['i1'][0], ISL['i1'][1], 8.0), R.navpt(ISL['i2'][0], ISL['i2'][1], 8.3))
     return finish(R, 'The Floating Islands', weight=2, probe=(b[0], b[1] - 9.0, 10.5), top=R.hi,
                   blurb='Pieces of a reading room float in the dark here, each with its desk and its lamp, as if the floor had simply come apart. They are roped off like exhibits. People step between them very carefully.')
 
@@ -105,35 +106,41 @@ def rope_rail(H, pts, z, h=0.92, post=1.1):
         H.col.add(obox(a[0], a[1], b[0], b[1], z, z + h + 0.15, 0.08, 'tile'))
 
 
-def island_ropes(H, cx, cy, r, top, opens, inset=0.3):
-    """Ropes round an octagonal island, inset from its edge, leaving the flat sides in `opens` (normal angle
-    in degrees) open, with short stubs out to the edge beside each opening."""
-    ro = r
+def island_ropes(H, cx, cy, r, top, opens, inset=0.3, posts=None):
+    """Ropes round an octagonal island, inset from its edge. opens: {side normal angle (deg): half width}
+    of openings centred on those flat sides; beside each opening a stub runs out to the edge and a stone
+    newel post stands just inside the edge (H.parts or `posts` gets the posts)."""
     ri = (r * AP - inset) / AP
-    Vo = octa_pts(cx, cy, ro); Vi = octa_pts(cx, cy, ri)
-    # side s (normal angle 45*s) runs from vertex s-1 to vertex s
-    sides = [(k * 45) % 360 for k in range(8)]
-    roped = [(s not in opens) for s in sides]
-    if all(roped):
-        rope_rail(H, [Vi[(k - 1) % 8] for k in range(8)] + [Vi[7]], top); return
-    # start just after an open side
-    k0 = next(k for k in range(8) if not roped[k])
-    k = (k0 + 1) % 8
-    for _ in range(8):
-        if roped[k]:
-            run = []
-            j = k
-            while roped[j]:
-                run.append(j); j = (j + 1) % 8
-                if j == k: break
-            a = (run[0] - 1) % 8; b = run[-1] % 8
-            pts = [Vo[a], Vi[a]] + [Vi[s] for s in run] + [Vo[b]]
-            rope_rail(H, pts, top)
-            k = j
-            if k == (k0 + 1) % 8 or len(run) >= 8: break
+    Vi = octa_pts(cx, cy, ri)
+    lines, cur = [], []
+    for k in range(8):
+        ang = (k * 45) % 360
+        p0, p1 = Vi[(k - 1) % 8], Vi[k]
+        if not cur: cur = [p0]
+        if ang in opens:
+            hw = opens[ang]
+            n = (math.cos(math.radians(ang)), math.sin(math.radians(ang)))
+            t = (-n[1], n[0])
+            m = ((p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2)
+            if (p1[0] - p0[0]) * t[0] + (p1[1] - p0[1]) * t[1] < 0: t = (-t[0], -t[1])
+            qa = (m[0] - t[0] * hw, m[1] - t[1] * hw); qb = (m[0] + t[0] * hw, m[1] + t[1] * hw)
+            cur += [qa, (qa[0] + n[0] * inset, qa[1] + n[1] * inset)]
+            lines.append(cur)
+            cur = [(qb[0] + n[0] * inset, qb[1] + n[1] * inset), qb, p1]
+            me = (cx + n[0] * (r * AP - 0.2), cy + n[1] * (r * AP - 0.2))
+            for sg in (-1, 1):
+                px, py = me[0] + t[0] * sg * (hw + 0.2), me[1] + t[1] * sg * (hw + 0.2)
+                g = box(px - 0.2, py - 0.2, top, px + 0.2, py + 0.2, top + 1.0, 'tile', skip=('-z',))
+                g.add(box(px - 0.24, py - 0.24, top + 1.0, px + 0.24, py + 0.24, top + 1.08, 'brass'))
+                (posts if posts is not None else H.parts).add(g)
         else:
-            k = (k + 1) % 8
-            if k == (k0 + 1) % 8: break
+            cur.append(p1)
+    if lines:
+        lines[0] = cur + lines[0][1:] if cur and len(cur) > 1 else lines[0]
+    else:
+        lines = [cur + [cur[0]]]
+    for L in lines:
+        rope_rail(H, L, top)
 
 
 def island(R, H, cx, cy, r, top, opens, rnd, hole=False, parts=None, nocol=None):
@@ -182,8 +189,8 @@ def gallery(R):
                              (T - 0.02, D - LE, W - T + 0.02, D - T + 0.02), (T - 0.02, LE, LE, D - LE), (W - LE, LE, W - T + 0.02, D - LE)):
         R.parts.add(box(x0, y0, UP - th, x1, y1, UP, 'tile', top='floor', bottom='plaster'))
     i1, i8 = ISL['i1'], ISL['i8']
-    wo = i1[2] * math.sin(math.pi / 8)          # half a flat side
-    so = i8[2] * math.sin(math.pi / 8)
+    wo = OPEN['i1'][180]
+    so = OPEN['i8'][270]
     r_ = -0.1
     def edge(a, b, fixed, along_x, gaps):
         p = a
@@ -298,7 +305,7 @@ def drifter(R, rnd):
     V = octa_pts(MX, MY, MR)
     M.parts.add(poly_prism(V, top - 0.3, top, side='walnut', top='floor', bottom='plaster'))
     M.nocol.add(cone(MX, MY, top - 0.3 - 2.4, top - 0.3, MR * 0.3, MR * 0.92, 8, m='tile', a0=math.pi / 8))
-    island_ropes(H, MX, MY, MR, top, {180})
+    island_ropes(H, MX, MY, MR, top, {180: HWM}, posts=M.parts)
     M.parts.add(chair(MX + 0.5, MY, math.pi).xform(0, 0, 0, top))
     g = table(MX - 0.1, MY - 0.9, MX + 0.5, MY - 0.4, 0.7, 'walnut', top='leather'); g.xform(0, 0, 0, top)
     M.parts.add(g)
