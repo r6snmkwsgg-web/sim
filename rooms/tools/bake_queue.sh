@@ -7,7 +7,9 @@ LOG=out/bake_queue.log
 for r in "$@"; do
   for try in 1 2; do
     echo "=== $r try $try $(date +%H:%M:%S)" >> $LOG
+    touch out/.bakestart
     nice -n 15 python3 build.py "$r" > out/$r.bakelog 2>&1
+    [ out/$r.json -nt out/.bakestart ] || { echo "FAILED $r (no fresh output): $(tail -2 out/$r.bakelog | tr '\n' ' ')" >> $LOG; continue; }
     ok=$(python3 -c "
 import json,sys
 try:

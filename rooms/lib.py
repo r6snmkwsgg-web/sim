@@ -727,9 +727,13 @@ def _denoise(rgb):
         with open(p, 'rb') as f:
             f.readline(); w, h = map(int, f.readline().split()); f.readline()
             return np.frombuffer(f.read(), dtype='<f4').reshape(h, w, 3).copy()
-    wpfm(d + '/i.pfm', rgb)
-    subprocess.run([OIDN, '-f', 'RTLightmap', '--hdr', d + '/i.pfm', '-o', d + '/o.pfm', '-q', 'high', '-v', '0'], check=True, stdout=subprocess.DEVNULL)
-    return rpfm(d + '/o.pfm')
+    import shutil
+    try:
+        wpfm(d + '/i.pfm', rgb)
+        subprocess.run([OIDN, '-f', 'RTLightmap', '--hdr', d + '/i.pfm', '-o', d + '/o.pfm', '-q', 'high', '-v', '0'], check=True, stdout=subprocess.DEVNULL)
+        return rpfm(d + '/o.pfm')
+    finally:
+        shutil.rmtree(d, ignore_errors=True)   # 50 MB a map: never leave them behind
 
 
 def encode_lightmap(a, path):

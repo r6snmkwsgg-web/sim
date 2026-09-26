@@ -283,6 +283,19 @@
 "bytes":270615,
 "blurb":"The books here are kept behind bars, for their protection or for yours. Nobody has the keys. The stair in the middle goes all the way up to a hatch that is only painted on."
 },
+"candlehall":{
+"size":[
+2,
+2,
+1
+],
+"repeat":false,
+"kind":"quad",
+"weight":3,
+"label":"The Hall of Candles",
+"bytes":1493649,
+"blurb":"Candles on every shelf, every table, every ledge, all lit, and none of them ever burns down. The wax has had a long time to pile up."
+},
 "canyon":{
 "size":[
 1,
@@ -944,6 +957,19 @@
 "bytes":1102734,
 "blurb":"Every cell has a reader's chair in it, or a shelf, or both. The wax is warm. Something, somewhere in the comb, is humming."
 },
+"hourglass":{
+"size":[
+2,
+2,
+2
+],
+"repeat":false,
+"kind":"tall",
+"weight":3,
+"label":"The Hourglass",
+"bytes":2054783,
+"blurb":"An hourglass the size of a chapel, and running. It is not sand in it. The books pour through the neck one at a time and the heap below never grows."
+},
 "hypostyle":{
 "size":[
 2,
@@ -1473,6 +1499,19 @@
 "bytes":1232466,
 "blurb":"Stacks, and aisles, and stacks, under a ceiling low enough to be personal. Somewhere out there a lamp is buzzing, which is odd, because none of them are electric."
 },
+"seasons":{
+"size":[
+2,
+1,
+1
+],
+"repeat":false,
+"kind":"long",
+"weight":4,
+"label":"The Gallery of Seasons",
+"bytes":1381832,
+"blurb":"Four arches off a long corridor, and through each one the library is having a different time of year. The corridor itself has no weather at all."
+},
 "secret_crawl":{
 "size":[
 1,
@@ -1847,6 +1886,19 @@
 "label":"The Twin Naves",
 "bytes":478807,
 "blurb":"Two naves, side by side, the same in every particular. Stand in the arcade between them and try to remember which one you came in by."
+},
+"unfinished":{
+"size":[
+2,
+2,
+1
+],
+"repeat":false,
+"kind":"quad",
+"weight":3,
+"label":"The Unfinished Room",
+"bytes":832502,
+"blurb":"The masons have gone for lunch and not come back. The shelves are up, the books are not, and the dust is still settling from the last stone laid."
 },
 "upside":{
 "size":[
