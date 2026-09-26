@@ -10,7 +10,7 @@
    through portals recurse.
    ========================================================================== */
 const PORTAL = { doors: [], slots: [], vcam: new THREE.PerspectiveCamera(), prev: null, prevCell: '' };
-const PORTAL_MAX = 2;
+const PORTAL_MAX = 3;
 
 const pv3 = p => new THREE.Vector3(p[0], p[2], p[1]);
 function portalFrame(c, n, up) {
@@ -130,11 +130,13 @@ function portalRender() {
 
 /* after the player moves: walked through a door? */
 function portalCross() {
-  const cell = S.cx + ':' + S.cz + ':' + S.floor;
+  // remember where you were in absolute terms, so a step that also crosses into the next cell or floor still counts
   const now = new THREE.Vector3(S.x, S.y + 1.0, S.z);
-  const prev = PORTAL.prev && PORTAL.prevCell === cell ? PORTAL.prev : null;
-  PORTAL.prev = now; PORTAL.prevCell = cell;
-  if (!prev || !PORTAL.doors.length) return false;
+  const abs = [S.cx * RC + S.x, S.floor * RLH + S.y + 1.0, S.cz * RC + S.z];
+  const pa = PORTAL.prevAbs;
+  const prev = pa ? new THREE.Vector3(pa[0] - S.cx * RC, pa[1] - S.floor * RLH, pa[2] - S.cz * RC) : null;
+  PORTAL.prevAbs = abs;
+  if (!prev || prev.distanceTo(now) > 3 || !PORTAL.doors.length) return false;
   for (const D of PORTAL.doors) {
     if (D.mirror) continue;
     doorWorld(D, _pc, _pn, _pT);
@@ -150,7 +152,7 @@ function portalCross() {
     S.x = p.x; S.y = p.y; S.z = p.z; S.yaw = Math.atan2(-f.x, -f.z); PL.vx = v.x; PL.vz = v.z;
     if (PL.camY !== null) PL.camY += dy;
     PL.peak += dy;
-    PORTAL.prev = null;
+    PORTAL.prevAbs = null;
     wrapPlayer(false); updateWorld(S.x, S.y, S.z, false); refreshBooks(true);
     return true;
   }
