@@ -25,6 +25,19 @@
 "bytes":701672,
 "blurb":"Terraces of seats go down to a stage and a lectern with a book left open on it. The acoustics are perfect. You could hear a page turn."
 },
+"antgalleries":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":4,
+"label":"The Ant Galleries",
+"bytes":556577,
+"blurb":"The north wall is full of libraries, hundreds of them, each the size of a shoebox and each with its lamp lit. Nobody could read in any of them. Somebody keeps them dusted."
+},
 "apse":{
 "size":[
 1,
@@ -153,6 +166,19 @@
 "bytes":216140,
 "blurb":"Everyone here is facing the same blank wall and the one green sign on it. You sit down to wait, like everyone else."
 },
+"biggerinside":{
+"size":[
+4,
+4,
+2
+],
+"repeat":false,
+"kind":"giant",
+"weight":3,
+"label":"Bigger on the Inside",
+"bytes":1086856,
+"blurb":"A small plain room with a plain door. You open it, and the library opens with it, further than the building could possibly go."
+},
 "bookbridge":{
 "size":[
 1,
@@ -244,6 +270,19 @@
 "bytes":318683,
 "blurb":"The shelves go up and up. The sky is a crack far overhead. The way back is the way you came, if you can remember which way that was."
 },
+"cardcatalogue":{
+"size":[
+4,
+2,
+2
+],
+"repeat":false,
+"kind":"giant",
+"weight":3,
+"label":"The Card Catalogue",
+"bytes":1063560,
+"blurb":"Somewhere in these drawers is a card for every book in the library, including yours. The drawers are the size of cars. One of them has been left open."
+},
 "carrels":{
 "size":[
 2,
@@ -308,6 +347,19 @@
 "label":"The Door in the Ceiling",
 "bytes":233343,
 "blurb":"A stair climbs to a trapdoor that someone has left open. High in the north wall a door stands ajar, and no ladder in the room is long enough."
+},
+"chairmountain":{
+"size":[
+4,
+4,
+2
+],
+"repeat":false,
+"kind":"giant",
+"weight":2,
+"label":"The Chair Mountain",
+"bytes":2582265,
+"blurb":"Every chair anyone ever got up from and did not come back to. Somebody has laid a carpet to the top, and somebody else has left the lamps on."
 },
 "chandelier":{
 "size":[
@@ -503,6 +555,19 @@
 "bytes":279532,
 "blurb":"The floor steps down, shelf by shelf, to a square hole. Through it you can see the same steps going down to the same hole, and the underside of this one hanging over them."
 },
+"dollhouse":{
+"size":[
+2,
+1,
+1
+],
+"repeat":false,
+"kind":"long",
+"weight":4,
+"label":"The Dollhouse",
+"bytes":1007692,
+"blurb":"Along the north wall somebody has built the library again, at a tenth of the size, and left all its lamps on. Its front door is just big enough, if you kneel."
+},
 "dormitory":{
 "size":[
 1,
@@ -580,6 +645,19 @@
 "label":"The Busts",
 "bytes":319899,
 "blurb":"A gallery of stone heads on pedestals, and every one has turned to face the wall. You do not see any of them move. You check."
+},
+"giantdesk":{
+"size":[
+4,
+4,
+2
+],
+"repeat":false,
+"kind":"giant",
+"weight":2,
+"label":"The Desk",
+"bytes":1237692,
+"blurb":"Somebody is writing a letter on a desk the size of a parish. The pen has been put down mid-sentence. You would not like to meet the hand."
 },
 "glasscase":{
 "size":[
@@ -709,6 +787,19 @@
 "label":"The Hypostyle",
 "bytes":890932,
 "blurb":"Pillars of books, three metres apart, in every direction you look. Some of the lamps in the ceiling have not been lit for a very long time."
+},
+"keyhole":{
+"size":[
+2,
+2,
+2
+],
+"repeat":false,
+"kind":"tall",
+"weight":3,
+"label":"The Keyhole",
+"bytes":828975,
+"blurb":"The north wall of the upper hall is a lock, and the lock is open. Through the keyhole the library goes down, and down."
 },
 "ladderhall":{
 "size":[
@@ -879,6 +970,19 @@
 "bytes":325779,
 "blurb":"Eight walls, eight niches, eight ways the light falls. You count the doors twice and get a different answer each time."
 },
+"onebook":{
+"size":[
+2,
+2,
+2
+],
+"repeat":false,
+"kind":"tall",
+"weight":3,
+"label":"One Book",
+"bytes":1182970,
+"blurb":"There is one book in this hall, lying open. You could walk across it. People do; there are footprints in the margins."
+},
 "orangery":{
 "size":[
 2,
@@ -930,6 +1034,19 @@
 "label":"The Panopticon",
 "bytes":804548,
 "blurb":"Every aisle runs straight to the tower in the middle. The windows in the tower are dark, which is not the same as empty."
+},
+"pencilforest":{
+"size":[
+4,
+4,
+2
+],
+"repeat":false,
+"kind":"giant",
+"weight":2,
+"label":"The Pencil Wood",
+"bytes":1694469,
+"blurb":"A wood of pencils, all sharpened, standing in their own shavings. It smells of cedar and of school. Nobody has written anything with them yet."
 },
 "pillarabyss":{
 "size":[
@@ -1161,6 +1278,19 @@
 "bytes":307998,
 "blurb":"One book, on its own, behind a rope, with more candles than anyone could light. Whoever keeps them lit is very quiet about it."
 },
+"shrinkcorridor":{
+"size":[
+2,
+1,
+1
+],
+"repeat":false,
+"kind":"long",
+"weight":4,
+"label":"The Shrinking Corridor",
+"bytes":633048,
+"blurb":"The corridor narrows as you go. So do the doors, and the bookcases, and the lamps. You tell yourself it is perspective until you have to duck."
+},
 "stacks":{
 "size":[
 2,
@@ -1354,6 +1484,19 @@
 "label":"The Tiers",
 "bytes":795958,
 "blurb":"Balconies above balconies, all of them lined with books, all of them empty. From the top one you can see everything except who is on the one below."
+},
+"titanlamp":{
+"size":[
+4,
+4,
+2
+],
+"repeat":false,
+"kind":"giant",
+"weight":2,
+"label":"The Reading Lamp",
+"bytes":1285070,
+"blurb":"Someone left the lamp on. It is the only light for a long way, and it falls on a single page the size of a field. You cannot read it from down here."
 },
 "tower":{
 "size":[
