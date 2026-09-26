@@ -29,7 +29,7 @@ def make():
     navloop(R, [(3.0, 3.0), (16.0, 3.0), (29.0, 3.0), (29.0, 16.0), (29.0, 29.0), (16.0, 29.0), (3.0, 29.0), (3.0, 16.0)])
     navloop(R, [(3.5, 3.5), (16.0, 4.2), (28.5, 3.5), (28.0, 16.0), (28.5, 28.5), (16.0, 28.0), (3.5, 28.5), (4.2, 16.0)], z=UZ)
     navloop(R, [(14.0, 14.0), (18.0, 14.0), (18.0, 18.0), (14.0, 18.0)])
-    s = [R.navpt(10.9, 10.9), R.navpt(13.5, 10.9), R.navpt(18.8, 10.9, 2.0), R.navpt(21.1, 13.2, 2.0), R.navpt(21.1, 18.8, 4.0),
+    s = [R.navpt(13.6, 14.0), R.navpt(13.5, 10.9), R.navpt(18.8, 10.9, 2.0), R.navpt(21.1, 13.2, 2.0), R.navpt(21.1, 18.8, 4.0),
          R.navpt(18.8, 21.1, 4.0), R.navpt(13.2, 21.1, 6.0), R.navpt(10.9, 18.8, 6.0), R.navpt(10.9, 13.2, UZ), R.navpt(10.9, 10.9, UZ), R.navpt(6.0, 10.9, UZ)]
     R.link(*s)
     secret(R, (KX0 + KX1) / 2, (KY0 + KY1) / 2 + 0.6, 4.0, 'The Room on the Second Lap',
@@ -51,10 +51,10 @@ def halls(R):
     R.parts.add(box(V0 - 0.3, V0 - 0.3, TOP - 0.5, V1 + 0.3, V0, UZ, 'tile', skip=('+z',)))
     rect_rails(R, V0, V0, V1, V1, UZ, opens={'S': [(O0, C0)], 'W': [(O0, C0)]}, inset=-0.08)
     # skylight: a grid of glowing panes over the atrium
-    for i in range(4):
-        for j in range(4):
+    for i in (1, 2):
+        for j in (1, 2):
             x0, y0 = V0 + 0.4 + i * 3.8, V0 + 0.4 + j * 3.8
-            R.light(box(x0, y0, 2 * LH - 0.62, x0 + 3.4, y0 + 3.4, 2 * LH - 0.6, 'e_sky'))
+            R.light(box(x0 + 0.6, y0 + 0.6, 2 * LH - 0.62, x0 + 2.8, y0 + 2.8, 2 * LH - 0.6, 'e_sky'))
     for t in [V0 + 0.2 + k * 3.8 for k in range(5)]:
         R.nocol.add(box(t - 0.1, V0, 2 * LH - 0.85, t + 0.1, V1, 2 * LH - 0.6, 'iron', skip=('+z',)))
         R.nocol.add(box(V0, t - 0.1, 2 * LH - 0.85, V1, t + 0.1, 2 * LH - 0.6, 'iron', skip=('+z',)))
@@ -111,12 +111,19 @@ def gates(R):
     for z in (0.0, UZ):
         R.parts.add(local(architrave(2.2, GH, 'tile', bw=0.3, depth=0.16), math.pi, C0, 10.9, z))
         R.parts.add(local(box(-0.4, 0, GH + 0.55, 0.4, 0.3, GH + 1.0, 'gilt'), math.pi, C0, 10.9, z))
+    R.parts.add(local(architrave(2.2, GH, 'tile', bw=0.3, depth=0.16), 0.0, C0, 10.9, 0.0))
+    R.parts.add(local(architrave(2.2, GH, 'tile', bw=0.3, depth=0.16), 0.0, C0 + 1.3, 10.9, UZ))
     # behind the upper gate: the recess the portal needs, closed in so nothing falls out
     R.parts.add(deck_geo(C0, O0, C0 + 1.1, C0, UZ))
     R.parts.add(box(C0, O0 - 0.3, UZ - 0.3, C0 + 1.2, O0, UZ + GH + 0.4, 'tile'))
     R.parts.add(box(C0, C0, UZ - 0.3, C0 + 1.2, C0 + 0.3, UZ + GH + 0.4, 'tile'))
     R.parts.add(box(C0 + 1.1, O0, UZ - 0.3, C0 + 1.3, C0, UZ + GH + 0.4, 'tile'))
     R.parts.add(box(C0, O0, UZ + GH, C0 + 1.2, C0, UZ + GH + 0.4, 'tile'))
+    # and behind the lower gate too (a portal must never be seen from behind): its twin recess, closed
+    R.parts.add(box(C0 - 1.2, O0 - 0.3, 0.0, C0, O0, GH + 0.4, 'tile'))
+    R.parts.add(box(C0 - 1.2, C0, 0.0, C0, C0 + 0.3, GH + 0.4, 'tile'))
+    R.parts.add(box(C0 - 1.3, O0 - 0.3, 0.0, C0 - 1.1, C0 + 0.3, GH + 0.4, 'tile'))
+    R.parts.add(box(C0 - 1.2, O0, GH, C0, C0, GH + 0.4, 'tile'))
     # a lamp over each gate
     for z in (0.0, UZ):
         lantern(R, C0 - 0.35, 10.9, z + GH + 1.1)
@@ -151,7 +158,7 @@ def spur_room(R):
     llamp(R, 18.5, 28.25, 4.76, m='e_amber')
     open_book(R, 19.2, 27.95, 4.76, ang=0.0)
     R.parts.add(lchair(19.0, 27.1, math.pi / 2).xform(0, 0, 0, 4.0))
-    bulb(R, 19.4, 26.6, 6.6, r=0.1, m='e_dim', top=TOP)
+    pendant(R, 19.4, 27.2, 6.4, TOP, r=0.24)
     sh(R, '+x', KX0 + 0.3, KY0 + 0.4, KY1 - 0.4, z=4.0, rows=7, frame='walnut')
     sh(R, '-x', KX1 - 0.3, KY0 + 0.4, KY1 - 0.4, z=4.0, rows=7, frame='walnut')
     R.spot('plaque', 19.4, KY1 - 0.7, 5.4, -math.pi / 2, text='Lap 1: 8 m. Lap 2: 16 m. Lap 3: 24 m.')

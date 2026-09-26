@@ -35,7 +35,8 @@ def make():
     for (x, y0, y1) in ((8.0, 6.0, 1.2), (24.0, 6.0, 1.2), (8.0, 11.5, 14.8), (24.0, 11.5, 14.8)):
         i0, i1 = R.navpt(x, y0), R.navpt(x, y1)
         R.link(i0, i1)
-    R.link(a[0], R.navpt(2.5, 8.0)); R.link(a[3], R.navpt(29.5, 8.0))
+    v0, v1 = R.navpt(2.2, 8.0), R.navpt(2.2, 1.5)
+    R.link(v0, v1, R.navpt(8.0, 1.5)); R.link(R.navpt(29.8, 8.0), R.navpt(29.8, 1.5), R.navpt(24.0, 1.5))
     secret(R, 16.0, 14.8, 0.0, 'The Level Nook',
            'Behind the place where the shelves overhead stand on their edge, a gap, and behind the gap a nook where everything is level: the floor, the shelf, the lamp, the book on the table, lying perfectly flat. You had not noticed how tilted you felt until now.', r=1.6)
     fx(R, 'dust', [XB, HY0, 0.5, XA, HY1, HZ - 0.3])
@@ -44,10 +45,13 @@ def make():
 
 
 def hall(R):
-    R.cut(box(XB - 0.02, HY0, 0, XA + FT + 0.02, HY1, HZ, 'tile', bottom='floor', top='plaster'))
-    # vestibules at each end, and the ways through to the doors in the long walls
-    R.cut(box(T - 0.01, T - 0.01, 0, XB + 0.01, D - T + 0.01, 5.2, 'tile', bottom='floor', top='plaster'))
-    R.cut(box(XA + FT - 0.01, T - 0.01, 0, W - T + 0.01, D - T + 0.01, 5.2, 'tile', bottom='floor', top='plaster'))
+    # the hall runs a little past both end frames: closed recesses (a portal must never be seen from behind)
+    R.cut(box(XB - 0.9, HY0, 0, XA + FT + 0.9, HY1, HZ, 'tile', bottom='floor', top='plaster'))
+    # vestibules at each end, reached along passages from the doorways in the long walls
+    R.cut(box(T - 0.01, T - 0.01, 0, XB - 1.1, D - T + 0.01, 5.2, 'tile', bottom='floor', top='plaster'))
+    R.cut(box(XA + FT + 1.1, T - 0.01, 0, W - T + 0.01, D - T + 0.01, 5.2, 'tile', bottom='floor', top='plaster'))
+    R.cut(box(T, 0.7, 0, 8.0, 2.3, 3.0, 'tile', bottom='floor', top='plaster'))
+    R.cut(box(24.0, 0.7, 0, W - T, 2.3, 3.0, 'tile', bottom='floor', top='plaster'))
     for x in (8.0, 24.0):
         R.cut(prism(arch_profile(x, DW, 0, DJ), 'y', T, HY0 + 0.05, arch_mats(len(arch_profile(x, DW, 0, DJ)), 'floor', 'tile')))
         R.cut(prism(arch_profile(x, DW, 0, DJ), 'y', HY1 - 0.05, D - T, arch_mats(len(arch_profile(x, DW, 0, DJ)), 'floor', 'tile')))
@@ -145,7 +149,7 @@ def ribs(R):
     zlo, zhi = 3.75, HZ - 0.02
     hs = 3.4
     g = Geo()
-    for x in [b for b in BAYS[1:-1]] + [b + 2.75 for b in BAYS[:-1]]:
+    for x in BAYS[1:-1]:
         t = theta(x) + math.pi / 4
         corners = []
         for (a, b) in ((-1, -1), (1, -1), (1, 1), (-1, 1)):
@@ -195,7 +199,7 @@ def walls(R):
             llamp(R, c + dx, 8.0, 0.76, a=math.pi / 2 * 0)
             R.nocol.add(lchair(c + dx, 6.75, math.pi / 2)); R.nocol.add(lchair(c + dx, 9.25, -math.pi / 2))
     # vestibules: books round them, lanterns
-    for (x0, x1) in ((T, XB), (XA + FT, W - T)):
+    for (x0, x1) in ((T, XB - 1.1), (XA + FT + 1.1, W - T)):
         sh(R, '+y', T, x0 + 0.4, x1 - 0.4, rows=11, frame='walnut') if x1 - x0 > 2 else None
         sh(R, '-y', D - T, x0 + 0.4, x1 - 0.4, rows=11, frame='walnut') if x1 - x0 > 2 else None
         lantern(R, (x0 + x1) / 2, 1.0, 0.0)

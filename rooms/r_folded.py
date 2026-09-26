@@ -14,9 +14,10 @@ EX0, EX1 = W - T - BW, W - T   # east leg (x)
 CH = 4.8                       # ceiling
 OW, OH = 2.4, 3.0              # the folds' openings
 FT = 0.25                      # half a fold's thickness
-F1X, F1Y = 12.0, 11.0          # fold 1: in the south leg at x 12 -> out of the west leg at y 11, heading south
-F2X, F2Y = 20.0, 5.0           # fold 2: in the north leg at x 20 (heading west) -> out of the east leg at y 5, heading north
-SR = (12.6, 5.0, 18.8, 10.9)   # the flat room, in the block the ring goes round
+F1X, F1Y = 12.0, 10.4          # fold 1: in the south leg at x 12 -> out of the west leg at y 10.4, heading south
+F2X, F2Y = 20.0, 5.6           # fold 2: in the north leg at x 20 (heading west) -> out of the east leg at y 5.6, heading north
+SR = (12.6, 5.0, 18.8, 7.8)    # the flat room, in the block the ring goes round
+PX1, PX2, PY = (6.0, 7.2), (25.0, 26.2), (9.0, 10.2)   # plain passages through the block
 
 
 def make():
@@ -31,9 +32,13 @@ def make():
     bc, ec = (B0 + B1) / 2, (EX0 + EX1) / 2
     portal(R, P((F1X - FT, ac, 0.0), (1, 0, 0), OW, OH), P((wc, F1Y + FT, 0.0), (0, -1, 0), OW, OH))
     portal(R, P((F2X + FT, bc, 0.0), (-1, 0, 0), OW, OH), P((ec, F2Y - FT, 0.0), (0, 1, 0), OW, OH))
-    # walkers: round the ring
-    navloop(R, [(wc, ac), (8.0, ac), (16.0, ac), (24.0, ac), (ec, ac), (ec, 8.0), (ec, bc), (24.0, bc), (16.0, bc), (8.0, bc), (wc, bc), (wc, 8.0)])
-    secret(R, 16.0, 8.0, 0.0, 'The Flat Room',
+    # walkers: round each piece of the ring, and through the passages between them
+    n = {k: R.navpt(*p) for k, p in {1: (3.3, 3.2), 2: (6.6, ac), 3: (10.5, ac), 4: (wc, 8.0), 6: (6.6, 6.0), 7: (6.6, 9.6), 8: (6.6, bc),
+                                    9: (16.0, 9.6), 10: (25.6, 9.6), 11: (25.6, ac), 12: (25.6, bc), 13: (15.0, ac), 14: (22.0, ac),
+                                    15: (28.6, 3.2), 16: (ec, 8.0), 17: (ec, 11.0), 18: (28.7, 12.8), 19: (22.0, bc), 20: (12.0, bc), 21: (3.3, 12.8)}.items()}
+    for chain in ((4, 1, 2, 3), (2, 6, 7, 8), (7, 9, 10), (11, 10, 12), (13, 14, 11, 15, 16, 17, 18, 12, 19), (21, 8, 20)):
+        R.link(*[n[k] for k in chain])
+    secret(R, 16.0, 6.4, 0.0, 'The Flat Room',
            'In the crease of the fold, facing the way nobody walks, a narrow door, and behind it the only room here with four square walls and a level ceiling. On the table somebody has been trying to flatten a sheet of paper under books. It will not lie flat.', r=2.2)
     return done(R, 'The Folded Corridor', weight=3, probe=(16.0, (A0 + A1) / 2, 2.2), top=CH,
                 blurb='A corridor folded like paper: creases in the ceiling, walls leaning in, doors set on their sides. You turn right at a fold, and then left at a corner, and you are back where you started. You have not turned round. You check.')
@@ -42,6 +47,15 @@ def make():
 def ring(R):
     for (x0, y0, x1, y1) in ((T, A0, W - T, A1), (T, B0, W - T, B1), (WX0, T, WX1, D - T), (EX0, T, EX1, D - T)):
         R.cut(box(x0 - 0.01, y0 - 0.01, 0, x1 + 0.01, y1 + 0.01, CH, 'ivory', bottom='floor', top='plaster'))
+    # behind each end of each fold the corridor is closed off (a portal must never be seen from behind)
+    for (x0, y0, x1, y1) in ((F1X + FT + 0.7, A0, F1X + FT + 0.95, A1), (WX0, F1Y + FT + 1.15, WX1, F1Y + FT + 1.4),
+                             (F2X - FT - 0.95, B0, F2X - FT - 0.7, B1), (EX0, F2Y - FT - 1.35, EX1, F2Y - FT - 1.1)):
+        R.parts.add(box(x0, y0 - 0.02, 0, x1, y1 + 0.02, CH, 'ivory', skip=('+z',)))
+    # plain passages through the block the ring goes round, so every piece of it can be walked to
+    for (x0, y0, x1, y1) in ((PX1[0], A1 - 0.02, PX1[1], B0 + 0.02), (PX2[0], A1 - 0.02, PX2[1], B0 + 0.02), (PX1[0], PY[0], PX2[1], PY[1])):
+        R.cut(box(x0, y0, 0, x1, y1, 2.6, 'plaster', bottom='floor', top='plaster'))
+    for (x, y) in ((6.6, 6.0), (11.0, 9.6), (16.0, 9.6), (21.0, 9.6), (25.6, 6.0), (6.6, 11.0), (25.6, 11.0)):
+        bulb(R, x, y, 2.2, r=0.08, m='e_lamp', top=2.6)
 
 
 def fold_frame(R, cx, cy, ang):
@@ -156,23 +170,23 @@ def flat_room(R):
     x0, y0, x1, y1 = SR
     R.cut(box(x0, y0, 0, x1, y1, 3.2, 'plaster', bottom='floor', top='plaster'))
     # the door: in the south leg's north wall just east of fold 1, and a passage north to the room
-    dx0, dx1 = F1X + FT + 0.55, F1X + FT + 1.35
+    dx0, dx1 = F1X + FT + 1.15, F1X + FT + 1.95
     R.cut(box(dx0, A1 - 0.02, 0, dx1, y0 + 0.02, 2.2, 'plaster', bottom='floor', top='plaster'))
     R.cut(box(dx0, y0 - 0.02, 0, x0 + 0.02, y0 + 1.0, 2.2, 'plaster', bottom='floor', top='plaster')) if dx1 < x0 else None
     R.parts.add(box(dx0 - 0.08, A1 - 0.1, 0, dx0, A1, 2.3, 'oak'))
     R.parts.add(box(dx1, A1 - 0.1, 0, dx1 + 0.08, A1, 2.3, 'oak'))
     R.parts.add(box(dx0 - 0.08, A1 - 0.1, 2.2, dx1 + 0.08, A1, 2.3, 'oak'))
     # inside: square, level, quiet
-    rug(R, x0 + 1.0, y0 + 1.2, x1 - 1.0, y1 - 1.2, m='green')
-    R.parts.add(ltable(15.0, 7.4, 17.4, 8.6, top='leather'))
-    llamp(R, 15.3, 8.35, 0.76)
-    for (bx, by) in ((16.0, 7.9), (16.7, 8.1)):
+    rug(R, x0 + 1.0, y0 + 0.4, x1 - 1.0, y1 - 0.5, m='green')
+    R.parts.add(ltable(15.2, 6.2, 17.4, 7.0, top='leather'))
+    llamp(R, 15.5, 6.8, 0.76)
+    for (bx, by) in ((16.1, 6.6), (16.8, 6.7)):
         book_pile(R, bx, by, 0.76, 3, rng(int(bx * 10)))
-    R.nocol.add(panel_z(0.772, 15.7, 7.6, 16.9, 8.5, 'ivory'))
-    R.parts.add(lchair(16.2, 6.8, math.pi / 2)); R.spot('sit', 16.2, 6.8, 0.48, math.pi / 2)
+    R.nocol.add(panel_z(0.772, 15.8, 6.3, 17.0, 6.9, 'ivory'))
+    R.parts.add(lchair(16.3, 5.65, math.pi / 2)); R.spot('sit', 16.3, 5.65, 0.48, math.pi / 2)
     for (face, bk, a, b) in (('-y', y1, x0 + 0.2, x1 - 0.2), ('+x', x0, y0 + 1.2, y1 - 0.2), ('-x', x1, y0 + 0.2, y1 - 0.2)):
         sh(R, face, bk, a, b, rows=6, frame='walnut')
-    bulb(R, 16.2, 8.0, 2.4, r=0.1, m='e_lamp', top=3.2)
+    bulb(R, 16.2, 6.4, 2.4, r=0.1, m='e_lamp', top=3.2)
     R.spot('plaque', 16.0, y1 - 0.45, 1.4, -math.pi / 2, text='Everything here is square. Everything here is level. It took some doing.')
 
 
@@ -180,14 +194,14 @@ def dressing(R):
     ac, wc, bc, ec = (A0 + A1) / 2, (WX0 + WX1) / 2, (B0 + B1) / 2, (EX0 + EX1) / 2
     rows = 7
     # bookcases on the legs' walls, in runs between the doorways, folds and the flat room's door
-    runs = [('+y', A0, [(1.0, 6.2), (9.8, 11.3), (12.9, 22.2), (25.8, 31.0)]),
-            ('-y', A1, [(WX1 + 0.3, 11.3), (F1X + FT + 1.7, EX0 - 0.3)]),
-            ('-y', B1, [(1.0, 6.2), (9.8, 19.5), (20.6, 22.2), (25.8, 31.0)]),
-            ('+y', B0, [(WX1 + 0.3, 19.5), (20.6, EX0 - 0.3)]),
-            ('+x', WX0, [(1.0, 6.2), (9.8, 10.5), (11.6, 15.0)]),
-            ('-x', WX1, [(A1 + 0.3, 10.5), (11.6, B0 - 0.3)]),
-            ('-x', EX1, [(1.0, 4.4), (5.6, 6.2), (9.8, 15.0)]),
-            ('+x', EX0, [(A1 + 0.3, 4.4), (5.6, B0 - 0.3)])]
+    runs = [('+y', A0, [(1.0, 6.2), (9.8, 11.3), (13.7, 22.2), (25.8, 31.0)]),
+            ('-y', A1, [(WX1 + 0.3, 5.6), (7.6, 11.3), (14.7, 24.6), (26.6, EX0 - 0.3)]),
+            ('-y', B1, [(1.0, 6.2), (9.8, 18.4), (20.6, 22.2), (25.8, 31.0)]),
+            ('+y', B0, [(WX1 + 0.3, 5.6), (7.6, 18.4), (20.6, 24.6), (26.6, EX0 - 0.3)]),
+            ('+x', WX0, [(1.0, 6.2), (12.4, 15.0)]),
+            ('-x', WX1, [(A1 + 0.3, 9.9), (12.4, B0 - 0.3)]),
+            ('-x', EX1, [(1.0, 3.7), (9.8, 15.0)]),
+            ('+x', EX0, [(6.2, B0 - 0.3)])]
     for (face, bk, spans) in runs:
         for (a, b) in spans:
             if b - a > 0.7:

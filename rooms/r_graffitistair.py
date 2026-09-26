@@ -18,7 +18,7 @@ UZ = LH                             # the upper floor
 BX0, BX1, BY0, BY1 = 19.5, 24.2, 10.4, 16.2    # the solid block beside the stairwell (the landing room is in it)
 KX0, KX1, KY0, KY1, KZ1 = 19.0, 23.7, LY0 - 0.5, LY1 + 0.3, 7.25
 SLY0, SLY1 = LY0 + 0.55, LY0 + 1.35  # the slot from the landing into it
-INKS = ('ink', 'ink', 'ink', 'inkblue', 'ink', 'inkblue', 'inkred', 'walnut')
+INKS = ('e_ink', 'e_ink', 'e_ink', 'e_inkb', 'e_ink', 'e_inkb', 'e_inkr', 'e_inks')
 
 
 def zstair(y):
@@ -110,7 +110,8 @@ def landing_room(R):
     R.parts.add(ltable(x0, KY0 + 0.6, x0 + 1.4, KY0 + 1.4, 0.78, 'walnut', top='leather').xform(0, 0, 0, ZL))
     R.parts.add(lchair_legs(x0 + 0.7, KY0 + 1.85, -math.pi / 2).xform(0, 0, 0, ZL))
     R.spot('sit', x0 + 0.7, KY0 + 1.85, ZL + 0.48, -math.pi / 2)
-    llamp(R, x0 + 0.2, KY0 + 1.1, ZL + 0.78, 0.3, lit=True, m='e_amber')
+    llamp(R, x0 + 0.2, KY0 + 1.1, ZL + 0.78, 0.3, lit=True, m='e_lamp')
+    bulb(R, (KX0 + KX1) / 2, (KY0 + KY1) / 2, KZ1 - 0.6, r=0.09, m='e_lamp', top=KZ1)
     ob = box(-0.22, -0.16, 0, 0.0, 0.16, 0.03, 'ivory', sides='leather'); ob.add(box(0.0, -0.16, 0, 0.22, 0.16, 0.03, 'ivory', sides='leather'))
     R.nocol.add(ob.xform(0.0, x0 + 0.75, KY0 + 1.0, ZL + 0.78))
     R.nocol.add(cyl(x0 + 1.15, KY0 + 0.8, ZL + 0.78, ZL + 0.84, 0.04, 8, side='black', top='ink'))
@@ -123,18 +124,18 @@ def landing_room(R):
 
 
 # ---------------------------------------------------------------------------
-# the writing: each line is one strip of cells, ink and stone in turn, sharing edges (one lightmap
-# island per line, however many words)
+# the writing: each word is one flat quad of ink, drawn unlit (an emitter that barely emits), so the
+# thousands of strokes cost nothing in the lightmap
 def line_strip(g, P0, U, V, N, L, rs, ink, stroke, off):
     """A line of handwriting from P0 along U (unit), L long; V the up direction in the plane; N the normal."""
     us = [0.0]; mats = []
     u = rs.uniform(0.0, 0.08)
     if u > 0: us.append(u); mats.append('gap')
     while u < L:
-        a = rs.uniform(0.03, 0.22)
+        a = rs.uniform(0.02, 0.13)
         if u + a > L: break
         u += a; us.append(u); mats.append('ink')
-        b = rs.uniform(0.015, 0.05) if rs.random() < 0.7 else rs.uniform(0.08, 0.16)
+        b = rs.uniform(0.008, 0.025) if rs.random() < 0.75 else rs.uniform(0.05, 0.1)
         if u + b > L: break
         u += b; us.append(u); mats.append('gap')
     if len(us) < 2: return
@@ -146,19 +147,20 @@ def line_strip(g, P0, U, V, N, L, rs, ink, stroke, off):
         c = [P0[i] + U[i] * uu + N[i] * off + V[i] * wob * math.sin(uu * 7.0) for i in range(3)]
         bot.append(g.vert([c[i] - V[i] * stroke / 2 for i in range(3)]))
         top.append(g.vert([c[i] + V[i] * stroke / 2 for i in range(3)]))
+    cr = (U[1] * V[2] - U[2] * V[1], U[2] * V[0] - U[0] * V[2], U[0] * V[1] - U[1] * V[0])
+    flip = cr[0] * N[0] + cr[1] * N[1] + cr[2] * N[2] < 0
     for k, m in enumerate(mats):
+        if m != 'ink': continue
         f = [bot[k], bot[k + 1], top[k + 1], top[k]]
-        # orient toward N: U x V should point along N
-        cr = (U[1] * V[2] - U[2] * V[1], U[2] * V[0] - U[0] * V[2], U[0] * V[1] - U[1] * V[0])
-        if cr[0] * N[0] + cr[1] * N[1] + cr[2] * N[2] < 0: f = f[::-1]
-        g.face(f, ink if m == 'ink' else 'tile', [(us[k], 0), (us[k + 1], 0), (us[k + 1], stroke), (us[k], stroke)])
+        if flip: f = f[::-1]
+        g.face(f, ink, [(0, 0), (1, 0), (1, 1), (0, 1)])
 
 
 def patch(g, O, U, V, N, w, h, rs, spacing=None, stroke=None, off=0.004, tilt=0.0):
     """A block of handwriting on a flat surface: lines `spacing` apart filling w x h from origin O."""
     ink = rs.choice(INKS)
-    spacing = spacing or rs.uniform(0.09, 0.15)
-    stroke = stroke or spacing * rs.uniform(0.2, 0.3)
+    spacing = spacing or rs.uniform(0.06, 0.1)
+    stroke = stroke or spacing * rs.uniform(0.2, 0.28)
     if tilt:
         c, s = math.cos(tilt), math.sin(tilt)
         U, V = [U[i] * c + V[i] * s for i in range(3)], [V[i] * c - U[i] * s for i in range(3)]
@@ -194,11 +196,11 @@ def write_all(R):
     rs = rng(99)
     g = Geo()
     lo = lambda y: zstair(y)
-    hi = lambda y: zstair(y) + 4.2
+    hi = lambda y: zstair(y) + 3.4
     top = lambda y: min(2 * LH - 0.8, zstair(y) + 7.0)
     for (x, face) in ((CX0, 1.0), (CX1, -1.0)):
         write_wall(g, x, face, Y0 - 0.1, TY1, lo, hi, rs, 1.0)
-        write_wall(g, x, face, Y0 + 0.5, TY1, hi, top, rs, 0.35, layer=1)
+        write_wall(g, x, face, Y0 + 0.5, TY1, hi, top, rs, 0.25, layer=1)
     # the treads and risers: a line or two on each
     for (ya, za) in ((Y0, 0.0), (LY1, ZL)):
         for k in range(N1):
@@ -218,7 +220,7 @@ def write_all(R):
             line_strip(g, (CX0 + rs.uniform(0.1, 0.6), yy, z + 0.003), (1, 0, 0), (0, 1, 0), (0, 0, 1), rs.uniform(2.0, 3.8), rs, rs.choice(INKS), 0.025, 0.0)
             yy += rs.uniform(0.1, 0.18)
     # round the stairwell's mouth in the lower hall and the top in the upper, a little spill of writing
-    R.nocol.add(g)
+    R.light(g)
     print('writing faces', len(g.f))
 
 
@@ -235,4 +237,6 @@ def lights(R):
         y += 3.2
     for z in (0.0, UZ):
         for (x, y) in ((6.0, 6.0), (26.0, 6.0), (6.0, 26.0), (26.0, 26.0), (16.0, 27.5)):
-            pendant(R, x, y, z + 4.4, z + TOP - 0.2 if z == 0 else 2 * LH - 0.5, r=0.24)
+            pendant(R, x, y, z + 4.4, z + TOP - 0.2 if z == 0 else 2 * LH - 0.5, r=0.3)
+        for (x, y) in ((6.0, 16.0), (26.0, 16.0), (10.0, 29.0), (22.0, 29.0), (10.0, 2.5), (22.0, 2.5)):
+            pendant(R, x, y, z + 4.4, z + TOP - 0.2 if z == 0 else 2 * LH - 0.5, r=0.3)

@@ -7,7 +7,7 @@ from kit_h12 import *
 
 W = D = 32.0
 X0, X1 = 12.0, 17.0            # the race
-WT, WB, PB = -0.3, -1.5, -2.2  # water top, the race's bed, the wheel pit
+WT, WB, PB = -0.3, -1.5, -1.9  # water top, the race's bed, the wheel pit
 WX0, WX1 = 13.15, 15.95        # the wheel's rims
 WY, WZ, WR = 16.0, 3.2, 4.2    # its axle, height, radius
 HX0, HX1, HY0, HY1 = 17.0, 21.5, 12.5, 19.5    # the mill house
@@ -19,7 +19,7 @@ def make():
     R = Room('waterwheel', 2, 2, res=2048)
     rs = rng(56)
     R.sockets(floor='floor', wall='tile')
-    R.cut(box(T - 0.02, T - 0.02, 0, W - T + 0.02, D - T + 0.02, TOP, 'tile', bottom='floor', top='plaster'))
+    R.cut(box(T - 0.02, T - 0.02, 0, W - T + 0.02, D - T + 0.02, TOP - 0.1, 'tile', bottom='floor', top='plaster'))
     race(R)
     bridges(R)
     wheel_(R, rs)
@@ -42,8 +42,8 @@ def race(R):
     """The channel: a bed at WB, a stepped pit under the wheel, culverts at both ends, stone copings,
     rails along both edges (except the bathing steps and the gap onto the ledge), the water."""
     R.cut(box(X0, T - 0.3, WB, X1, D - T + 0.3, 0.02, 'tile', bottom='slate'))
-    R.cut(box(X0 + 0.3, WY - 5.0, WB - 0.35, X1 - 0.3, WY + 5.0, WB, 'tile', bottom='slate'))
-    R.cut(box(X0 + 0.6, WY - 4.6, PB, X1 - 0.6, WY + 4.6, WB - 0.35, 'tile', bottom='slate'))
+    R.cut(box(X0 + 0.3, WY - 5.0, WB - 0.2, X1 - 0.3, WY + 5.0, WB, 'tile', bottom='slate'))
+    R.cut(box(X0 + 0.6, WY - 4.6, PB, X1 - 0.6, WY + 4.6, WB - 0.2, 'tile', bottom='slate'))
     # the culverts: dark arches where the water comes in and goes out
     pr = arch_profile((X0 + X1) / 2, X1 - X0, WB, 1.6, 16)
     for (a0, a1) in ((-0.1, T + 0.02), (D - T - 0.02, D + 0.1)):
@@ -116,8 +116,11 @@ def wheel_(R, rs):
         M.nocol.add(cs)
     # the axle: iron, from beyond the west rim into the mill house wall, on a stone pier to the west
     R.nocol.add(solid_tube((X0 + 0.4, WY, WZ), (HX0 + 0.4, WY, WZ), 0.16, 'iron', 12))
-    R.parts.add(box(X0 - 0.2, WY - 0.6, PB, X0 + 0.7, WY + 0.6, WZ - 0.25, 'tile', skip=('-z',)))
-    R.nocol.add(box(X0 - 0.3, WY - 0.7, WZ - 0.25, X0 + 0.8, WY + 0.7, WZ - 0.1, 'iron'))
+    # an iron A-frame carrying the west end of the axle, its feet in the race
+    for s in (-1, 1):
+        R.nocol.add(beam((X0 + 0.35, WY + s * 1.4, WB), (X0 + 0.35, WY + s * 0.12, WZ - 0.15), 0.16, 'iron'))
+    R.nocol.add(box(X0 + 0.15, WY - 0.3, WZ - 0.3, X0 + 0.55, WY + 0.3, WZ - 0.12, 'iron'))
+    R.nocol.add(beam((X0 + 0.35, WY - 1.0, 0.9), (X0 + 0.35, WY + 1.0, 0.9), 0.1, 'iron'))
     # the ledge behind the wheel, against the mill house (and past it both ways)
     R.parts.add(box(LX0, LY0, WB, X1, LY1, -0.08, 'tile', top='slate'))
 

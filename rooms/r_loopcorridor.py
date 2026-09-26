@@ -27,10 +27,10 @@ def make():
     # walkers: round the strips and vestibules, and along the corridor as far as the last door
     navloop(R, [(2.5, 2.5), (8.0, 4.8), (16.0, 4.8), (24.0, 4.8), (29.0, 2.8), (29.0, 8.0), (29.0, 13.0), (24.0, 13.2),
                 (29.0, 8.0), (29.0, 2.8), (24.0, 4.8), (8.0, 4.8), (2.5, 2.8), (2.5, 8.0), (2.5, 13.0), (7.5, 13.2), (2.5, 13.0)], close=False)
-    c = [R.navpt(x, 8.0) for x in (3.5, 7.8, 11.4, 15.0, 18.6, 22.0)]
+    c = [R.navpt(x, 8.0) for x in (7.8, 11.4, 15.0, 18.6, 22.0)]
     R.link(*c)
     s0, s1 = R.navpt(18.6, 7.0), R.navpt(18.6, 4.8)
-    R.link(c[4], s0, s1)
+    R.link(c[3], s0, s1)
     secret(R, 15.0, 13.0, 0.0, 'The Reading Room Outside the Loop',
            'Behind the bookcase that is the same as every other bookcase there is a quiet room, and in it nothing repeats: one chair, one lamp, one book open at a page you have not read. You sit for a while. The corridor goes on without you.', r=2.2)
     fx(R, 'dust', [6.0, CY0, 0.3, 25.0, CY1, CH - 0.2])
@@ -40,7 +40,7 @@ def make():
 
 def halls(R):
     """The vestibules at each end and the stack halls either side of the corridor."""
-    for (x0, y0, x1, y1) in ((T, T, 5.5, D - T), (T, T, W - T, CY0 - 0.4), (T, CY1 + 0.4, RX0 - 0.4, D - T),
+    for (x0, y0, x1, y1) in ((T, T, 4.4, D - T), (T, T, W - T, CY0 - 0.4), (T, CY1 + 0.4, RX0 - 0.4, D - T),
                              (RX1 + 0.4, CY1 + 0.4, W - T, D - T), (25.6, T, W - T, D - T)):
         R.cut(box(x0 - 0.01, y0 - 0.01, 0, x1 + 0.01, y1 + 0.01, 7.4, 'tile', bottom='terrazzo', top='plaster'))
     # coffers: plaster beams across the strips
@@ -51,7 +51,7 @@ def halls(R):
 
 
 def corridor(R):
-    R.cut(box(5.4, CY0, 0, 25.2, CY1, CH, 'tile', bottom='terrazzo', top='plaster'))
+    R.cut(box(4.75, CY0, 0, 25.2, CY1, CH, 'tile', bottom='terrazzo', top='plaster'))
     # the side door out, in segment 3's south wall
     R.cut(box(EX0, CY0 - 0.45, 0, EX1, CY0 + 0.02, 2.5, 'tile', bottom='terrazzo', top='plaster'))
     for face, yy in ((math.pi / 2, CY0), (-math.pi / 2, CY0 - 0.4)):
@@ -119,11 +119,12 @@ def strips(R):
     sh(R, '+x', T, 0.8, 6.4, rows=rows); sh(R, '+x', T, 9.6, D - 0.8, rows=rows)
     sh(R, '-x', W - T, 0.8, 6.4, rows=rows); sh(R, '-x', W - T, 9.6, D - 0.8, rows=rows)
     # the corridor's outer walls, from the strips
-    sh(R, '-y', CY0 - 0.4, 6.0, EX0 - 0.4, rows=rows); sh(R, '-y', CY0 - 0.4, EX1 + 0.4, 25.2, rows=rows)
-    sh(R, '+y', CY1 + 0.4, 5.6, RX0 - 0.5, rows=rows); sh(R, '+y', CY1 + 0.4, RX1 + 0.5, 25.4, rows=rows)
+    sh(R, '-y', CY0 - 0.4, 4.6, EX0 - 0.4, rows=rows); sh(R, '-y', CY0 - 0.4, EX1 + 0.4, 25.2, rows=rows)
+    sh(R, '+y', CY1 + 0.4, 4.6, RX0 - 0.5, rows=rows); sh(R, '+y', CY1 + 0.4, RX1 + 0.5, 25.4, rows=rows)
     # the reading room's outer walls
     sh(R, '-x', RX0 - 0.4, CY1 + 0.5, D - 0.6, rows=rows); sh(R, '+x', RX1 + 0.4, CY1 + 0.5, D - 0.6, rows=rows)
     # the ends of the corridor block, seen from the vestibules
+    sh(R, '-x', 4.4, CY0 - 0.35, CY1 + 0.35, rows=rows)
     # reading tables down the south strip, lamps over them
     for x in (12.0, 16.0, 20.0):
         R.parts.add(ltable(x - 1.1, 2.3, x + 1.1, 3.3, top='leather'))

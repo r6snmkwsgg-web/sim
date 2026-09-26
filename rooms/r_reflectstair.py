@@ -57,7 +57,7 @@ def halls(R):
     for i in range(3):
         for j in range(3):
             x0, y0 = HX0 + 0.8 + i * 4.7, HY0 + 0.8 + j * 4.7
-            R.light(box(x0, y0, ZT - 0.03, x0 + 4.1, y0 + 4.1, ZT, 'e_sky'))
+            R.light(box(x0 + 0.9, y0 + 0.9, ZT - 0.03, x0 + 3.2, y0 + 3.2, ZT, 'e_sky'))
     for t in [HX0 + 0.4 + i * 4.7 for i in range(4)]:
         R.nocol.add(box(t - 0.2, HY0, ZT - 0.5, t + 0.2, HY1, ZT, 'plaster', skip=('+z',)))
     for t in [HY0 + 0.4 + i * 4.7 for i in range(4)]:

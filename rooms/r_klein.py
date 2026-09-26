@@ -58,7 +58,8 @@ def halls(R):
     for i in range(5):
         for j in range(5):
             x0, y0 = V0 + 0.3 + i * 4.4, V0 + 0.3 + j * 4.4
-            R.light(box(x0, y0, ZT - 0.03, x0 + 4.0, y0 + 4.0, ZT, 'e_sky'))
+            if 1 <= i <= 3 and 1 <= j <= 3:
+                R.light(box(x0 + 1.0, y0 + 1.0, ZT - 0.03, x0 + 3.0, y0 + 3.0, ZT, 'e_sky'))
     for t in [V0 + 0.1 + i * 4.4 for i in range(6)]:
         R.nocol.add(box(t - 0.1, V0, ZT - 0.4, t + 0.1, V1, ZT, 'brass', skip=('+z',)))
         R.nocol.add(box(V0, t - 0.1, ZT - 0.4, V1, t + 0.1, ZT, 'brass', skip=('+z',)))
@@ -129,6 +130,11 @@ def bottle(R):
     arc_shelf_(R, BX, BY, PR - 0.15, -math.pi / 2 + 0.55, math.pi / 2 - 0.45, 4, PZ, 5)
     arc_shelf_(R, BX, BY, PR - 0.15, math.pi / 2 + 0.45, 3 * math.pi / 2 - 0.55, 4, PZ, 5)
     gate(R, BX, BGY, PZ, math.pi / 2)
+    # the gate's recess is closed behind (a portal must never be seen from behind)
+    R.parts.add(box(BX - GW / 2 - 0.12, BGY, PZ, BX - GW / 2, BGY + 0.9, PZ + GH + 0.15, 'brass'))
+    R.parts.add(box(BX + GW / 2, BGY, PZ, BX + GW / 2 + 0.12, BGY + 0.9, PZ + GH + 0.15, 'brass'))
+    R.parts.add(box(BX - GW / 2 - 0.12, BGY + 0.9, PZ, BX + GW / 2 + 0.12, BGY + 1.0, PZ + GH + 0.15, 'brass'))
+    R.parts.add(box(BX - GW / 2, BGY, PZ + GH, BX + GW / 2, BGY + 0.9, PZ + GH + 0.15, 'brass'))
     # a chandelier inside, and a table
     chandelier(R, BX, BY, 7.6, 1.2, n=10, chain=10.9)
     R.parts.add(ltable(BX - 0.9, BY - 1.2, BX + 0.9, BY - 0.4, top='leather').xform(0, 0, 0, PZ))

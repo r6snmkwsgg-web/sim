@@ -19,7 +19,7 @@ def make():
     R = Room('dumbwaiters', 1, 1, res=1024)
     rs = rng(59)
     R.sockets(floor='floor', wall='tile')
-    R.cut(box(T - 0.02, T - 0.02, 0, W - T + 0.02, FY - 0.3, TOP, 'tile', bottom='floor', top='plaster'))
+    R.cut(box(T - 0.02, T - 0.02, 0, W - T + 0.02, FY - 0.3, TOP - 0.1, 'tile', bottom='floor', top='plaster'))
     tunnels(R, T, T, W - T, FY, floor='floor', wall='tile')
     gallery(R)
     hatches(R, rs)
@@ -54,7 +54,7 @@ def gallery(R):
 def hatches(R, rs):
     """The little cupboards over the whole wall face in a grid: most open (a shelf of books, a lamp in some),
     a few shut; over the shafts only their doors (shut)."""
-    R.cut(box(T - 0.02, FY - 0.6, 0, W - T + 0.02, FY, TOP, 'walnut', bottom='floor', top='plaster'))
+    R.cut(box(T - 0.02, FY - 0.6, 0, W - T + 0.02, FY, TOP - 0.1, 'walnut', bottom='floor', top='plaster'))
     k = 0
     for i in range(19):
         x = 0.75 + i * 0.8
@@ -190,12 +190,12 @@ def furnish(R, rs):
     for (x0, y0, x1, y1) in ((T, T, W - T, T + 0.45), (T, T, T + 0.45, GY), (W - T - 0.45, T, W - T, GY)):
         R.parts.add(box(x0, y0, 4.35, x1, y1, 4.5, 'walnut'))
     # a laylight over the middle of the room
-    R.cut(box(4.0, 3.0, TOP - 0.25, 12.0, 8.0, TOP + 0.2, 'plaster'))
-    R.light(box(4.0, 3.0, TOP + 0.1, 12.0, 8.0, TOP + 0.12, 'e_sky'))
+    R.cut(box(4.0, 3.0, TOP - 0.35, 12.0, 8.0, TOP - 0.03, 'plaster'))
+    R.light(box(4.0, 3.0, TOP - 0.06, 12.0, 8.0, TOP - 0.05, 'e_sky'))
     for x in (6.0, 8.0, 10.0):
-        R.nocol.add(box(x - 0.04, 3.0, TOP - 0.2, x + 0.04, 8.0, TOP + 0.1, 'iron'))
+        R.nocol.add(box(x - 0.04, 3.0, TOP - 0.3, x + 0.04, 8.0, TOP - 0.06, 'iron'))
     for y in (4.66, 6.33):
-        R.nocol.add(box(4.0, y - 0.04, TOP - 0.2, 12.0, y + 0.04, TOP + 0.1, 'iron'))
+        R.nocol.add(box(4.0, y - 0.04, TOP - 0.3, 12.0, y + 0.04, TOP - 0.06, 'iron'))
 
 
 def trolley(R, x, y, a, rs):

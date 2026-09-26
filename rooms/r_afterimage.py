@@ -39,7 +39,7 @@ def make():
          ('w', 'a'), ('w', 'j'), ('b', 's1'), ('e', 's2'), ('i', 'n1'), ('f', 'n2'), ('n2', 'k'), ('k', 'm'), ('m', 'e2')])
     secret(R, 29.0, 2.6, 0.0, 'Where It Goes',
            'The pale figure walks its figure of eight all day and goes out through the little door. This is where it goes: a narrow room, a bed made so tight nobody has ever been in it, a chair turned to the wall.', r=2.0)
-    return finish(R, 'The Long Gallery', weight=4, probe=(13.0, 8.0, 2.2), top=SPRING + RISE,
+    return finish(R, 'The Afterimage Gallery', weight=4, probe=(13.0, 8.0, 2.2), top=SPRING + RISE,
                   blurb='Something pale keeps pace a few steps behind you. When you turn, it is you, a little late. The other one, further off, is not.')
 
 

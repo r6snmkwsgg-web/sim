@@ -118,7 +118,8 @@ def gallery(R):
     rail(R, SXT + 0.9, SWY1 + 0.05, 22.2, SWY1 + 0.05, GZ, m='brass')
     rail(R, 22.15, SWY0, 22.15, SWY1, GZ, m='brass')
     stair_rail(R, SXF - 0.3, SWY0 + 0.06, SR * 1, SXT + 1.0, SWY0 + 0.06, GZ - SR * 3, m='brass')
-    bulb(R, 21.4, (SWY0 + SWY1) / 2, 3.0, r=0.07, m='e_dim', top=TOP - 0.3)
+    bulb(R, 21.4, (SWY0 + SWY1) / 2, 3.0, r=0.09, m='e_lamp', top=TOP - 0.3)
+    bulb(R, 17.0, (SWY0 + SWY1) / 2, 5.6, r=0.07, m='e_dim', top=TOP - 0.3)
     # the band: chairs in a curve, stands, a harp, a cello laid down, a piano
     rs = rng(4)
     g = Geo()

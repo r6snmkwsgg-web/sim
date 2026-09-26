@@ -46,6 +46,12 @@ NEW_EMIT = {
     'e_digit':  ((0.30, 1.00, 0.55), 6.0),    # the number display: stays lit
     'e_flame':  ((1.00, 0.50, 0.18), 8.0),    # a stove's low fire: stays lit
     'e_reader': ((1.00, 0.80, 0.52), 24.0),   # the one lamp left on: stays lit
+    # handwriting: drawn as flat unlit ink (emitters that barely emit), so thousands of little strokes
+    # cost nothing in the lightmap
+    'e_ink':    ((0.022, 0.019, 0.017), 1.0),
+    'e_inkb':   ((0.018, 0.024, 0.060), 1.0),
+    'e_inkr':   ((0.090, 0.020, 0.017), 1.0),
+    'e_inks':   ((0.060, 0.036, 0.020), 1.0),
 }
 for _k, _v in NEW_MATS.items(): lib.MATS.setdefault(_k, _v)
 for _k, _v in NEW_EMIT.items(): lib.EMIT.setdefault(_k, _v)

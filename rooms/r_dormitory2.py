@@ -158,7 +158,7 @@ def below(R):
     sh(R, '+y', KY0, KX0 + 3.0, KX1 - 0.2, z=KZ, rows=6, frame='walnut')
     sh(R, '-x', KX1, KY0 + 0.6, KY0 + 3.6, z=KZ, rows=6, frame='walnut')
     R.nocol.add(box(KX0 + 1.1, KY0 + 0.95, KZ + 0.66, KX0 + 1.35, KY0 + 1.12, KZ + 0.68, 'ivory'))
-    bulb(R, (KX0 + KX1) / 2, KY0 + 2.5, zc - 0.6, r=0.07, m='e_dim', top=zc)
+    bulb(R, (KX0 + KX1) / 2, KY0 + 2.5, zc - 0.5, r=0.09, m='e_lamp', top=zc)
     a, b = R.navpt(KX0 + 2.0, KY0 + 2.8, KZ), R.navpt(KX1 - 2.0, KY0 + 2.2, KZ)
     R.link(a, b)
 

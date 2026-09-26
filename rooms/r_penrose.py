@@ -52,11 +52,11 @@ def make():
     # walkers: round the upper floor, and once round the balcony
     navloop(R, [(2.2, 2.2), (16.0, 2.6), (29.8, 2.2), (29.0, 16.0), (26.0, 29.5), (16.0, 31.0 - 0.8), (6.0, 29.5), (3.0, 16.0)], z=UZ)
     m = (RI + RO) / 2
-    pts = [(sp(0, -7.3, m + 0.4), UZ), (sp(0, -LF / 2 - 0.6, m), UZ), (sp(0, LF / 2 + 0.6, m), zc(1)), (sp(1, -LF / 2 - 0.6, m), zc(1)),
+    pts = [(sp(0, -4.3, m + 0.4), 8.2), (sp(0, LF / 2 + 0.6, m), zc(1)), (sp(1, -LF / 2 - 0.6, m), zc(1)),
            (sp(1, LF / 2 + 0.6, m), zc(2)), (sp(2, -LF / 2 - 0.6, m), zc(2)), (sp(2, LF / 2 + 0.6, m), zc(3))]
     ids = [R.navpt(p[0], p[1], z) for (p, z) in pts]
     R.link(*ids)
-    g = R.navpt(sp(0, -7.3, RW + 1.6)[0], sp(0, -7.3, RW + 1.6)[1], UZ)
+    g = R.navpt(sp(0, -4.3, RW + 1.6)[0], sp(0, -4.3, RW + 1.6)[1], UZ)
     R.link(g, ids[0])
     hc = sp(1, -7.6, RI + 0.8)
     secret(R, hc[0], hc[1], RZ, 'The Room in the Well Wall',
@@ -73,7 +73,7 @@ def walls(R):
         a0, a1 = -SQ3 * RO, SQ3 * RO
         if k == 0:
             # the way in: an opening in side 0's wall near corner 0
-            e0, e1 = -LF / 2 - 2.9, -LF / 2 - 0.7
+            e0, e1 = -LF / 2 + 0.3, -LF / 2 + 2.1
             for (s0, s1) in ((-SQ3 * RW, e0), (e1, X0), (X1, SQ3 * RW)):
                 R.parts.add(poly_prism([sp(k, s0 if s0 > -SQ3 * RW else -SQ3 * RO, RO), sp(k, s1 if s1 < SQ3 * RW else SQ3 * RO, RO),
                                         sp(k, s1, RW), sp(k, s0, RW)], 0.0, ZT, side='tile', top='tile', bottom='tile'))
@@ -158,11 +158,13 @@ def balcony(R):
     fa = math.atan2(-TAN[0][1], -TAN[0][0])
     for z in (zc(0), zc(3)):
         R.parts.add(local(architrave(RO - RI, GH, 'walnut', bw=0.18, depth=0.08, cornice=False), fa, *sp(0, -LF / 2, (RI + RO) / 2), z))
+    R.parts.add(local(architrave(RO - RI, GH, 'walnut', bw=0.18, depth=0.08, cornice=False), fa + math.pi, *sp(0, -LF / 2, (RI + RO) / 2), zc(0)))
     # rails round the corner-0 landings (both levels) on the well side
     rin = RI + 0.07
-    seg_rail(R, (*sp(2, LF / 2, rin), zc(0)), (*sp(2, SQ3 * RI + 0.12, rin), zc(0)), h=1.0)
-    for z in (zc(0), zc(3)):
-        seg_rail(R, (*sp(0, -SQ3 * RI - 0.12, rin), z), (*sp(0, -LF / 2, rin), z), h=1.0)
+    seg_rail(R, (*sp(0, -SQ3 * RI - 0.12, rin), zc(3)), (*sp(0, -LF / 2, rin), zc(3)), h=1.0)
+    # the lower landing is closed in: a portal must never be seen from behind, and this is behind the foot's
+    R.parts.add(poly_prism(strip_poly(0, -SQ3 * (RI + 0.25) - 0.05, -LF / 2, RI, RI + 0.25), zc(0), zc(3) - 0.3))
+    R.parts.add(poly_prism(strip_poly(2, LF / 2, SQ3 * (RI + 0.25) + 0.05, RI, RI + 0.25), zc(0), zc(3) - 0.3))
     # the upper landing at corner 0 is a hanging slab: brackets under it
     for s in (-LF / 2 - 0.6, -SQ3 * RI):
         p = sp(0, s, RO - 0.15)

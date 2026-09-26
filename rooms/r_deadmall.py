@@ -146,6 +146,9 @@ def shop(R, side, a, b, z, rs, upper=False, back_v=None, grille=0.0, gap=None):
             book_row_flat(tb, pp[0], pp[1], z + 0.85, rs.uniform(0, 3), rs, rs.randint(1, 4))
         R.nocol.add(tb)
     R.parts.add(B(b - 1.6, b - 0.3, 0.5, 1.1, z, z + 1.0, 'walnut', top='oak'))
+    # about half the shops still have their lights on
+    if rs.random() < 0.55:
+        R.light(B((a + b) / 2 - 0.9, (a + b) / 2 + 0.9, 1.6, 3.4, z + h - 0.03, z + h - 0.01, 'e_panel', skip=('+z',)))
     return P, B
 
 
@@ -315,7 +318,7 @@ def secret_rooms(R):
     R.parts.add(box(x1 - 0.3, y1 - 2.2, 0.45, x1 - 0.05, y1 - 0.2, 0.9, 'velvet'))
     R.spot('sit', x1 - 0.5, y1 - 1.2, 0.45, math.pi)
     llamp(R, x0 + 2.3, y0 + 2.5, 0.76, 0.5, lit=True, m='e_amber')
-    bulb(R, (x0 + x1) / 2, (y0 + y1) / 2, 2.5, r=0.08, m='e_dim', top=3.2)
+    bulb(R, (x0 + x1) / 2, (y0 + y1) / 2, 2.5, r=0.1, m='e_lamp', top=3.2)
     R.spot('plaque', x1 - 0.05, y0 + 1.95, 1.5, math.pi, text='ROTA. Every shift: you.')
     a, b = R.navpt(SA0 + 1.0, (CY0 + CY1) / 2), R.navpt(x0 + 0.6, y0 + 1.8)
     R.link(a, b)

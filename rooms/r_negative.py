@@ -102,8 +102,8 @@ def nave(R, rs):
         R.nocol.add(frustum(16.0, y, 4.0, 4.45, 0.62, 0.12, 16, 'white', inner='white'))
         R.light(cyl(16.0, y, 4.02, 4.07, 0.45, 12, side='e_black', top='e_black', bottom='e_black'))
     for y in (6.0, 26.0):
-        R.cut(box(14.8, y - 3.0, SPRING + RISE - 0.35, 17.2, y + 3.0, SPRING + RISE + 0.2, 'plaster'))
-        R.light(box(14.8, y - 3.0, SPRING + RISE + 0.1, 17.2, y + 3.0, SPRING + RISE + 0.12, 'e_sky'))
+        R.cut(box(14.8, y - 3.0, SPRING + RISE - 0.35, 17.2, y + 3.0, SPRING + RISE + 0.07, 'plaster'))
+        R.light(box(14.8, y - 3.0, SPRING + RISE + 0.04, 17.2, y + 3.0, SPRING + RISE + 0.05, 'e_sky'))
     # a globe on a stand at each end of the nave
     for y in (1.6, D - 1.6):
         R.parts.add(cyl(16.0, y, 0, 0.9, 0.12, 10, side='walnut', top='walnut'))

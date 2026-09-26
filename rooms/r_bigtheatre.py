@@ -200,9 +200,9 @@ def the_set(R):
         # an arch rib at each step, and a tiny lamp
         R.nocol.add(box(cx - w / 2 - 0.05, y - 0.03, zf + h - 0.08 * (1 - t), cx + w / 2 + 0.05, y + 0.03, zf + h, 'walnut'))
         if k % 2 == 1:
-            R.light(box(cx - 0.05 * (1 - t) - 0.02, y, zf + h - 0.25, cx + 0.05 * (1 - t) + 0.02, y + 0.02, zf + h - 0.2, 'e_lamp'))
+            R.light(box(cx - 0.05 * (1 - t) - 0.02, y, zf + h - 0.25, cx + 0.05 * (1 - t) + 0.02, y + 0.02, zf + h - 0.2, 'e_dim'))
     R.parts.add(box(ax0 - 0.2, YB + 3.4, z, ax1 + 0.2, YB + 3.5, z + 3.0, 'black'))
-    R.light(box(15.75, YB + 3.38, z + 0.7, 16.25, YB + 3.4, z + 1.4, 'e_lamp'))
+    R.light(box(15.85, YB + 3.38, z + 0.8, 16.15, YB + 3.4, z + 1.2, 'e_dim'))
     R.col.add(box(ax0, YB + 0.1, z, ax1, YB + 0.2, z + 3.4, 'tile'))
 
 
@@ -246,8 +246,8 @@ def backstage(R):
     for k in range(6):
         a = k * math.pi / 3
         R.nocol.add(beam((16.0, 21.6, z + 1.6), (16.0 + 0.16 * math.cos(a), 21.6 + 0.16 * math.sin(a), z + 1.9), 0.012, 'iron'))
-    bulb(R, 20.0, 29.6, z + 3.5, r=0.08, m='e_dim', top=HT)
-    bulb(R, 3.0, 24.0, z + 3.5, r=0.08, m='e_dim', top=HT)
+    bulb(R, 20.0, 29.6, z + 3.5, r=0.09, m='e_lamp', top=HT)
+    bulb(R, 3.0, 24.0, z + 3.5, r=0.09, m='e_lamp', top=HT)
     a, b, c = R.navpt(10.0, 28.5, z), R.navpt(20.0, 28.8, z), R.navpt(29.5, 22.5, z)
     R.link(a, b, c)
 

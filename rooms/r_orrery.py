@@ -15,7 +15,7 @@ DOOR_A = -math.pi / 2           # the sun's door faces south
 DR0, DR1 = 1.95, 2.1           # the turning room's wall
 SH = 2.9                        # door height
 DOME_R, DOME_S, DOME_TOP = 15.0, 5.0, 7.5
-lib.EMIT.setdefault('e_sun', ((1.00, 0.76, 0.42), 5.0))
+lib.EMIT.setdefault('e_sun', ((1.00, 0.76, 0.42), 4.0))
 
 
 def make():
@@ -120,7 +120,7 @@ def sun(R, rs):
     """The sun: a glowing gold ball with a door; the doorway lined in brass; an invisible drum round it."""
     rings_, segs = 16, 40
     g = Geo()
-    da = 0.62 / SUNR * 2.2
+    da = 0.3
     for i in range(rings_):
         p0 = -math.pi / 2 + math.pi * i / rings_
         p1 = -math.pi / 2 + math.pi * (i + 1) / rings_
@@ -204,12 +204,12 @@ def inner_room(R, rs):
 def arms(R, rs):
     """The planets. Two low arms carry walkways you can ride; four high ones carry the big planets."""
     # arm 1: girder at z 3.0, walkway r 5.3..9.0 at z PZ; its planet on a post at r 8.1
-    arm(R, rs, speed=0.06, a0=0.9, zg=3.0, deck=(5.3, 9.0, PZ), prad=0.85, pr=8.1, pz=4.65, ring_=False, w=1.7)
+    arm(R, rs, speed=0.06, a0=0.9, zg=3.0, deck=(5.3, 9.0, PZ), prad=1.05, pr=7.8, pz=4.8, ring_=False, w=1.7)
     # arm 2: girder at z 3.5, walkway r 9.6..13.0 just off the floor; its planet at r 12.5, ringed
     arm(R, rs, speed=-0.035, a0=3.6, zg=3.5, deck=(9.6, 13.0, 0.35), prad=0.9, pr=12.5, pz=4.6, ring_=True, w=1.8)
     # high arms: drawn only, under the dome, planets hanging from them
     arm(R, rs, speed=0.09, a0=2.1, zg=6.3, deck=None, prad=0.5, pr=5.5, pz=5.4, ring_=False, w=0.0, high=True)
-    arm(R, rs, speed=0.025, a0=4.9, zg=6.05, deck=None, prad=0.9, pr=10.0, pz=5.15, ring_=False, w=0.0, high=True)
+    arm(R, rs, speed=0.025, a0=4.9, zg=6.05, deck=None, prad=0.95, pr=9.9, pz=5.15, ring_=False, w=0.0, high=True)
 
 
 def arm(R, rs, speed, a0, zg, deck, prad, pr, pz, ring_, w, high=False):

@@ -12,11 +12,11 @@ CW = 1.5                      # causeway half width
 BANDS = [(RIM, 8 - CW), (8 + CW, 24 - CW), (24 + CW, W - RIM)]
 SPRING, RISE = 4.8, 2.6
 SX0, SX1, SY0, SY1 = 6.8, 9.2, 12.4, 19.6     # the room under the west causeway
-SZ = -3.2
+SZ = ZB
 
 
 def make():
-    R = Room('mirrorlake', 2, 2, res=2048, lo=-4.0)
+    R = Room('mirrorlake', 2, 2, res=2048)
     rs = rng(71)
     R.sockets(floor='terrazzo', wall='tile')
     vault_y(R, T - 0.02, D - T + 0.02, W / 2, W - 2 * T, SPRING, RISE)
@@ -42,7 +42,7 @@ def make():
     L += [((2, 1), 'q0'), ('q0', 'q1'), ('q1', 'q2'), ('q2', 'p'), ('p', 'r2'), ('r2', 'r1'), ('r1', 'r0'), ('r0', (2, 3))]
     navgrid(R, P, L)
     secret(R, 8.0, 17.8, SZ, 'Under the Causeway',
-           'The door in the reflection is real. Under the causeway, below the level of the glass, a long dry room with a cot, a lamp, and a window of black mirror looking up at nothing.', r=2.0)
+           'The door in the reflection is real. Inside the causeway, at the level of the glass, a long low dry room: a mattress, a candle, a pane of black mirror in the ceiling looking up at nothing.', r=2.0)
     return finish(R, 'The Mirror Lake', weight=3, probe=(16.0, 5.0, 2.4), top=SPRING + RISE, bot=SZ,
                   blurb='The floor is a black mirror a man\'s height down, and the whole hall stands on its own reflection. The causeways are the only thing holding you up. They are enough. Probably.')
 
@@ -54,8 +54,8 @@ def ribs(R):
             s = 1 if x < 16 else -1
             R.parts.add(box(min(x, x + s * 0.4), y - 0.35, 0, max(x, x + s * 0.4), y + 0.35, SPRING, 'tile', skip=('-z',)))
     for y in (8.0, 16.0, 24.0):
-        R.cut(box(14.8, y - 1.6, SPRING + RISE - 0.3, 17.2, y + 1.6, SPRING + RISE + 0.2, 'plaster'))
-        R.light(box(14.8, y - 1.6, SPRING + RISE + 0.1, 17.2, y + 1.6, SPRING + RISE + 0.12, 'e_sky'))
+        R.cut(box(14.8, y - 1.6, SPRING + RISE - 0.3, 17.2, y + 1.6, SPRING + RISE + 0.17, 'plaster'))
+        R.light(box(14.8, y - 1.6, SPRING + RISE + 0.13, 17.2, y + 1.6, SPRING + RISE + 0.14, 'e_sky'))
 
 
 def pools(R):
@@ -135,28 +135,22 @@ def lamps(R):
 
 
 def under(R, rs):
-    """The low door in the west wall of the middle basin, under the deep lip; a step down, a stair, and a
-    long room inside the causeway."""
+    """The low door in the west wall of the middle basin, under the deep lip; behind it a long low room
+    inside the causeway, at the level of the glass (you go in on your knees)."""
     xw = 8 + CW                                    # the basin's west wall
-    R.cut(box(SX1 - 0.02, 15.45, ZB, xw + 0.02, 16.55, ZB + 1.35, 'slate', bottom='terrazzo', top='slate'))
-    R.nocol.add(frame_rect('x', xw, 15.45, 16.55, ZB, ZB + 1.35, 1, w=0.1, d=0.04, m='walnut'))
-    # inside: a landing at the door's level, a stair down south, the room
-    R.cut(box(SX0, SY0, SZ, SX1, SY1, -0.4, 'plaster', bottom='floor', top='plaster'))
-    R.parts.add(box(7.9, 15.2, SZ, SX1, 16.8, ZB, 'tile', top='terrazzo'))
-    R.flight(7.9, 15.2 - 7 * 0.28, SZ, 1.3, 7, 0.2, 0.28, '+y', m='oak', riser='walnut', side='tile')
-    R.parts.add(box(7.86, 15.2 - 7 * 0.28, SZ, 7.9, 15.2, ZB + 0.9, 'walnut'))
-    brass_rail(R, 7.95, 15.2, 7.95, 16.75, ZB, h=0.9)
-    brass_rail(R, 7.95, 16.75, SX1, 16.75, ZB, h=0.9)
-    # the room: a cot, a lamp, shelves, a table, and a 'window' in the ceiling of black glass
-    R.parts.add(box(SX0 + 0.1, 17.4, SZ, SX0 + 0.95, SY1 - 0.1, SZ + 0.42, 'walnut', top='bed'))
-    R.nocol.add(box(SX0 + 0.15, SY1 - 0.55, SZ + 0.42, SX0 + 0.9, SY1 - 0.15, SZ + 0.52, 'white'))
-    R.spot('bed', SX0 + 0.5, 18.5, SZ + 0.42, math.pi / 2)
-    sh(R, '+x', SX0, 12.6, 16.8, z=SZ, rows=6, frame='walnut')
-    g = table_geo(8.2, 12.7, 9.1, 13.6, 0.74, 'walnut', top='leather'); g.xform(0, 0, 0, SZ)
-    R.parts.add(g)
-    desk_lamp(R, 8.65, 13.3, SZ + 0.74)
-    open_book(R, 8.6, 12.95, SZ + 0.74, math.pi)
-    R.light(sphere(8.0, 18.6, -1.2, 0.08, 8, 4, 'e_candle'))
-    R.nocol.add(box(7.2, 17.8, -0.42, 8.8, 19.2, -0.4, 'black'))
-    R.spot('plaque', 8.6, 13.1, SZ, -math.pi / 2,
-           text='A note on the table: The lake is not deep. It is exactly as deep as the room above it. I have measured.')
+    R.cut(box(SX1 - 0.02, 15.45, ZB, xw + 0.02, 16.55, ZB + 1.3, 'slate', bottom='terrazzo', top='slate'))
+    R.nocol.add(frame_rect('x', xw, 15.45, 16.55, ZB, ZB + 1.3, 1, w=0.1, d=0.04, m='walnut'))
+    R.cut(box(SX0, SY0, SZ, SX1, SY1, -0.35, 'damask', bottom='carpet', top='plaster'))
+    # a mattress, a lamp, low shelves, a writing slope, and a 'window' in the ceiling of black glass
+    R.parts.add(box(SX0 + 0.1, 17.3, SZ, SX0 + 1.0, SY1 - 0.1, SZ + 0.2, 'bed'))
+    R.nocol.add(box(SX0 + 0.2, SY1 - 0.55, SZ + 0.2, SX0 + 0.9, SY1 - 0.15, SZ + 0.3, 'white'))
+    R.spot('bed', SX0 + 0.55, 18.4, SZ + 0.2, math.pi / 2)
+    sh(R, '+x', SX0, 12.6, 16.9, z=SZ, rows=2, frame='walnut')
+    sh(R, '-x', SX1, 12.6, 15.2, z=SZ, rows=2, frame='walnut')
+    R.parts.add(box(7.8, 12.7, SZ, 8.8, 13.3, SZ + 0.35, 'walnut', top='leather'))
+    open_book(R, 8.3, 13.0, SZ + 0.35, math.pi)
+    candle(R, 8.65, 12.85, SZ + 0.35, h=0.12)
+    R.light(sphere(8.0, 18.6, -0.6, 0.06, 8, 4, 'e_candle'))
+    R.nocol.add(box(7.2, 17.8, -0.37, 8.8, 19.2, -0.35, 'black'))
+    R.spot('plaque', 8.3, 13.0, SZ, -math.pi / 2,
+           text='A note on the writing slope: The lake is not deep. It is exactly as deep as the room above it. I have measured.')

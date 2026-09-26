@@ -1,5 +1,7 @@
 """The Tesseract Study: a cubic study, as tall as it is wide, with a door in the middle of every wall. Go in
-by the south door and you come in by the east one; go in by the north and you come in by the west. The
+by the south door and you come in by the east one; go in by the north and you come in by the west; go out
+by the east and you are outside the south door. (From outside the east and west doors are shut; from
+inside, the south and north.) The
 doors in the floor and the ceiling are painted on. The fifth door is behind a bookcase, and goes to a
 plain corridor and a small room with the only window."""
 from kit_h11 import *
@@ -26,8 +28,6 @@ def make():
     o = navloop(R, [(2.3, 2.3), (8.0, 2.3), (13.7, 2.3), (13.7, 8.0), (13.7, 8.0), (8.0, 2.3), (2.3, 2.3), (2.3, 8.0), (2.3, 13.7), (8.0, 13.7), (2.3, 13.7), (2.3, 8.0)], close=False)
     st = [R.navpt(x, y) for (x, y) in ((6.2, 6.2), (9.8, 6.2), (9.8, 9.8), (6.2, 9.8))]
     R.link(st[0], st[1], st[2], st[3], st[0])
-    i1, i2 = R.navpt(8.0, 5.6), R.navpt(8.0, 3.4)
-    R.link(st[0], i1, i2)
     secret(R, 13.9, 13.6, 0.0, 'The Room with the Window',
            'Behind the bookcase there is a plain corridor, and at the end of it a small room with a chair and, for the only time you can remember, a window. Outside it is a sky. You do not open it. You are not sure it would be kind to.', r=1.8)
     return done(R, 'The Tesseract Study', weight=3, probe=(8.0, 8.0, 3.0), top=7.4,
@@ -57,7 +57,8 @@ def ring(R):
     sh(R, '-x', W - T, 0.9, 6.3, rows=rows, frame='walnut')
     sh(R, '-y', D - T, 0.9, 6.3, rows=rows, frame='walnut')
     # the dead ends of the north and east corridors
-    sh(R, '-x', NE - 0.4, S1 + WT + 0.2, 13.3, rows=rows, frame='walnut')
+    shelf(R, NE - 0.4, S1 + WT + 0.2, 0, 13.3 - (S1 + WT + 0.2), '-x', rows=rows, frame='walnut', solid=False)
+    R.cut(box(NE - 0.45, 12.0, 0, NE + 0.05, 13.0, 2.3, 'plaster', bottom='floor', top='plaster'))
     sh(R, '-y', NE - 0.4, S1 + WT + 0.2, 13.3, rows=rows, frame='walnut')
     # the study's outside: panelled, with the doors' surrounds and their leaves standing open
     for (face, x, y, hx, hy, la) in ((-math.pi / 2, 8.0, S0 - WT, 8.0 + DW_ / 2, S0 - WT, -math.pi / 2),
@@ -65,7 +66,18 @@ def ring(R):
                                      (math.pi / 2, 8.0, S1 + WT, 8.0 - DW_ / 2, S1 + WT, math.pi / 2),
                                      (math.pi, S0 - WT, 8.0, S0 - WT, 8.0 - DW_ / 2, math.pi)):
         R.parts.add(local(architrave(DW_, DH_, 'walnut', bw=0.22, depth=0.1), face, x, y, 0))
-        open_leaf(R, hx + math.cos(face) * 0.05, hy + math.sin(face) * 0.05, la)
+        if abs(math.sin(face)) > 0.5:
+            open_leaf(R, hx + math.cos(face) * 0.05, hy + math.sin(face) * 0.05, la)
+    # the east and west doors are shut on this side, in deep reveals (and the south and north ones are shut
+    # on the inside): a portal must never be seen from behind
+    for (sx, x) in ((1, S1 + WT), (-1, S0 - WT)):
+        xa, xb = (x, x + sx * 0.85) if sx > 0 else (x + sx * 0.85, x)
+        R.parts.add(box(xa, 8.0 - DW_ / 2 - 0.12, 0, xb, 8.0 - DW_ / 2, DH_ + 0.1, 'walnut'))
+        R.parts.add(box(xa, 8.0 + DW_ / 2, 0, xb, 8.0 + DW_ / 2 + 0.12, DH_ + 0.1, 'walnut'))
+        R.parts.add(box(xa, 8.0 - DW_ / 2, DH_, xb, 8.0 + DW_ / 2, DH_ + 0.1, 'walnut'))
+        lx = x + sx * 0.85
+        lf = door_leaf(DW_, DH_)
+        R.parts.add(lf.xform(math.pi / 2 if sx > 0 else -math.pi / 2, lx, 8.0 - DW_ / 2 if sx > 0 else 8.0 + DW_ / 2, 0))
     # dado and sconces on the study's outer walls
     for (face, fx_, fy_) in ((-math.pi / 2, 0, -1), (0.0, 1, 0), (math.pi / 2, 0, 1), (math.pi, -1, 0)):
         for s in (-1, 1):
@@ -93,6 +105,14 @@ def study(R):
     sh(R, '+x', S0, a, b, rows=rows, frame='walnut'); sh(R, '+x', S0, c, d, rows=rows, frame='walnut')
     sh(R, '-x', S1, a, b, rows=rows, frame='walnut'); sh(R, '-x', S1, c, d, rows=rows, frame='walnut')
     sh(R, '-y', S1, a, b, rows=rows, frame='walnut')
+    for (sy, y) in ((1, S0), (-1, S1)):
+        ya, yb = (y, y + sy * 0.45) if sy > 0 else (y + sy * 0.45, y)
+        R.parts.add(box(8.0 - DW_ / 2 - 0.12, ya, 0, 8.0 - DW_ / 2, yb, DH_ + 0.1, 'walnut'))
+        R.parts.add(box(8.0 + DW_ / 2, ya, 0, 8.0 + DW_ / 2 + 0.12, yb, DH_ + 0.1, 'walnut'))
+        R.parts.add(box(8.0 - DW_ / 2, ya, DH_, 8.0 + DW_ / 2, yb, DH_ + 0.1, 'walnut'))
+        ly = y + sy * 0.45
+        lf = door_leaf(DW_, DH_)
+        R.parts.add(lf.xform(0.0 if sy > 0 else math.pi, 8.0 - DW_ / 2 if sy > 0 else 8.0 + DW_ / 2, ly + (0.05 if sy > 0 else -0.05), 0))
     # the north-east bookcase is the fifth door
     shelf(R, d, S1, 0, d - c, '-y', rows=rows, frame='walnut', solid=False)
     R.cut(box(SDX0, S1 - 0.05, 0, SDX1, S1 + WT + 0.05, 2.2, 'tile', bottom='floor', top='plaster'))
