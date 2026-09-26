@@ -1,4 +1,17 @@
 {
+"afterimage":{
+"size":[
+2,
+1,
+1
+],
+"repeat":false,
+"kind":"long",
+"weight":4,
+"label":"The Afterimage Gallery",
+"bytes":738279,
+"blurb":"Something pale keeps pace a few steps behind you. When you turn, it is you, a little late. The other one, further off, is not."
+},
 "airportgate":{
 "size":[
 2,
