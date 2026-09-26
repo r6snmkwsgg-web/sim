@@ -1,4 +1,17 @@
 {
+"airportgate":{
+"size":[
+2,
+1,
+1
+],
+"repeat":false,
+"kind":"long",
+"weight":3,
+"label":"The Departure Gate",
+"bytes":1050451,
+"blurb":"A departure lounge, joined seats in rows, a wall of glass onto fog. The board says every flight is on time. None of them is boarding."
+},
 "amphipit":{
 "size":[
 1,
@@ -698,6 +711,19 @@
 "bytes":92518,
 "blurb":"Four doors, four signs. Three of them are painted on. You check all three anyway, and so does everybody."
 },
+"deadmall":{
+"size":[
+4,
+4,
+2
+],
+"repeat":false,
+"kind":"giant",
+"weight":3,
+"label":"The Mall",
+"bytes":1284052,
+"blurb":"A shopping mall, two floors of it, under skylights: a fountain, escalators, and shop after shop after shop, all open, all lit, all selling the same thing. Books. There is nobody behind any of the counters."
+},
 "deepstepwell":{
 "size":[
 1,
@@ -775,6 +801,19 @@
 "label":"The Drain",
 "bytes":987155,
 "blurb":"The floor of this room tilts, very gently, toward a hole in the middle. Everything in it has been sliding that way for a long time. You keep one hand on the rail without meaning to."
+},
+"drainedpool":{
+"size":[
+2,
+2,
+1
+],
+"repeat":false,
+"kind":"quad",
+"weight":3,
+"label":"The Drained Pool",
+"bytes":832130,
+"blurb":"A swimming bath with the water let out. The tiles are dry, the lane lines run down the slope to the deep end, and at the bottom, where the swimmers should be, are the bookcases."
 },
 "elevators":{
 "size":[
