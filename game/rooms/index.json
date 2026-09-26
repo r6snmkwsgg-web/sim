@@ -103,6 +103,19 @@
 "bytes":304520,
 "blurb":"Arch after arch after arch, and some of them are full of books. The way on is always the one next to the one you picked."
 },
+"aurorastacks":{
+"size":[
+2,
+2,
+1
+],
+"repeat":false,
+"kind":"quad",
+"weight":3,
+"label":"The Aurora Stacks",
+"bytes":1834632,
+"blurb":"There is no ceiling here, only sky, and the sky is doing something green and slow. The bookcases stand in the snow like stones, as if they were put here to mark the date."
+},
 "backrooms":{
 "size":[
 2,
@@ -217,6 +230,19 @@
 "label":"The Book Shaft",
 "bytes":298573,
 "blurb":"Four walls of books, straight up and straight down, and a narrow walkway round each floor. Somewhere in there is the one you want. It is probably not on this floor."
+},
+"breathinghall":{
+"size":[
+2,
+1,
+1
+],
+"repeat":false,
+"kind":"long",
+"weight":4,
+"label":"The Breathing Hall",
+"bytes":1559213,
+"blurb":"The walls are further in than they were a moment ago. Now they are not. Try not to count along with them."
 },
 "bridgepit":{
 "size":[
@@ -426,6 +452,19 @@
 "bytes":219507,
 "blurb":"A clock the size of a wall, stopped at three minutes to eleven. The door has eaten five, six and seven. You wait for it to tick. It does not."
 },
+"clockroom2":{
+"size":[
+2,
+2,
+1
+],
+"repeat":false,
+"kind":"quad",
+"weight":4,
+"label":"The Hall of Clocks",
+"bytes":1577751,
+"blurb":"A thousand clocks and not one of them agrees. You check your wrist out of habit. There is nothing there, and it is also wrong."
+},
 "cloister":{
 "size":[
 2,
@@ -438,6 +477,19 @@
 "label":"The Great Cloister",
 "bytes":733399,
 "blurb":"A courtyard under an open sky, and four trees that do not move when the wind does not blow. Someone has left a light on upstairs."
+},
+"cloudfloor":{
+"size":[
+2,
+2,
+1
+],
+"repeat":false,
+"kind":"quad",
+"weight":4,
+"label":"The Cloud Floor",
+"bytes":1759032,
+"blurb":"The floor is cloud. It holds you, mostly. The bookcases ride on it like boats at anchor, and the sky goes on past the columns for ever."
 },
 "coil":{
 "size":[
@@ -464,6 +516,19 @@
 "label":"The Colonnade",
 "bytes":367114,
 "blurb":"Columns, and more columns, too close together, like trees planted by someone who had only read about forests. The light comes down between them."
+},
+"coralarchive":{
+"size":[
+2,
+2,
+1
+],
+"repeat":false,
+"kind":"quad",
+"weight":4,
+"label":"The Coral Archive",
+"bytes":1537898,
+"blurb":"The sea came in and went out again and took nothing, only left the shelves a little more alive than they were. Mind the corals; they are reading."
 },
 "corridor":{
 "size":[
@@ -529,6 +594,19 @@
 "bytes":347275,
 "blurb":"Nine vaulted bays, each with its lamp and its books, each very like the last. You count them twice and get ten."
 },
+"daynight":{
+"size":[
+2,
+1,
+1
+],
+"repeat":false,
+"kind":"long",
+"weight":3,
+"label":"Noon and Midnight",
+"bytes":860985,
+"blurb":"At one end of the hall it is noon. At the other it is midnight, and has been for as long as anyone remembers. The line between them is brass, and nobody reads on it."
+},
 "deadend":{
 "size":[
 1,
@@ -554,6 +632,19 @@
 "label":"The Deep Stepwell",
 "bytes":279532,
 "blurb":"The floor steps down, shelf by shelf, to a square hole. Through it you can see the same steps going down to the same hole, and the underside of this one hanging over them."
+},
+"desertroom":{
+"size":[
+2,
+2,
+1
+],
+"repeat":false,
+"kind":"quad",
+"weight":4,
+"label":"The Desert Room",
+"bytes":1401089,
+"blurb":"Sand. A reading room full of it, up to the table tops, and still coming in at the windows. The lamps are on. Nobody has asked for the room to be swept."
 },
 "dollhouse":{
 "size":[
@@ -632,6 +723,58 @@
 "label":"The Stair Plaza",
 "bytes":682032,
 "blurb":"Stairs go up to bridges that go over stairs that go down to landings under bridges. You are fairly sure you have been on this one before."
+},
+"flowerindex":{
+"size":[
+2,
+2,
+1
+],
+"repeat":false,
+"kind":"quad",
+"weight":4,
+"label":"The Flower Index",
+"bytes":1651833,
+"blurb":"A glasshouse where the flowers are made of paper and every petal is printed. You could read a whole bed of them, if you knew what order to pick them in."
+},
+"fogmaze":{
+"size":[
+2,
+2,
+1
+],
+"repeat":false,
+"kind":"quad",
+"weight":4,
+"label":"The Fog Maze",
+"bytes":1058401,
+"blurb":"The stacks go up into fog and the aisles go off into fog. Somewhere in the middle there is a light. There is always a light in the middle."
+},
+"frozenexplosion":{
+"size":[
+2,
+2,
+1
+],
+"repeat":false,
+"kind":"quad",
+"weight":3,
+"label":"The Held Breath",
+"bytes":1326423,
+"blurb":"Something went off in the middle of the reading room, and then time stopped to look. Nothing has landed yet."
+},
+"frozenwave":{
+"size":[
+2,
+2,
+2
+],
+"repeat":false,
+"kind":"tall",
+"weight":3,
+"label":"The Frozen Wave",
+"bytes":997509,
+"blurb":"The wave came in over the reading room and stopped, and nobody has mentioned it since. Under the curl the light is green and cold and very good for reading."
 },
 "gallerybust":{
 "size":[
@@ -749,6 +892,19 @@
 "bytes":911860,
 "blurb":"A staircase built for a procession that never arrived. It climbs, turns, climbs again, and delivers you with great ceremony to more shelves."
 },
+"growingstair":{
+"size":[
+1,
+1,
+1
+],
+"repeat":true,
+"kind":"column",
+"weight":4,
+"label":"The Growing Stair",
+"bytes":714999,
+"blurb":"A tree has come up through the floor and kept going. Somebody taught its branches to be a staircase, or it learned by watching."
+},
 "hanging":{
 "size":[
 1,
@@ -774,6 +930,19 @@
 "label":"The Heap",
 "bytes":302154,
 "blurb":"All the books from all the shelves, in one pile. It is quite stable. There is an armchair on the top, which raises the question of who carried it up."
+},
+"hive":{
+"size":[
+2,
+2,
+1
+],
+"repeat":false,
+"kind":"quad",
+"weight":4,
+"label":"The Hive",
+"bytes":1102734,
+"blurb":"Every cell has a reader's chair in it, or a shelf, or both. The wax is warm. Something, somewhere in the comb, is humming."
 },
 "hypostyle":{
 "size":[
@@ -944,6 +1113,32 @@
 "bytes":317849,
 "blurb":"An island with one desk on it, and a dry moat round it lined with books. Whoever built the bridges did not trust you to jump."
 },
+"mosscathedral":{
+"size":[
+2,
+2,
+2
+],
+"repeat":false,
+"kind":"tall",
+"weight":3,
+"label":"The Moss Cathedral",
+"bytes":1239232,
+"blurb":"Nobody has preached here in a long time, and the congregation is moss. It sits very still, in every pew, and listens."
+},
+"mushroomstacks":{
+"size":[
+2,
+2,
+1
+],
+"repeat":false,
+"kind":"quad",
+"weight":4,
+"label":"The Mushroom Stacks",
+"bytes":1183970,
+"blurb":"The shelves are damp and something has taken root in them. The mushrooms give off just enough light to read by, and they are growing toward the books."
+},
 "nooks":{
 "size":[
 1,
@@ -995,6 +1190,19 @@
 "label":"The Orangery",
 "bytes":658420,
 "blurb":"A glasshouse, and above the glass, a sky. The trees are in good health and have never fruited. Nobody waters them."
+},
+"orchard":{
+"size":[
+2,
+2,
+1
+],
+"repeat":false,
+"kind":"quad",
+"weight":4,
+"label":"The Orchard",
+"bytes":1486306,
+"blurb":"The trees are heavy this year. Pick whatever you like; it is all the same fruit, more or less, and none of it is quite ripe."
 },
 "organ":{
 "size":[
@@ -1124,6 +1332,19 @@
 "bytes":330107,
 "blurb":"Every aisle leads to the desk. The desk is staffed, you are sure of it, just not at the moment."
 },
+"rainroom":{
+"size":[
+2,
+2,
+1
+],
+"repeat":false,
+"kind":"quad",
+"weight":4,
+"label":"The Rain Room",
+"bytes":1103747,
+"blurb":"It is raining in the reading room. It has always been raining in the reading room. The books have been put under glass, and nobody has thought to do anything else."
+},
 "reading":{
 "size":[
 1,
@@ -1174,6 +1395,19 @@
 "bytes":316387,
 "blurb":"A maze, but a polite one: the shelves are low enough to see the middle, and the middle has a chair. Getting there is another matter."
 },
+"rootcellar":{
+"size":[
+2,
+2,
+1
+],
+"repeat":false,
+"kind":"quad",
+"weight":4,
+"label":"The Root Cellar",
+"bytes":1376878,
+"blurb":"Something is growing above this room, and has been for a very long time. It reads, apparently: it has taken the books with it."
+},
 "rotunda":{
 "size":[
 1,
@@ -1186,6 +1420,19 @@
 "label":"The Rotunda",
 "bytes":409257,
 "blurb":"A drum of books under a dome, and a circle of sky at the top that never changes. Everything here faces the middle, including you."
+},
+"ruinwing":{
+"size":[
+2,
+1,
+1
+],
+"repeat":false,
+"kind":"long",
+"weight":3,
+"label":"The Ruin Wing",
+"bytes":952762,
+"blurb":"Each doorway takes you a thousand years further on. Nobody has come to fix anything. The books have not been returned."
 },
 "scissor":{
 "size":[
@@ -1291,6 +1538,19 @@
 "bytes":633048,
 "blurb":"The corridor narrows as you go. So do the doors, and the bookcases, and the lamps. You tell yourself it is perspective until you have to duck."
 },
+"snowstacks":{
+"size":[
+2,
+2,
+1
+],
+"repeat":false,
+"kind":"quad",
+"weight":4,
+"label":"The Snow Stacks",
+"bytes":1348625,
+"blurb":"Snow is falling between the stacks. It drifts against the shelves and does not melt, and at the end of the long aisle a fire is burning for nobody."
+},
 "stacks":{
 "size":[
 2,
@@ -1302,6 +1562,19 @@
 "weight":50,
 "label":"The Sunken Stacks",
 "bytes":579019
+},
+"stairforest":{
+"size":[
+4,
+4,
+2
+],
+"repeat":false,
+"kind":"giant",
+"weight":3,
+"label":"The Stair Forest",
+"bytes":1823347,
+"blurb":"Staircases, hundreds of them, going up into the mist. Most of them stop. Some of them start in the air. You have the feeling that one of them goes somewhere."
 },
 "stairhall":{
 "size":[
@@ -1472,6 +1745,32 @@
 "bytes":214442,
 "blurb":"The house is dark and the footlights are up. There is an armchair on the stage, and a book on the armchair. You have the feeling you are expected to go on."
 },
+"thunderatrium":{
+"size":[
+2,
+2,
+2
+],
+"repeat":false,
+"kind":"tall",
+"weight":3,
+"label":"The Thunder Atrium",
+"bytes":1374213,
+"blurb":"A storm has got into the dome and cannot find its way out. It grumbles over the reading desks. Someone has put up a lightning rod, which seems to satisfy everyone."
+},
+"tidelibrary":{
+"size":[
+2,
+1,
+1
+],
+"repeat":false,
+"kind":"long",
+"weight":4,
+"label":"The Tide Library",
+"bytes":1277835,
+"blurb":"The sea has come into the library, quietly, and stayed. The water is warm and perfectly still, and the lower shelves have begun to grow barnacles."
+},
 "tiers":{
 "size":[
 2,
@@ -1601,6 +1900,19 @@
 "bytes":250516,
 "blurb":"Every chair faces the same door. The clock says ten to four. You find you have already sat down."
 },
+"waterfallstair":{
+"size":[
+2,
+2,
+2
+],
+"repeat":false,
+"kind":"tall",
+"weight":3,
+"label":"The Waterfall Stair",
+"bytes":1190308,
+"blurb":"Somebody left a tap running on the upper floor, a long time ago. The stair has made its peace with it; so has the moss."
+},
 "well":{
 "size":[
 1,
@@ -1612,6 +1924,19 @@
 "weight":55,
 "label":"The Well",
 "bytes":158695
+},
+"whaleribs":{
+"size":[
+2,
+1,
+1
+],
+"repeat":false,
+"kind":"long",
+"weight":3,
+"label":"The Whale",
+"bytes":683194,
+"blurb":"You are inside something that was once alive and very large. The ribs hold up the ceiling now, and the shelves between them are full."
 },
 "ziggurat":{
 "size":[
