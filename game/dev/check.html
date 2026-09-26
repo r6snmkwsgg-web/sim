@@ -21,7 +21,7 @@ window.CHECK = null;
   for (const s of slots) { const r = makeInst(base, s); WORLD.inst.set('i' + s, r); positionInst(r); }
   const G = +(q.get('g') || (Math.max(W, D) > 40 ? 0.5 : 0.25));
   const NX = Math.round(W / G), NZ = Math.round(D / G);
-  const yTop = LV * RLH + 1, yBot = -2.2;
+  const yTop = LV * RLH + 1, yBot = -4.5;
   const H_CROUCH = 1.15, H_STAND = 1.78;
   const sp = new THREE.Vector3();
   const fits = (x, h, z, H) => {

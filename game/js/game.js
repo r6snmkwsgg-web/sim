@@ -213,7 +213,7 @@ function wrapPlayer(fast) {
   let dcx = 0, dcz = 0, fm = 0;
   while (S.x >= RC) { S.x -= RC; S.cx++; dcx++; } while (S.x < 0) { S.x += RC; S.cx--; dcx--; }
   while (S.z >= RC) { S.z -= RC; S.cz++; dcz++; } while (S.z < 0) { S.z += RC; S.cz--; dcz--; }
-  while (S.y >= RLH - 2) { S.y -= RLH; S.floor++; fm++; } while (S.y < -2) { S.y += RLH; S.floor--; fm--; }
+  while (S.y >= RLH - 2) { S.y -= RLH; S.floor++; fm++; } while (S.y < -LV_DOWN) { S.y += RLH; S.floor--; fm--; }
   if (dcx || dcz || fm) {
     if (PL.camY !== null) PL.camY -= fm * RLH;
     PL.peak -= fm * RLH;
@@ -1062,7 +1062,7 @@ function frame(now) {
   const bar = $('#t-load'); if (bar) bar.textContent = 'Building the library…';
   await loadCatalog();
   const sv = loadSave();
-  const at = sv && sv.cx !== undefined ? [sv.cx + Math.floor((sv.x || 8) / RC), sv.cz + Math.floor((sv.z || 8) / RC), sv.floor + Math.floor(((sv.y || 0) + 2) / RLH)] : [START_CX, START_CZ, START_FLOOR];
+  const at = sv && sv.cx !== undefined ? [sv.cx + Math.floor((sv.x || 8) / RC), sv.cz + Math.floor((sv.z || 8) / RC), sv.floor + lvOff(sv.y || 0)] : [START_CX, START_CZ, START_FLOOR];
   const names = new Set([...roomsNear(START_CX, START_CZ, START_FLOOR, WORLD.radius + 1, 1), ...roomsNear(at[0], at[1], at[2], WORLD.radius + 1, 1)]);
   let done = 0;
   if (bar) bar.textContent = `Building the library… 0 / ${names.size}`;

@@ -4,6 +4,10 @@
    rooms/); here they get their tiles, grout, reflections, water and books.
    ========================================================================== */
 const RC = 16, RLH = 8;   // cell size and level height, metres
+/* Which level you are on, from your height above your floor. Up: at 6 m you are on the next floor's
+   (its pits reach 2 m down). Down: only below 4.4 m, so a room can dig a crypt under its floor. */
+const LV_DOWN = 4.4;
+const lvOff = py => py >= RLH - 2 ? Math.floor((py + 2) / RLH) : py < -LV_DOWN ? Math.floor((py + LV_DOWN) / RLH) : 0;
 const ASSET_BASE = location.pathname.includes('/dev/') ? '../' : '';
 
 const SHAFT_U = { tDepth: { value: null }, uRes: { value: new THREE.Vector2() }, uProjInv: { value: new THREE.Matrix4() }, uStr: { value: 0.14 } };
@@ -690,7 +694,7 @@ async function loadPrefab(name) {
         vertexShader: SHAFT_VS, fragmentShader: SHAFT_FS, side: THREE.BackSide, transparent: true, depthTest: false, depthWrite: false, blending: THREE.AdditiveBlending });
       return { g, m };
     });
-    const pf = { name, meta, meshes, mats, col, movers, waters, waterMat, shafts, cube, cubeN, lmd, lmn, common, grid: buildColGrid(col), bookMat: null, probeDone: false };
+    const pf = { name, deep: Math.max(-LV_DOWN, Math.min(-2, Q.lo[1] - 0.05)), meta, meshes, mats, col, movers, waters, waterMat, shafts, cube, cubeN, lmd, lmn, common, grid: buildColGrid(col), bookMat: null, probeDone: false };
     pf.bookMat = new THREE.ShaderMaterial({ uniforms: Object.assign({}, common), vertexShader: BOOK_VS, fragmentShader: BOOK_FS, extensions: { derivatives: true } });
     PREFABS.set(name, pf);
     return pf;
@@ -1007,13 +1011,14 @@ function positionInst(r) {
   r.water.matrix.copy(r.m); r.water.matrixWorldNeedsUpdate = true;
   r.lv = pl.lv;
   const f = footprint(r.pl);
-  r.box = [(pl.cx - ox) * RC, (pl.lv - oy) * RLH - 2, (pl.cz - oz) * RC, (pl.cx - ox + f[0]) * RC, (pl.lv - oy + f[2]) * RLH, (pl.cz - oz + f[1]) * RC];
+  r.floorY = (pl.lv - oy) * RLH;
+  r.box = [(pl.cx - ox) * RC, r.floorY + (r.pf.deep || -2), (pl.cz - oz) * RC, (pl.cx - ox + f[0]) * RC, (pl.lv - oy + f[2]) * RLH, (pl.cz - oz + f[1]) * RC];
   if (r.movers) for (const mv of r.movers) if (mv.col) { mv.col.m.multiplyMatrices(r.m, mv.local); mv.col.inv.copy(mv.col.m).invert(); mv.col.box = r.box; }
 }
 function updateWorld(px, py, pz, fastFall) {
   const [ox, oy, oz] = WORLD.origin, want = new Map(), R = WORLD.radius;
   // the level you are on: feet may be a little below its floor (in a pool) or up to 6 m above it (on a ramp)
-  const pcx = ox + Math.floor(px / RC), pcz = oz + Math.floor(pz / RC), plv = oy + Math.floor((py + 2) / RLH);
+  const pcx = ox + Math.floor(px / RC), pcz = oz + Math.floor(pz / RC), plv = oy + lvOff(py);
   if (!fastFall) for (let dz = -R; dz <= R; dz++) for (let dx = -R; dx <= R; dx++) {
     const pl = roomAt(pcx + dx, pcz + dz, plv);
     if (pl && !COLUMN_ROOMS[pl.pf]) want.set(placeKey(pl), [pl, undefined]);
@@ -1070,7 +1075,7 @@ function evictPrefabs(keep) {
 /* is the room under this point loaded yet? (the player waits for it rather than falling into nothing) */
 function roomReadyAt(px, py, pz) {
   const [ox, oy, oz] = WORLD.origin;
-  const cx = ox + Math.floor(px / RC), cz = oz + Math.floor(pz / RC), lv = oy + Math.floor((py + 2) / RLH);
+  const cx = ox + Math.floor(px / RC), cz = oz + Math.floor(pz / RC), lv = oy + lvOff(py);
   let pl = roomAt(cx, cz, lv);
   if (!pl) { const col = columnAt(fdiv(cx, 2), fdiv(cz, 2)); if (col && mod(cx, 2) === col.cell[0] && mod(cz, 2) === col.cell[1]) pl = { pf: col.type }; }
   if (!pl) return true;
@@ -1085,7 +1090,7 @@ function instAt(x, y, z) {
   let best = null;
   for (const r of WORLD.inst.values()) {
     const b = r.box;
-    if (x >= b[0] && x < b[3] && z >= b[2] && z < b[5] && y >= b[1] && y < b[4] + 0.5) { if (!best || (r.slot === 0 || r.slot === undefined)) best = r; }
+    if (x >= b[0] && x < b[3] && z >= b[2] && z < b[5] && y >= b[1] && y < b[4] + 0.5) { if (!best || ((r.slot === 0 || r.slot === undefined) && (best.floorY !== 0 || r.floorY === 0))) best = r; }   // a crypt under your own floor beats the room below
   }
   return best;
 }
@@ -1134,7 +1139,7 @@ function gridTris(pf, x0, y0, z0, x1, y1, z1, fn) {
 /* the same ownership rule as the shaders: which of this room's triangles exist from your floor (null: all) */
 function bandOf(inst) {
   const M = inst.pf.meta; if (M.repeat) return null;
-  const base = inst.box[1] + 2, top = M.levels * RLH - 0.4;
+  const base = inst.floorY !== undefined ? inst.floorY : inst.box[1] + 2, top = M.levels * RLH - 0.4;
   if (base > 0.5) return [-0.4, 1e9];
   if (base + top < 0.5) return [-1e9, top - 3.25];
   return null;

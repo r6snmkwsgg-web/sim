@@ -108,6 +108,8 @@ def small_room(R):
         for z in (1.5, 2.3):
             if y == SY1 and z < 1.6 and x < 2.4: continue
             hang(R, x, y, face, 0.42, 0.52, z, bw=0.07, pic=pics[k % 5]); k += 1
+    pendant(R, 2.0, 2.2, 2.2, 3.0, r=0.2, m='e_lamp')
+    lantern(R, 3.3, 0.8, 0.0)
     R.parts.add(lchair(1.9, 2.0, 0.0))
     R.spot('sit', 1.9, 2.0, 0.48, 0.0)
     candles(R, [(0.8, 0.8, 0.0), (0.95, 0.7, 0.0)], rng(9), 0.3, 0.6, 0.03, 0.05)

@@ -139,6 +139,10 @@ def balcony(R):
         seg_rail(R, (*sp(k, LF / 2, rin), zc(k + 1)), (*sp(k, SQ3 * RI + 0.12, rin), zc(k + 1)), h=1.0)
         if k != 0:
             seg_rail(R, (*sp(k, -SQ3 * RI - 0.12, rin), z0), (*sp(k, -LF / 2, rin), z0), h=1.0)
+        # hanging lamps over the balcony
+        for s_ in (-LF / 2 + 2.0, -1.5, 2.5):
+            q = sp(k, s_, (RI + RO) / 2)
+            pendant(R, q[0], q[1], z0 + HS * (s_ + LF / 2) / LF + 2.9 + (1.5 if k == 0 and s_ < -3 else 0.0), ZT, r=0.26)
         # a lamp over every third step
         for s in (-LF / 2 + 1.5, 0.0, LF / 2 - 1.5):
             p = sp(k, s, RO - 0.25)
@@ -202,7 +206,7 @@ def well(R):
     R.nocol.add(lchair(CX, CY - 0.9, math.pi / 2))
     candles(R, [(CX + 1.6, CY + 0.5, 0.0), (CX - 1.5, CY + 0.9, 0.0), (CX + 0.2, CY - 1.9, 0.0)], rs, 0.2, 0.5, 0.03, 0.05)
     # light from above: a skylight over the well
-    tri = [sp(k, -SQ3 * (RI - 0.5), RI - 0.5) for k in range(3)]
+    tri = [sp(k, -SQ3 * (RI - 2.2), RI - 2.2) for k in range(3)]
     R.light(poly_prism(tri, ZT - 0.03, ZT, side='e_sky', top='e_sky', bottom='e_sky'))
     tri2 = [sp(k, -SQ3 * (RI + 1.2), RI + 1.2) for k in range(3)]
     R.nocol.add(poly_prism(tri2, ZT - 0.5, ZT, side='plaster', top='plaster', bottom='plaster'))
