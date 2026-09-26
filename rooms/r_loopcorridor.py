@@ -107,6 +107,8 @@ def reading_room(R):
     floor_lamp(R, 13.3, 14.4, 1.7)
     R.spot('plaque', 16.0, D - T - 0.4, 1.4, -math.pi / 2, text='Nothing here happens twice.')
     candles(R, [(16.2, 12.85, 0.76)], rng(5))
+    pendant(R, 15.0, 13.0, 3.0, 4.2, r=0.3)
+    pendant(R, 12.0, 13.5, 3.0, 4.2, r=0.26)
 
 
 def strips(R):

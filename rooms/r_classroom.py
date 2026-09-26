@@ -152,7 +152,7 @@ def board(R):
     # the door behind it, and a bulb over the gap
     R.cut(box(DX0, YN - 0.1, 0, DX1, SY0 + 0.05, 2.2, 'wood', bottom='floor', top='wood'))
     R.nocol.add(box(DX0 - 0.1, YN - 0.06, 2.2, DX1 + 0.1, YN, 2.32, 'walnut'))
-    R.light(sphere(19.0, (BY1 + YN) / 2, 3.2, 0.05, 6, 3, 'e_dim'))
+    R.light(sphere(19.0, (BY1 + YN) / 2, 3.2, 0.07, 6, 3, 'e_amber'))
 
 
 def desk_unit(g, x0, x1, y, rs, lamps):
@@ -241,7 +241,7 @@ def store(R):
     R.spot('sit', SX1 - 1.4, SY0 + 1.45, 0.48, -math.pi / 2)
     R.nocol.add(sphere(SX0 + 1.4, SY1 - 0.9, 0.35, 0.33, 12, 6, 'green'))
     R.nocol.add(cone(SX0 + 2.2, SY0 + 0.5, 0.0, 0.7, 0.2, 0.01, 8, 'ivory'))
-    bulb(R, (SX0 + SX1) / 2, (SY0 + SY1) / 2, SH - 0.6, r=0.09, m='e_dim', top=SH)
+    bulb(R, (SX0 + SX1) / 2, (SY0 + SY1) / 2, SH - 0.6, r=0.11, m='e_lamp', top=SH)
     R.spot('plaque', SX1 - 1.4, SY0 + 0.6, 0.8, math.pi / 2, text='REGISTER. Present. Present. Present. Present.')
     a, b = R.navpt(SX0 + 1.0, SY0 + 1.6), R.navpt(SX1 - 2.8, SY0 + 1.9)
     R.link(a, b)

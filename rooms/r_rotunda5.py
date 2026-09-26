@@ -48,7 +48,7 @@ def make():
     ids = {k: R.navpt(*op(math.radians(45 * k), 0.0, rm)) for k in range(8) if k != 1}
     for k in range(2, 8):
         R.link(ids[k], ids[(k + 1) % 8])
-    ro = navloop(R, [(CX + 5.2 * math.cos(math.radians(a)), CY + 5.2 * math.sin(math.radians(a))) for a in range(0, 360, 45)])
+    ro = navloop(R, [(CX + 3.8 * math.cos(math.radians(a)), CY + 3.8 * math.sin(math.radians(a))) for a in range(0, 360, 45)])
     for k in (0, 2, 4, 6):
         R.link(ro[k], ids[k])
     secret(R, 10.0, 16.0, CZ, 'The Crypt Under the Medallion',

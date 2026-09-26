@@ -154,7 +154,7 @@ def office(R):
     for i, ch in enumerate('481'):
         seg_digit(R, OX1 - 0.26, 30.2 - i * 0.3, 2.55, ch, math.pi, s=0.32)
     rug(R, 14.0, 28.4, 18.0, 30.0, m='carpet', border='gilt')
-    bulb(R, 16.0, 29.4, OH - 0.6, r=0.08, m='e_dim', top=OH)
+    bulb(R, 16.0, 29.4, OH - 0.6, r=0.08, m='e_lamp', top=OH)
     R.spot('plaque', 16.0, 30.6, 0.8, -math.pi / 2, text='NOW SERVING 482. Please wait until your number is called.')
     a, b = R.navpt(14.0, 29.0), R.navpt(18.0, 29.0)
     R.link(a, b)

@@ -636,9 +636,11 @@ def build(R, quick=False, night=True, bake=True):
     # with very many small islands the margins can eat the whole map and everything packs to nothing (a black
     # bake): measure what the islands cover and repack with thinner margins until they get a real share
     def _uv_cover():
-        uv = np.zeros(len(me.loops) * 2, np.float32); lm.data.foreach_get('uv', uv); uv = np.nan_to_num(uv.reshape(-1, 2))
-        st = np.zeros(len(me.polygons), np.int32); me.polygons.foreach_get('loop_start', st)
-        nt = np.zeros(len(me.polygons), np.int32); me.polygons.foreach_get('loop_total', nt)
+        lay = room.data.uv_layers['LM']   # fetch afresh: edit-mode toggles invalidate older references
+        uv = np.zeros(len(room.data.loops) * 2, np.float32); lay.data.foreach_get('uv', uv); uv = np.nan_to_num(uv.reshape(-1, 2))
+        mm = room.data
+        st = np.zeros(len(mm.polygons), np.int32); mm.polygons.foreach_get('loop_start', st)
+        nt = np.zeros(len(mm.polygons), np.int32); mm.polygons.foreach_get('loop_total', nt)
         a = 0.0
         for k in range(3, int(nt.max()) + 1 if len(nt) else 3):   # shoelace, grouped by corner count
             sel = st[nt == k]
@@ -656,6 +658,7 @@ def build(R, quick=False, night=True, bake=True):
         bpy.ops.object.mode_set(mode='OBJECT')
         cover = _uv_cover()
     print('uv cover %.2f' % cover)
+    me = room.data; lm = me.uv_layers['LM']
     print('uv %.1fs' % (time.time() - t1))
     res = R.res if not quick else R.res // 2
     maps = {}

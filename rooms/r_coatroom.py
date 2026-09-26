@@ -167,7 +167,7 @@ def passage(R):
     R.nocol.add(g)
     R.parts.add(lchair_legs(PX1 - 0.8, PY0 + 0.95, -math.pi / 2))
     R.spot('sit', PX1 - 0.8, PY0 + 0.95, 0.48, -math.pi / 2)
-    bulb(R, (PX0 + PX1) / 2 - 2.0, (PY0 + PY1) / 2, PH - 0.5, r=0.06, m='e_dim', top=PH)
+    bulb(R, (PX0 + PX1) / 2 - 2.0, (PY0 + PY1) / 2, PH - 0.5, r=0.07, m='e_lamp', top=PH)
     a, b = R.navpt(PX0 + 2.6, 1.2), R.navpt(AX1 + 1.0, 1.2)
     R.link(a, b)
 
