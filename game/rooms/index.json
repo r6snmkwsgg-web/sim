@@ -997,6 +997,19 @@
 "bytes":682032,
 "blurb":"Stairs go up to bridges that go over stairs that go down to landings under bridges. You are fairly sure you have been on this one before."
 },
+"escherloop":{
+"size":[
+2,
+2,
+2
+],
+"repeat":false,
+"kind":"tall",
+"weight":3,
+"label":"The Endless Stair",
+"bytes":825926,
+"blurb":"A stair climbs round a court of books, flight after flight, and at the top of the fourth flight a stone gate. Through the gate is the foot of the first flight. You have climbed eight metres. You are where you started."
+},
 "floatislands":{
 "size":[
 4,
@@ -1035,6 +1048,19 @@
 "label":"The Fog Maze",
 "bytes":1058401,
 "blurb":"The stacks go up into fog and the aisles go off into fog. Somewhere in the middle there is a light. There is always a light in the middle."
+},
+"folded":{
+"size":[
+2,
+1,
+1
+],
+"repeat":false,
+"kind":"long",
+"weight":3,
+"label":"The Folded Corridor",
+"bytes":592875,
+"blurb":"A corridor folded like paper: creases in the ceiling, walls leaning in, doors set on their sides. You turn right at a fold, and then left at a corner, and you are back where you started. You have not turned round. You check."
 },
 "frozenexplosion":{
 "size":[
@@ -1321,6 +1347,19 @@
 "bytes":828975,
 "blurb":"The north wall of the upper hall is a lock, and the lock is open. Through the keyhole the library goes down, and down."
 },
+"klein":{
+"size":[
+2,
+2,
+2
+],
+"repeat":false,
+"kind":"tall",
+"weight":3,
+"label":"The Klein Bottle",
+"bytes":1078306,
+"blurb":"A bottle of brass hoops the size of a house stands in the atrium, lined with books inside. Its neck climbs out of its crown and comes down again to the gallery. If you walk up the neck, you come out inside the bottle. You never went through the wall. You went through the wall."
+},
 "ladderhall":{
 "size":[
 2,
@@ -1425,6 +1464,19 @@
 "bytes":519342,
 "blurb":"Busts on pedestals face each other across the aisle, all the way down. None of them is anyone you have heard of, and all of them are looking at you."
 },
+"loopcorridor":{
+"size":[
+2,
+1,
+1
+],
+"repeat":false,
+"kind":"long",
+"weight":4,
+"label":"The Repeating Door",
+"bytes":614838,
+"blurb":"A doorway, and beyond it a doorway, and beyond that one another, each with a single book lying on the floor in front of it. You pick up the book. The next doorway has one too."
+},
 "lostshrine":{
 "size":[
 1,
@@ -1490,6 +1542,32 @@
 "bytes":225081,
 "blurb":"Everything on this side of the arches is on the other side too, the other way round. There is a chair on each side, and you are not sure which one you were sitting in."
 },
+"mirrorhall":{
+"size":[
+2,
+1,
+1
+],
+"repeat":false,
+"kind":"long",
+"weight":4,
+"label":"The Hall of Mirrors",
+"bytes":617240,
+"blurb":"Two mirrors face each other across the aisle, and the hall goes on in both of them for ever. In every copy you are a little further away."
+},
+"mirrorlake":{
+"size":[
+2,
+2,
+1
+],
+"repeat":false,
+"kind":"quad",
+"weight":3,
+"label":"The Mirror Lake",
+"bytes":758292,
+"blurb":"The floor is a black mirror a man's height down, and the whole hall stands on its own reflection. The causeways are the only thing holding you up. They are enough. Probably."
+},
 "moat":{
 "size":[
 1,
@@ -1502,6 +1580,19 @@
 "label":"The Moat",
 "bytes":317849,
 "blurb":"An island with one desk on it, and a dry moat round it lined with books. Whoever built the bridges did not trust you to jump."
+},
+"mobius":{
+"size":[
+2,
+1,
+1
+],
+"repeat":false,
+"kind":"long",
+"weight":3,
+"label":"The Mobius Hall",
+"bytes":1161128,
+"blurb":"A long reading hall, and overhead a ribbon of shelves that turns slowly over as it goes, lamps hanging off it at every angle. At the far end the hall begins again. The ribbon is upside down now. So, you suspect, are you."
 },
 "mosscathedral":{
 "size":[
@@ -1541,6 +1632,19 @@
 "label":"The Mushroom Stacks",
 "bytes":1183970,
 "blurb":"The shelves are damp and something has taken root in them. The mushrooms give off just enough light to read by, and they are growing toward the books."
+},
+"negative":{
+"size":[
+2,
+2,
+1
+],
+"repeat":false,
+"kind":"quad",
+"weight":3,
+"label":"The Negative",
+"bytes":851663,
+"blurb":"The shelves are white and the lampshades are black, and the lamps shine black light that somehow shows you everything. It is only the library, printed the wrong way."
 },
 "nooks":{
 "size":[
@@ -1671,6 +1775,19 @@
 "label":"The Pencil Wood",
 "bytes":1694469,
 "blurb":"A wood of pencils, all sharpened, standing in their own shavings. It smells of cedar and of school. Nobody has written anything with them yet."
+},
+"penrose":{
+"size":[
+2,
+2,
+2
+],
+"repeat":false,
+"kind":"tall",
+"weight":3,
+"label":"The Penrose Balcony",
+"bytes":735085,
+"blurb":"A balcony goes round a deep well of books, and it climbs a step at a time on every side. After the third side you are back at the first. It is still climbing. So are you."
 },
 "pillarabyss":{
 "size":[
@@ -1812,6 +1929,32 @@
 "bytes":1826612,
 "blurb":"Reading tables to the horizon, every lamp lit, every chair pushed in. Nobody reads here. Perhaps they all found what they were looking for."
 },
+"recursion":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":3,
+"label":"The Gallery of Frames",
+"bytes":326375,
+"blurb":"A gallery of gilded frames. Two of the pictures are of this gallery, from the other end, and in each of them hangs the other. Low in the far wall there is an empty frame, and it is dark inside, and it is big enough to climb into."
+},
+"reflectstair":{
+"size":[
+2,
+2,
+2
+],
+"repeat":false,
+"kind":"tall",
+"weight":3,
+"label":"The Mirror Stair",
+"bytes":818936,
+"blurb":"At the top of the grand stair a tall gilded mirror, and you in it, climbing. Beside it another frame, and another stair in it, going down. You are not in that one."
+},
 "rest":{
 "size":[
 1,
@@ -1862,6 +2005,19 @@
 "label":"The Rotunda",
 "bytes":409257,
 "blurb":"A drum of books under a dome, and a circle of sky at the top that never changes. Everything here faces the middle, including you."
+},
+"rotunda5":{
+"size":[
+2,
+2,
+1
+],
+"repeat":false,
+"kind":"quad",
+"weight":3,
+"label":"The Rotunda of the Long Way Round",
+"bytes":830862,
+"blurb":"A domed rotunda in an octagonal ambulatory. Going round to the right takes a minute. Going round to the left, you keep finding yourself walking back the way you came."
 },
 "ruinwing":{
 "size":[
@@ -2277,6 +2433,19 @@
 "label":"The Terraces",
 "bytes":235854,
 "blurb":"The floor climbs in terraces to a table at the top, and every step is a shelf of books. The ceiling climbs the same way, as if the room had been folded in half."
+},
+"tesseract":{
+"size":[
+1,
+1,
+1
+],
+"repeat":false,
+"kind":"single",
+"weight":3,
+"label":"The Tesseract Study",
+"bytes":316779,
+"blurb":"A study with a door in every wall. You go out by one and come back in by another, and the desk has turned to face you. There is a door in the ceiling too, and one in the floor, but those are only painted on."
 },
 "theatre":{
 "size":[

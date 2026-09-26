@@ -11,6 +11,7 @@
    ========================================================================== */
 const PORTAL = { doors: [], slots: [], vcam: new THREE.PerspectiveCamera(), prev: null, prevCell: '' };
 const PORTAL_MAX = 3;
+const PORTAL_EPS = 1e-4;   // metres; well above the rounding of absolute coordinates, far below a frame's step
 
 const pv3 = p => new THREE.Vector3(p[0], p[2], p[1]);
 function portalFrame(c, n, up) {
@@ -141,7 +142,9 @@ function portalCross() {
     if (D.mirror) continue;
     doorWorld(D, _pc, _pn, _pT);
     const s0 = _ptp.copy(prev).sub(_pc).dot(_pn), s1 = _ptp.copy(now).sub(_pc).dot(_pn);
-    if (!(s0 < 0 && s1 >= 0)) continue;
+    // a step can end on the plane itself; prev is rebuilt from huge absolute coordinates, so the same spot can read
+    // a hair behind as 'now' and a hair in front as 'prev' and the crossing would slip between frames: the plane gets a little depth
+    if (!(s0 < PORTAL_EPS && s1 >= PORTAL_EPS)) continue;
     const k = s0 / (s0 - s1), hit = prev.clone().lerp(now, k);
     const loc = hit.applyMatrix4(D.r.inv).applyMatrix4(D.Fi);
     if (Math.abs(loc.x) > D.w / 2 || loc.y < -1.2 || loc.y > D.h) continue;
