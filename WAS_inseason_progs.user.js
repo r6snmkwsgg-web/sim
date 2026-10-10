@@ -6,6 +6,7 @@
 // @match        https://play.football-gm.com/*
 // @grant        none
 // @inject-into  page
+// @sandbox      raw
 // @run-at       document-idle
 // ==/UserScript==
 
