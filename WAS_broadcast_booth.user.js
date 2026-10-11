@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Football GM: Broadcast Booth
 // @namespace    was-dynasty-fbgm
-// @version      1.0
+// @version      1.1
 // @description  Turns Football GM's live play-by-play into TV-style commentary. Real names, yards, downs, score and in-game stat callbacks; the flavor is made up to fit. Hover any line to see the original.
 // @match        https://play.football-gm.com/*
 // @grant        none
@@ -218,6 +218,15 @@
 			return ` ${nick(o)} still lead, ${theirs}-${mine}.`;
 		};
 		const clutch = S.late && S.close;
+		const tp = picker(r.orig + "|tackle"); // own picker, so filling in the tackler later doesn't reshuffle the rest of the call
+		const tackleTag = () => {
+			const a = r.attrib;
+			if (!a) return "";
+			if (a.solo.length === 1) return " " + tp([`${last(a.solo[0])} makes the tackle.`, `Brought down by ${last(a.solo[0])}.`, `${last(a.solo[0])} wraps him up.`]);
+			if (a.ast.length >= 2) return " " + tp([`${last(a.ast[0])} and ${last(a.ast[1])} bring him down.`, `Gang tackle, ${last(a.ast[0])} and ${last(a.ast[1])}.`]);
+			if (a.ast.length === 1) return ` ${last(a.ast[0])} in on the stop.`;
+			return "";
+		};
 
 		// ---- passing
 		if ((m = /^(.+) drops back to pass$/.exec(s))) {
@@ -251,12 +260,17 @@
 			else if (yds <= 34) line = p([`${qb} drops it in the bucket to ${wr} — ${yds} yards!`, `Big chunk play! ${wr} up the seam for ${yds}!`, `${qb} hits ${wr} in stride — ${yds}-yard gain!`]);
 			else line = p([`${qb} airs it out… ${wr} makes the catch! ${yds} yards!`, `HUGE play! ${wr} gets behind the defense — ${yds} yards!`, `Deep ball to ${wr}… CAUGHT! A ${yds}-yard strike!`]);
 			const extra = milestone("receiving", m[2], before, yds, [100, 150, 200]) || milestone("passing", m[1], qbBefore, yds, [300, 400]);
-			return { html: esc(line + fdTag(yds) + extra), big: yds >= 25 };
+			return { html: esc(line + tackleTag() + fdTag(yds) + extra), big: yds >= 25 };
 		}
 		if ((m = /^Incomplete pass to (.+)$/.exec(s))) {
 			const wr = last(m[1]);
-			if (S.h && S.h.down === 4) return { html: `<b>${esc(p([`Fourth-down throw for ${wr}… INCOMPLETE!`, `It's thrown for ${wr}… no! Falls incomplete on fourth down!`, `${wr} can't come up with it on fourth down!`]))}</b>`, big: true };
-			return p([`Thrown for ${wr}… incomplete.`, `Overthrown — ${wr} couldn't get to it.`, `Broken up! Incomplete, intended for ${wr}.`, `Off the fingertips of ${wr}, incomplete.`, `${wr} can't come up with it.`]);
+			const pd = r.attrib && r.attrib.pd.length === 1 ? last(r.attrib.pd[0]) : null;
+			if (S.h && S.h.down === 4) {
+				if (pd) return { html: `<b>${esc(tp([`Fourth-down throw for ${wr}… BROKEN UP by ${pd}! Huge stop!`, `${pd} gets a hand on it on fourth down! Incomplete for ${wr}!`]))}</b>`, big: true };
+				return { html: `<b>${esc(p([`Fourth-down throw for ${wr}… INCOMPLETE!`, `It's thrown for ${wr}… no! Falls incomplete on fourth down!`, `${wr} can't come up with it on fourth down!`]))}</b>`, big: true };
+			}
+			if (pd) return { html: `<b>${esc(tp([`BROKEN UP by ${pd}! Intended for ${wr}.`, `${pd} gets a hand in there — incomplete!`, `${pd} breaks it up! ${wr} had no chance.`, `Great coverage by ${pd}, knocks it away from ${wr}.`]))}</b>` };
+			return p([`Thrown for ${wr}… incomplete.`, `Overthrown — ${wr} couldn't get to it.`, `Off target, incomplete for ${wr}.`, `Off the fingertips of ${wr}, incomplete.`, `${wr} can't come up with it.`]);
 		}
 		if ((m = /^Intercepted by (.+)!$/.exec(s))) {
 			const d = last(m[1]);
@@ -313,7 +327,7 @@
 			else if (yds <= 9) line = p([`${rb} finds a crease for ${yds}.`, `${rb} cuts back and picks up ${yds}.`, `Nice run by ${rb}, ${yds} yards.`, `${rb} slips a tackle, gains ${yds}.`]);
 			else if (yds <= 19) line = p([`${rb} bursts through the hole — ${yds} yards!`, `${rb} breaks into the second level for ${yds}!`, `Big run! ${rb} for ${yds}.`]);
 			else line = p([`${rb} breaks LOOSE! ${yds} yards before they finally drag him down!`, `${rb} hits the hole and he's off — a ${yds}-yard run!`, `Huge run! ${rb} rips off ${yds}!`]);
-			return { html: esc(line + fdTag(yds) + milestone("rushing", m[1], before, yds, [100, 150, 200])), big: yds >= 20 };
+			return { html: esc(line + tackleTag() + fdTag(yds) + milestone("rushing", m[1], before, yds, [100, 150, 200])), big: yds >= 20 };
 		}
 		if ((m = /^(.+) kneels$/.exec(s))) return p([`${last(m[1])} takes a knee.`, `Victory formation — ${last(m[1])} kneels it.`]);
 		if ((m = /^(.+) was tackled in the endzone for a safety!$/.exec(s))) return { html: `<span class="text-danger fw-bold">${esc(`${last(m[1])} is dropped in the end zone — SAFETY!`)}</span>${esc(scoreLine())}`, big: true };
@@ -346,7 +360,7 @@
 			if (m[3]) return { html: `<span class="text-success fw-bold">${esc(`${k} takes it… finds a seam… he's GONE! KICKOFF RETURN TOUCHDOWN!`)}</span>${esc(scoreLine())}`, big: true };
 			if (yds >= 40) return { html: `<b>${esc(p([`${k} breaks a tackle and he's off — ${yds}-yard return!`, `What a return by ${k}! ${yds} yards!`]))}</b>`, big: true };
 			if (yds <= 5) return p([`${k} is swallowed up right away.`, `${k} doesn't get far, ${yds} yard${yds === 1 ? "" : "s"}.`]);
-			return p([`${k} brings it out ${yds} yards.`, `${k} returns it ${yds}.`]);
+			return p([`${k} brings it out ${yds} yards.`, `${k} returns it ${yds}.`]) + tackleTag();
 		}
 		if (s === "The punt team takes the field") return p(["Punt team trots out.", "They'll punt it away.", "Here comes the punt unit."]);
 		if ((m = /^(.+) punted (\d+) yards?( for a touchback| into the end zone)?$/.exec(s))) {
@@ -362,7 +376,7 @@
 			if (m[3]) return { html: `<span class="text-success fw-bold">${esc(`${k} fields it, makes one guy miss… he's GONE! PUNT RETURN TOUCHDOWN!`)}</span>${esc(scoreLine())}`, big: true };
 			if (yds === 0) return p([`${k} is swarmed immediately, no return.`, `No room for ${k}, tackled right there.`]);
 			if (yds >= 25) return { html: `<b>${esc(p([`${k} makes a man miss — ${yds}-yard return!`, `Big return by ${k}! ${yds} yards!`]))}</b>`, big: true };
-			return p([`${k} returns it ${yds}.`, `${k} brings it back ${yds} yards.`]);
+			return p([`${k} returns it ${yds}.`, `${k} brings it back ${yds} yards.`]) + tackleTag();
 		}
 		if ((m = /^(.+) comes on for a (\d+) yard field goal attempt$/.exec(s))) {
 			const k = last(m[1]);
@@ -452,6 +466,7 @@
 		span.className = "pgm-call";
 		span.innerHTML = html;
 		span.title = r.orig;
+		if (r.attrib) span.dataset.by = JSON.stringify(r.attrib);
 		r.body.insertBefore(span, r.scoreDiv);
 		r.call = span;
 		r.saved = r.mid.map((n) => (n.nodeType === 3 ? n.nodeValue : null));
@@ -466,12 +481,87 @@
 		});
 	};
 
+	// Football GM's play-by-play doesn't name tacklers or pass defenders, but its live box score counts them.
+	// Each time a new line shows up, the box score's new tackles / passes defended are matched to the play they belong to.
+	// Runs, returns and incompletions: the stats land with the play's own line. Completions: the tackle lands a beat
+	// later (with the next line), so that call gets the tackler filled in a moment after it appears.
+	const readDefense = () => {
+		const out = {};
+		for (const table of document.querySelectorAll("table")) {
+			const ths = [...table.querySelectorAll("thead tr:last-child th")];
+			if (!ths.some((th) => th.title === "Passes Defended")) continue;
+			const col = {};
+			let c = 0;
+			for (const th of ths) {
+				if (th.title) col[th.title] = c;
+				c += th.colSpan || 1;
+			}
+			for (const tr of table.querySelectorAll("tbody tr")) {
+				const a = tr.querySelector('a[href*="/player/"]');
+				if (!a) continue;
+				const tds = tr.children;
+				const num = (title) => Number((tds[col[title]] && tds[col[title]].textContent) || 0) || 0;
+				out[a.getAttribute("href")] = { name: a.textContent.trim(), pd: num("Passes Defended"), solo: num("Solo Tackles"), ast: num("Assists On Tackles") };
+			}
+		}
+		return out;
+	};
+	const diffBox = (box, prev) => {
+		const a = { pd: [], solo: [], ast: [] };
+		for (const [k, v] of Object.entries(box)) {
+			const was = prev[k] || { pd: 0, solo: 0, ast: 0 };
+			if (v.pd > was.pd) a.pd.push(v.name);
+			if (v.solo > was.solo) a.solo.push(v.name);
+			if (v.ast > was.ast) a.ast.push(v.name);
+		}
+		return a;
+	};
+	const RESULT = /^(Incomplete pass to |.+ completed a pass to .+ for -?\d+ yards?$|.+ rushed for -?\d+ yards?$|.+ returned the (kickoff|punt) -?\d+ yards?$)/;
+	const COMPLETION = / completed a pass to /;
+	// other lines that can put tackles / passes defended in the box score
+	const STATFUL = /( was sacked by | fumbled the ball|recovered the fumble|Intercepted by | returned the interception| returned the fumble| was tackled in the endzone)/;
+	const rerender = (r) => {
+		if (!r.call) return;
+		try {
+			const c = callFor(r, context(r.el));
+			if (c) r.call.innerHTML = typeof c === "string" ? esc(c) : c.html;
+			r.call.dataset.by = JSON.stringify(r.attrib);
+		} catch (e) {
+			console.log("Broadcast Booth: " + e.message);
+		}
+	};
+	let lastBox = null;
+	let pending = null; // a completion waiting for its tackle
 	const processAll = (container) => {
 		const entries = [...container.children].reverse(); // oldest first
+		const fresh = [];
 		for (const el of entries) {
 			const r = readEntry(el);
-			if (r) apply(r);
+			if (r && r.call === undefined) fresh.push(r);
 		}
+		if (fresh.length === 0) return;
+		const box = readDefense();
+		if (lastBox) {
+			const d = diffBox(box, lastBox);
+			const plain = (r) => stripStats(r.orig || "");
+			const busy = fresh.filter((r) => !r.header && (RESULT.test(plain(r)) || STATFUL.test(plain(r))));
+			const newPending = busy.length === 1 && COMPLETION.test(plain(busy[0])) && busy[0] === fresh[fresh.length - 1] ? busy[0] : null;
+			const hadPending = !!pending;
+			if (pending) {
+				// nothing else in this batch could have made a tackle (a fresh completion's tackle isn't in yet)
+				if (busy.length === 0 || newPending) {
+					if (d.pd.length || d.solo.length || d.ast.length) {
+						pending.attrib = d;
+						rerender(pending);
+					}
+				}
+				pending = null;
+			}
+			if (newPending) pending = newPending;
+			else if (!hadPending && busy.length === 1 && RESULT.test(plain(busy[0]))) busy[0].attrib = d;
+		}
+		lastBox = box;
+		for (const r of fresh) apply(r);
 	};
 
 	// on/off switch
