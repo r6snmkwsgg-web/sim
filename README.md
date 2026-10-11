@@ -8,3 +8,4 @@ League files converted from Pocket GM 3. Load one in Football GM with New League
 
 Both league files include team and player notes, franchise history in the Transactions and News pages, and coaching/health/scouting budgets set from the Pocket GM staff.
 - `WAS_inseason_progs.user.js`: userscript (Tampermonkey, or the Userscripts app on iPhone) that turns on the 30% offseason / 70% in-season progression every time Football GM opens. It only acts in the WAS Dynasty league.
+- `WAS_broadcast_booth.user.js`: userscript that turns Football GM's live play-by-play into TV-style commentary (real names, yards, downs, score and in-game stat callbacks; the flavor is invented to fit). Hover a line to see the original; toggle with the "Broadcast" button.
