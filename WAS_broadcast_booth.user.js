@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Football GM: Broadcast Booth
 // @namespace    was-dynasty-fbgm
-// @version      1.2
-// @description  Turns Football GM's live play-by-play into TV-style commentary. Real names, yards, downs, score and in-game stat callbacks; the flavor is made up to fit. Hover any line to see the original. Halftime and postgame shows pop up automatically.
+// @version      1.3
+// @description  Turns Football GM's live play-by-play into TV-style commentary. Real names, yards, downs, score and in-game stat callbacks; the flavor is made up to fit. Hover any line to see the original. Halftime and postgame shows, NFL-style kickoff windows on the schedule, and a score ticker.
 // @match        https://play.football-gm.com/*
 // @grant        none
 // @inject-into  page
@@ -419,7 +419,9 @@
 			const parts = [`${nick(S.off)} are going for it`];
 			if (h) parts[0] += ` on 4th & ${h.goal ? "goal" : h.toGo}`;
 			let tail = "!";
-			if (S.late && S.diff < 0) tail = `, down ${-S.diff} with ${h.clock} left. Everything on this snap!`;
+			if (S.late && S.diff < 0 && S.diff >= -8) tail = `, down ${-S.diff} with ${h.clock} left. Everything on this snap!`;
+			else if (S.late && S.diff < -8) tail = `, down ${-S.diff} with ${h.clock} left. Just playing it out now.`;
+			else if (S.late && S.diff > 0) tail = ` with ${h.clock} left, up ${S.diff}. Gutsy!`;
 			else if (S.late) tail = ` with ${h.clock} left. Gutsy!`;
 			return { html: `<b>${esc(parts[0] + tail)}</b>`, big: true };
 		}
@@ -568,6 +570,8 @@
 		}
 		lastBox = box;
 		for (const r of fresh) apply(r);
+		for (const r of fresh) tickerAdvance(r);
+		renderTicker();
 		fresh.forEach((r, i) => {
 			try {
 				maybeShow(r, i === fresh.length - 1, container);
@@ -576,6 +580,135 @@
 			}
 		});
 	};
+
+	// ------------------------------------------------------------------ game-day slots (shared)
+	// Runs inside Football GM's worker (embedded with .toString()), so it only touches the worker's `bbgm`.
+	// Gives every game of a week a kickoff slot: Thursday Night Football, Sunday 11:00, Sunday 1:00, Sunday Night
+	// Football or Monday Night Football. The best matchups by record go primetime. It only uses records from earlier
+	// weeks plus a seed from the week's games, so the slots never move once the week starts.
+	const pgmWeekFn = async (opts) => {
+		const { g, idb, PHASE } = bbgm;
+		const season = g.get("season");
+		const phase = g.get("phase");
+		if (phase !== PHASE.REGULAR_SEASON && phase !== PHASE.AFTER_TRADE_DEADLINE) return null;
+		if (opts.season !== undefined && opts.season !== season) return null;
+		const teams = (await idb.cache.teams.getAll()).filter((t) => !t.disabled);
+		const byTid = new Map(teams.map((t) => [t.tid, t]));
+		const games = await idb.getCopies.games({ season }, "noCopyCache");
+		const sched = (await idb.cache.schedule.getAll()).filter((s) => s.homeTid >= 0 && s.awayTid >= 0);
+		let day = opts.day;
+		if (day === undefined && opts.abbrevs) {
+			const tids = opts.abbrevs.map((a) => (teams.find((t) => t.abbrev === a) || {}).tid);
+			let best = null;
+			for (const gm of games) if (tids.every((tid) => gm.teams.some((t) => t.tid === tid)) && (!best || gm.day > best.day)) best = gm;
+			if (best) day = best.day;
+		}
+		const today = sched.length ? Math.min(...sched.map((s) => s.day)) : undefined;
+		if (day === undefined) day = today;
+		if (day === undefined) return null;
+		const days = [...new Set(games.map((x) => x.day).concat(sched.map((x) => x.day)))].sort((a, b) => a - b);
+		const week = days.indexOf(day) + 1;
+		if (week <= 0) return null;
+		const list = [];
+		for (const gm of games) {
+			if (gm.day !== day) continue;
+			list.push({ gid: gm.gid, home: gm.teams[0].tid, away: gm.teams[1].tid, played: true, hp: gm.teams[0].pts, ap: gm.teams[1].pts, hq: gm.teams[0].ptsQtrs || [], aq: gm.teams[1].ptsQtrs || [], ss: gm.scoringSummary || [], ot: gm.overtimes || 0 });
+		}
+		for (const s of sched) if (s.day === day) list.push({ gid: s.gid, home: s.homeTid, away: s.awayTid, played: false });
+		list.sort((a, b) => a.gid - b.gid);
+		if (!list.length) return null;
+		// records from earlier weeks only
+		const rec = new Map(teams.map((t) => [t.tid, [0, 0, 0]]));
+		for (const gm of games) {
+			if (gm.day >= day) continue;
+			const rh = rec.get(gm.teams[0].tid);
+			const ra = rec.get(gm.teams[1].tid);
+			if (!rh || !ra) continue;
+			const hp = gm.teams[0].pts;
+			const ap = gm.teams[1].pts;
+			if (hp > ap) {
+				rh[0]++;
+				ra[1]++;
+			} else if (hp < ap) {
+				rh[1]++;
+				ra[0]++;
+			} else {
+				rh[2]++;
+				ra[2]++;
+			}
+		}
+		const prev = new Map();
+		for (const ts of await idb.cache.teamSeasons.getAll()) {
+			if (ts.season !== season - 1) continue;
+			const n = ts.won + ts.lost + (ts.tied || 0);
+			if (n > 0) prev.set(ts.tid, (ts.won + (ts.tied || 0) / 2) / n);
+		}
+		const seed = season + "|" + week + "|" + list.map((x) => x.gid).join(",");
+		let h = 2166136261;
+		for (let i = 0; i < seed.length; i++) h = Math.imul(h ^ seed.charCodeAt(i), 16777619);
+		let st = h >>> 0;
+		const rnd = () => {
+			st = (st + 0x6d2b79f5) >>> 0;
+			let t = st;
+			t = Math.imul(t ^ (t >>> 15), t | 1);
+			t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+			return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+		};
+		const wp = (tid) => {
+			const r = rec.get(tid) || [0, 0, 0];
+			const pv = prev.has(tid) ? prev.get(tid) : 0.5;
+			return (r[0] + r[2] / 2 + 3 * pv) / (r[0] + r[1] + r[2] + 3);
+		};
+		const ranked = list.map((x) => ({ x, a: wp(x.home) + wp(x.away) + rnd() * 0.35 })).sort((p, q) => q.a - p.a).map((o) => o.x);
+		// 0 TNF, 1 Sun 11:00, 2 Sun 1:00, 3 SNF, 4 MNF
+		const slotOf = new Map();
+		if (ranked.length >= 5) {
+			slotOf.set(ranked[0].gid, 3);
+			slotOf.set(ranked[1].gid, 4);
+			const rest = ranked.slice(2);
+			const tnf = rest.splice(Math.floor(rnd() * rest.length), 1)[0];
+			slotOf.set(tnf.gid, 0);
+			for (let i = rest.length - 1; i > 0; i--) {
+				const j = Math.floor(rnd() * (i + 1));
+				const tmp = rest[i];
+				rest[i] = rest[j];
+				rest[j] = tmp;
+			}
+			const n11 = Math.round(rest.length * 0.4);
+			rest.forEach((x, i) => slotOf.set(x.gid, i < n11 ? 1 : 2));
+		} else {
+			ranked.forEach((x, i) => slotOf.set(x.gid, [3, 2, 4, 1][i] ?? 2));
+		}
+		// Week 1 kicks off the Thursday after Labor Day
+		const ld = new Date(season, 8, 1);
+		while (ld.getDay() !== 1) ld.setDate(ld.getDate() + 1);
+		const thu = new Date(ld);
+		thu.setDate(ld.getDate() + 3 + 7 * (week - 1));
+		const add = (d, n) => {
+			const x = new Date(d);
+			x.setDate(x.getDate() + n);
+			return x;
+		};
+		const fmt = (d) => d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+		const slots = [
+			{ key: "TNF", name: "Thursday Night Football", short: "TNF", date: fmt(thu), time: "8:15 PM" },
+			{ key: "SUN11", name: "Sunday", short: "SUN 11:00", date: fmt(add(thu, 3)), time: "11:00 AM" },
+			{ key: "SUN1", name: "Sunday", short: "SUN 1:00", date: fmt(add(thu, 3)), time: "1:00 PM" },
+			{ key: "SNF", name: "Sunday Night Football", short: "SNF", date: fmt(add(thu, 3)), time: "7:30 PM" },
+			{ key: "MNF", name: "Monday Night Football", short: "MNF", date: fmt(add(thu, 4)), time: "8:15 PM" },
+		];
+		const ab = (tid) => (byTid.get(tid) || {}).abbrev;
+		return {
+			season,
+			day,
+			week,
+			today: day === today,
+			userTid: g.get("userTid"),
+			slots,
+			games: list.map((x) => ({ ...x, slot: slotOf.get(x.gid), homeAbbrev: ab(x.home), awayAbbrev: ab(x.away), homeRec: rec.get(x.home), awayRec: rec.get(x.away) })),
+		};
+	};
+	const weekInfo = async (opts) => JSON.parse(await window.bbgm.toWorker("main", "evalOnWorker", `console.log(JSON.stringify(await (${pgmWeekFn.toString()})(${JSON.stringify(opts)})));`));
 
 	// ------------------------------------------------------------------ halftime & postgame shows
 	// When the 2nd quarter ends, the game pauses and a halftime show pops up; at the final whistle, a postgame show.
@@ -743,44 +876,70 @@ const byTid = new Map(teams.map((t) => [t.tid, t]));
 const ab = (tid) => (byTid.get(tid) || {}).abbrev;
 const tids = A.map((a) => (teams.find((t) => t.abbrev === a) || {}).tid);
 const games = await idb.getCopies.games({ season }, "noCopyCache");
+const gidMap = new Map(games.map((gm) => [gm.gid, gm]));
 let live = null;
 for (const gm of games) if (tids.every((tid) => gm.teams.some((t) => t.tid === tid)) && (!live || gm.day > live.day)) live = gm;
+let W = null;
+try { W = live ? await (${pgmWeekFn.toString()})({ day: live.day }) : null; } catch (e) { W = null; }
+const ourG = W && live ? W.games.find((x) => x.gid === live.gid) : null;
+const ourSlot = ourG ? ourG.slot : null;
+// games already in the books but that "haven't happened yet" from where this show sits
+const hidden = new Set();
+if (live) {
+	if (half) hidden.add(live.gid);
+	if (ourSlot !== null) for (const x of W.games) if (x.played && x.gid !== live.gid && (half ? x.slot >= ourSlot : x.slot > ourSlot)) hidden.add(x.gid);
+}
 const rec = {};
 for (const ts of await idb.cache.teamSeasons.getAll()) if (ts.season === season) rec[ts.tid] = [ts.won, ts.lost, ts.tied || 0];
-if (half && live) {
-	// records going into today: take this game back out
-	const [x, y] = live.teams;
+for (const gid of hidden) {
+	const gm = gidMap.get(gid);
+	if (!gm) continue;
+	const [x, y] = gm.teams;
 	const undo = (t, o) => { const r = rec[t.tid]; if (r) r[t.pts > o.pts ? 0 : t.pts < o.pts ? 1 : 2] -= 1; };
 	undo(x, y); undo(y, x);
 }
-const out = { recs: {}, upcoming: [], finals: [], divs: [], leaders: {} };
+const out = { recs: {}, upcoming: [], finals: [], divs: [], leaders: {}, windows: null, slot: null, slots: null };
 for (const t of teams) out.recs[t.abbrev] = rec[t.tid] || [0, 0, 0];
-const day = live ? live.day : null;
-if (day !== null) {
-	for (const gm of games) if (gm.day === day && gm !== live) out.finals.push({ away: ab(gm.teams[1].tid), home: ab(gm.teams[0].tid), ap: gm.teams[1].pts, hp: gm.teams[0].pts });
-	const sched = (await idb.cache.schedule.getAll()).filter((s) => s.day === day && s.homeTid >= 0 && s.awayTid >= 0);
-	let ovrOf = null;
+let ovrOf = null;
+try {
+	const playoffs = g.get("phase") === PHASE.PLAYOFFS;
+	const cacheOvr = new Map();
+	ovrOf = async (tid) => {
+		if (cacheOvr.has(tid)) return cacheOvr.get(tid);
+		const raw = await idb.cache.players.indexGetAll("playersByTid", tid);
+		const ps = await idb.getCopies.playersPlus(raw, { attrs: ["injury", "pid", "value", "tid"], ratings: ["ovr", "pos", "ovrs"], season, fuzz: true });
+		const t = byTid.get(tid);
+		const pti = t && t.playThroughInjuries ? t.playThroughInjuries[playoffs ? 1 : 0] : 0;
+		const v = bbgm.team.ovr(ps, { accountForInjuredPlayers: { numDaysInFuture: 0, playThroughInjuries: pti }, playoffs });
+		cacheOvr.set(tid, v);
+		return v;
+	};
+} catch (e) {}
+const spreadOf = async (home, away) => {
 	try {
-		const playoffs = g.get("phase") === PHASE.PLAYOFFS;
-		ovrOf = async (tid) => {
-			const raw = await idb.cache.players.indexGetAll("playersByTid", tid);
-			const ps = await idb.getCopies.playersPlus(raw, { attrs: ["injury", "pid", "value", "tid"], ratings: ["ovr", "pos", "ovrs"], season, fuzz: true });
-			const t = byTid.get(tid);
-			const pti = t && t.playThroughInjuries ? t.playThroughInjuries[playoffs ? 1 : 0] : 0;
-			return bbgm.team.ovr(ps, { accountForInjuredPlayers: { numDaysInFuture: 0, playThroughInjuries: pti }, playoffs });
-		};
-	} catch (e) {}
-	for (const s of sched) {
-		let spread = null;
-		try {
-			if (ovrOf) {
-				let sp = 0.3 * ((await ovrOf(s.homeTid)) - (await ovrOf(s.awayTid))) + 3 * g.get("homeCourtAdvantage");
-				sp *= (g.get("numPeriods") * g.get("quarterLength")) / 60;
-				spread = Math.round(sp * 2) / 2;
-			}
-		} catch (e) { spread = null; }
-		out.upcoming.push({ away: ab(s.awayTid), home: ab(s.homeTid), spread });
+		if (!ovrOf) return null;
+		let sp = 0.3 * ((await ovrOf(home)) - (await ovrOf(away))) + 3 * g.get("homeCourtAdvantage");
+		sp *= (g.get("numPeriods") * g.get("quarterLength")) / 60;
+		return Math.round(sp * 2) / 2;
+	} catch (e) { return null; }
+};
+const day = live ? live.day : null;
+if (ourSlot !== null) {
+	out.slot = { idx: ourSlot, ...W.slots[ourSlot] };
+	out.slots = W.slots;
+	out.windows = [];
+	for (const x of W.games) {
+		if (x.gid === live.gid) continue;
+		const item = { away: ab(x.away), home: ab(x.home), slot: x.slot };
+		if (x.played && !hidden.has(x.gid)) Object.assign(item, { state: "final", ap: x.ap, hp: x.hp, ot: x.ot });
+		else if (x.played && half && x.slot === ourSlot) Object.assign(item, { state: "half", ap: (x.aq[0] || 0) + (x.aq[1] || 0), hp: (x.hq[0] || 0) + (x.hq[1] || 0) });
+		else Object.assign(item, { state: "upcoming", spread: await spreadOf(x.home, x.away) });
+		out.windows.push(item);
 	}
+} else if (day !== null) {
+	for (const gm of games) if (gm.day === day && gm !== live && !hidden.has(gm.gid)) out.finals.push({ away: ab(gm.teams[1].tid), home: ab(gm.teams[0].tid), ap: gm.teams[1].pts, hp: gm.teams[0].pts });
+	const sched = (await idb.cache.schedule.getAll()).filter((s) => s.day === day && s.homeTid >= 0 && s.awayTid >= 0);
+	for (const s of sched) out.upcoming.push({ away: ab(s.awayTid), home: ab(s.homeTid), spread: await spreadOf(s.homeTid, s.awayTid) });
 }
 const divs = g.get("divs");
 for (const tid of tids) {
@@ -797,8 +956,10 @@ for (const tid of tids) {
 }
 const KEYS = ["pssYds", "pssTD", "rusYds", "rusTD", "recYds", "recTD", "defSk", "defInt"];
 const tot = new Map();
+let counted = 0;
 for (const gm of games) {
-	if (half && gm === live) continue;
+	if (hidden.has(gm.gid)) continue;
+	counted++;
 	for (const t of gm.teams) for (const p of t.players || []) {
 		let o = tot.get(p.pid);
 		if (!o) { o = { pid: p.pid, name: p.name, tid: t.tid }; for (const k of KEYS) o[k] = 0; tot.set(p.pid, o); }
@@ -815,7 +976,7 @@ for (const k of ["pssYds", "rusYds", "recYds", "defSk", "defInt"]) {
 		out.leaders[k] = { name, abbrev: ab(best.tid), val: best[k] };
 	}
 }
-out.games = live ? games.filter((gm) => !half || gm !== live).length : games.length;
+out.games = counted;
 console.log(JSON.stringify(out));`;
 		return JSON.parse(await window.bbgm.toWorker("main", "evalOnWorker", code));
 	};
@@ -919,10 +1080,51 @@ console.log(JSON.stringify(out));`;
 	const studio = (L, B, mode) => {
 		if (!L) return [];
 		const lines = [];
-		const going = mode === "half" ? " going into today" : "";
+		const going = mode === "half" ? ", as it stands" : "";
 		lines.push(mode === "half" ? "Thanks, Rick. Let's take a look around the league." : "Thanks, guys. Let's check in around the league.");
-		if (L.finals.length) lines.push(`Already final this week: ${listAnd(L.finals.slice(0, 5).map((f) => (f.hp >= f.ap ? `${nick(f.home)} ${f.hp}, ${nick(f.away)} ${f.ap}` : `${nick(f.away)} ${f.ap}, ${nick(f.home)} ${f.hp}`)))}.`);
-		if (L.upcoming.length) {
+		if (L.windows && L.slot) {
+			const our = L.slot.idx;
+			const sunday = L.slot.key === "SUN11" || L.slot.key === "SUN1";
+			const IN = { TNF: "On Thursday night", SUN11: "In the 11:00 window", SUN1: "In the 1:00 window", SNF: "On Sunday night", MNF: "On Monday night" };
+			const OF = { TNF: "Thursday night", SUN11: "the 11:00 window", SUN1: "the 1:00 window", SNF: "Sunday night", MNF: "Monday night" };
+			const gameStr = (x) => (x.hp >= x.ap ? `${nick(x.home)} ${x.hp}, ${nick(x.away)} ${x.ap}` : `${nick(x.away)} ${x.ap}, ${nick(x.home)} ${x.hp}`);
+			const beatStr = (x) => (x.hp === x.ap ? `the ${nick(x.away)} and ${nick(x.home)} tied at ${x.hp}` : x.hp > x.ap ? `the ${nick(x.home)} beat the ${nick(x.away)} ${x.hp}-${x.ap}` : `the ${nick(x.away)} beat the ${nick(x.home)} ${x.ap}-${x.hp}`);
+			const lineStr = (u) => {
+				const sp = u.spread === null || u.spread === undefined ? "" : u.spread === 0 ? ", a pick'em" : u.spread > 0 ? `, ${nick(u.home)} by ${Math.abs(u.spread)}` : `, ${nick(u.away)} by ${Math.abs(u.spread)}`;
+				return `the ${nick(u.away)} (${recStr(L.recs[u.away])}) at the ${nick(u.home)} (${recStr(L.recs[u.home])})${sp}`;
+			};
+			const groups = (pred) => {
+				const m = new Map();
+				for (const w of L.windows.filter(pred)) {
+					if (!m.has(w.slot)) m.set(w.slot, []);
+					m.get(w.slot).push(w);
+				}
+				return [...m.entries()].sort((a, b) => a[0] - b[0]);
+			};
+			for (const [slot, ws] of groups((w) => w.state === "final" && w.slot < our)) {
+				const key = L.slots[slot].key;
+				if (ws.length === 1) lines.push(`${IN[key]}, ${beatStr(ws[0])}.`);
+				else lines.push(`${IN[key]}: ${ws.slice(0, 5).map(gameStr).join("; ")}${ws.length > 5 ? `, and ${ws.length - 5} more` : ""}.`);
+			}
+			const same = L.windows.filter((w) => w.slot === our && (w.state === "half" || w.state === "final"));
+			if (same.length) lines.push(mode === "half" ? `Elsewhere in ${OF[L.slot.key]} at the half: ${same.map(gameStr).join("; ")}.` : `Final scores from ${OF[L.slot.key]}: ${same.map(gameStr).join("; ")}.`);
+			const pct = (a) => {
+				const r = L.recs[a] || [0, 0, 0];
+				return (r[0] + r[2] / 2) / Math.max(1, r[0] + r[1] + r[2]);
+			};
+			const later = [];
+			for (const [slot, ws] of groups((w) => w.state === "upcoming")) {
+				const key = L.slots[slot].key;
+				const when = key === "SNF" && sunday ? "tonight on Sunday Night Football" : key === "SNF" ? "Sunday night" : key === "MNF" ? "Monday night" : key === "TNF" ? "Thursday night" : `the ${L.slots[slot].time.replace(" AM", "").replace(" PM", "")} window`;
+				if (ws.length === 1) later.push(`${when}, ${lineStr(ws[0])}`);
+				else {
+					const top = ws.slice().sort((a, b) => pct(b.away) + pct(b.home) - pct(a.away) - pct(a.home))[0];
+					later.push(`${plural(ws.length, "game", "games")} in ${when}, led by ${lineStr(top)}`);
+				}
+			}
+			if (later.length) lines.push(`Still to come: ${later.join("; ")}.`);
+		} else if (L.finals.length) lines.push(`Already final this week: ${listAnd(L.finals.slice(0, 5).map((f) => (f.hp >= f.ap ? `${nick(f.home)} ${f.hp}, ${nick(f.away)} ${f.ap}` : `${nick(f.away)} ${f.ap}, ${nick(f.home)} ${f.hp}`)))}.`);
+		if (!L.windows && L.upcoming.length) {
 			const mine = new Set(B.teams.map((t) => t.abbrev));
 			const divTeams = new Set(L.divs.flatMap((d) => d.rows.map((r) => r.abbrev)));
 			const pct = (a) => {
@@ -944,7 +1146,7 @@ console.log(JSON.stringify(out));`;
 		if (ld.rusYds) lb.push(`${ld.rusYds.name} (${ld.rusYds.abbrev}) tops the rushers at ${ld.rusYds.val.toLocaleString()}`);
 		if (ld.recYds) lb.push(`${ld.recYds.name} (${ld.recYds.abbrev}) has a league-best ${ld.recYds.val.toLocaleString()} receiving yards`);
 		if (ld.defSk && ld.defSk.val >= 2) lb.push(`and ${ld.defSk.name} (${ld.defSk.abbrev}) leads with ${ld.defSk.val} sacks`);
-		if (lb.length && L.games > 0) lines.push(`${mode === "half" ? "League leaders through last week" : "League leaders after today"}: ${lb.join("; ")}.`);
+		if (lb.length && L.games > 0) lines.push(`${mode === "half" ? "League leaders coming into today" : "League leaders after today"}: ${lb.join("; ")}.`);
 		lines.push(mode === "half" ? "Back to you, Rick." : "That's going to do it for us. For Rick and Deke, I'm Monica. Thanks for watching.");
 		return lines;
 	};
@@ -966,6 +1168,7 @@ console.log(JSON.stringify(out));`;
 		else if (diff >= 21) say("RICK", p([`Halftime, and this one's gotten away from the ${N(trail)}. ${N(lead)} ${lead.pts}, ${N(trail)} ${trail.pts}.`, `It's been all ${N(lead)} so far. They lead ${lead.pts} to ${trail.pts} at the break.`]));
 		else if (diff >= 9) say("RICK", p([`Welcome back. The ${N(lead)} take a ${diff}-point lead into the locker room, ${lead.pts} to ${trail.pts}.`, `Halftime here, and the ${N(lead)} are up ${lead.pts}-${trail.pts}. A two-score cushion.`]));
 		else say("RICK", p([`One-score game at the half. ${N(lead)} ${lead.pts}, ${N(trail)} ${trail.pts}.`, `The ${N(lead)} clinging to a ${diff}-point lead at the break, ${lead.pts} to ${trail.pts}.`]));
+		if (L && L.slot && ["TNF", "SNF", "MNF"].includes(L.slot.key) && lines[1] && lines[1].who === "RICK") lines[1].text = `Welcome back to ${L.slot.name}. ` + lines[1].text.replace(/^Welcome back(, everybody)?\. /, "");
 		if (P.leadChanges >= 2) say("RICK", `We've already had ${P.leadChanges} lead changes.`);
 
 		const focus = lead || (totYds(A) >= totYds(H) ? A : H);
@@ -1252,6 +1455,322 @@ console.log(JSON.stringify(out));`;
 		if (isLast) ready.then((sh) => (sh ? openShow(sh, pausedByUs) : pausedByUs && clickVisible((t) => t.startsWith("Resume Simulation"))));
 	};
 
+	// ------------------------------------------------------------------ game-day slots: schedule page
+	const SLOT_COLORS = ["#6f42c1", "#0d6efd", "#198754", "#d63384", "#fd7e14"];
+	const slotText = (S) => (S.key === "SUN11" || S.key === "SUN1" ? `${S.date} · ${S.time} ET` : `${S.key === "TNF" || S.key === "SNF" || S.key === "MNF" ? "📺 " : ""}${S.name} · ${S.date} · ${S.time} ET`);
+	const cardTids = (card) => [...new Set([...card.querySelectorAll('a[href*="/roster/"]')].map((a) => {
+		const m = /\/roster\/[^/]*_(\d+)(\/|$)/.exec(a.getAttribute("href") || "");
+		return m ? Number(m[1]) : null;
+	}).filter((x) => x !== null))];
+	const gameForCard = (W, card) => {
+		const t = cardTids(card);
+		if (t.length !== 2) return null;
+		return W.games.find((x) => t.includes(x.home) && t.includes(x.away)) || null;
+	};
+	const scheduleCards = () => {
+		const out = new Set();
+		for (const el of document.querySelectorAll(".score-box-left-wrapper")) {
+			const c = el.closest(".d-flex.flex-wrap > div");
+			if (c) out.add(c);
+		}
+		return [...out];
+	};
+	const SCHED = { key: "", W: null, busy: false };
+	let SIMMING = false;
+
+	const toast = () => {
+		const el = document.createElement("div");
+		el.style.cssText = "position:fixed;top:70px;left:50%;transform:translateX(-50%);z-index:2060;background:#0b1f3a;color:#fff;padding:10px 18px;border-radius:8px;font-weight:600;box-shadow:0 6px 24px rgba(0,0,0,.35);font-size:14px;";
+		document.body.appendChild(el);
+		return { set: (t) => (el.textContent = t), close: () => el.remove() };
+	};
+	// play the games that kick off before this one (and, when watching, the ones that kick off with it), then this one
+	const runSlate = async (gids, gm, action) => {
+		if (SIMMING) return;
+		SIMMING = true;
+		const tt = toast();
+		try {
+			const W = await weekInfo({});
+			const todo = (W ? W.games : []).filter((x) => !x.played && gids.includes(x.gid)).sort((a, b) => a.slot - b.slot || a.gid - b.gid);
+			for (let i = 0; i < todo.length; i++) {
+				const x = todo[i];
+				tt.set(`📺 ${W.slots[x.slot].short}: ${nick(x.awayAbbrev)} at ${nick(x.homeAbbrev)} (${i + 1} of ${todo.length})`);
+				await window.bbgm.toWorker("actions", "simGame", x.gid);
+			}
+			if (gm && action) {
+				tt.set(action === "liveGame" ? "🏈 Kickoff! Heading to the game…" : "Playing it…");
+				await window.bbgm.toWorker("actions", action, gm.gid);
+			}
+		} catch (e) {
+			console.log("Broadcast Booth (slate): " + e.message);
+		} finally {
+			tt.close();
+			SIMMING = false;
+			SCHED.key = "";
+		}
+	};
+	window.addEventListener(
+		"click",
+		(e) => {
+			const btn = e.target && e.target.closest ? e.target.closest("button") : null;
+			if (!btn) return;
+			const t = btn.textContent.replace(/\s+/g, "");
+			if (t !== "Watchgame" && t !== "Simgame") return;
+			const W = SCHED.W;
+			if (!W || !W.today || !/\/daily_schedule/.test(location.pathname)) return;
+			const card = btn.closest(".d-flex.flex-wrap > div");
+			const gm = card ? gameForCard(W, card) : null;
+			if (!gm || gm.slot === undefined) return;
+			const watch = t === "Watchgame";
+			const prior = W.games.filter((x) => !x.played && x.gid !== gm.gid && (x.slot < gm.slot || (watch && x.slot === gm.slot)));
+			if (!prior.length) return; // nothing kicks off first, let Football GM handle it
+			e.preventDefault();
+			e.stopImmediatePropagation();
+			if (!SIMMING) runSlate(prior.map((x) => x.gid), gm, watch ? "liveGame" : "simGame");
+		},
+		true,
+	);
+
+	const renderBanner = (W, cards) => {
+		const first = cards[0] && cards[0].parentElement;
+		const old = document.getElementById("pgm-week-banner");
+		if (!W || !first) {
+			if (old) old.remove();
+			return;
+		}
+		const parent = first.parentElement;
+		let b = old;
+		if (!b) {
+			b = document.createElement("div");
+			b.id = "pgm-week-banner";
+			b.className = "mb-3";
+		}
+		const anchor = [...parent.children].find((x) => x.tagName === "H2" || x === first) || first;
+		if (b.parentElement !== parent || b.nextElementSibling !== anchor) parent.insertBefore(b, anchor);
+		const mine = W.games.find((x) => x.home === W.userTid || x.away === W.userTid);
+		const before = mine ? W.games.filter((x) => !x.played && x.slot < mine.slot) : [];
+		const S = mine ? W.slots[mine.slot] : null;
+		const opp = mine ? (mine.home === W.userTid ? `vs ${nick(mine.awayAbbrev)}` : `at ${nick(mine.homeAbbrev)}`) : "";
+		const html = `<div class="d-flex flex-wrap align-items-center gap-2"><span class="fw-bold">Week ${W.week}</span><span class="text-body-secondary">${esc(W.slots[0].date)} – ${esc(W.slots[4].date)}</span>${mine ? `<span>· Our game: <b style="color:${SLOT_COLORS[mine.slot]}">${esc(S.key === "SUN11" || S.key === "SUN1" ? `Sunday ${S.time}` : S.name + " · " + S.time)}</b> ${esc(opp)}${mine.played ? " (final)" : ""}</span>` : ""}${W.today && before.length ? `<button type="button" class="btn btn-sm btn-secondary pgm-play-before">▶ Play the ${plural(before.length, "game", "games")} before our kickoff</button>` : ""}</div>`;
+		if (b.dataset.html !== html) {
+			b.dataset.html = html;
+			b.innerHTML = html;
+			const btn = b.querySelector(".pgm-play-before");
+			if (btn) btn.addEventListener("click", () => runSlate(before.map((x) => x.gid), null, null));
+		}
+	};
+	const decorateSchedule = (W, cards) => {
+		for (const c of cards) {
+			const gm = W ? gameForCard(W, c) : null;
+			let l = c.querySelector(":scope > .pgm-slot");
+			if (!gm || gm.slot === undefined) {
+				if (l) l.remove();
+				c.style.order = "";
+				continue;
+			}
+			const S = W.slots[gm.slot];
+			if (!l) {
+				l = document.createElement("div");
+				l.className = "pgm-slot";
+				c.insertBefore(l, c.firstChild);
+			}
+			const txt = slotText(S);
+			if (l.textContent !== txt) l.textContent = txt;
+			l.style.cssText = `font-size:.8rem;font-weight:600;color:${SLOT_COLORS[gm.slot]};margin:0 0 2px 2px;`;
+			const ord = String(gm.slot * 1000 + (gm.gid % 1000));
+			if (c.style.order !== ord) c.style.order = ord;
+		}
+		renderBanner(W, cards);
+	};
+	const schedTick = async () => {
+		const m = /^\/l\/\d+\/daily_schedule(?:\/(\d+)(?:\/(\d+))?)?/.exec(location.pathname);
+		if (!m) {
+			const old = document.getElementById("pgm-week-banner");
+			if (old) old.remove();
+			SCHED.key = "";
+			return;
+		}
+		const cards = scheduleCards();
+		if (!cards.length) return;
+		const key = `${location.pathname}|${cards.length}|${cards.filter((c) => c.querySelector("button")).length}`;
+		if (key !== SCHED.key && !SCHED.busy && !SIMMING) {
+			SCHED.busy = true;
+			try {
+				SCHED.W = await weekInfo(m[2] ? { season: Number(m[1]), day: Number(m[2]) } : m[1] ? { season: Number(m[1]) } : {});
+			} catch (e) {
+				SCHED.W = null;
+			}
+			SCHED.key = key;
+			SCHED.busy = false;
+		}
+		decorateSchedule(SCHED.W, cards);
+	};
+	setInterval(() => {
+		schedTick().catch((e) => console.log("Broadcast Booth (schedule): " + e.message));
+	}, 1000);
+
+	// ------------------------------------------------------------------ game-day slots: score ticker during the game
+	const TICK = { W: null, our: null, clock: { q: 1, min: 15, final: false }, el: null, built: "" };
+	const tickerReset = () => {
+		TICK.W = null;
+		TICK.our = null;
+		TICK.clock = { q: 1, min: 15, final: false };
+		TICK.built = "";
+		TICK.t0 = undefined;
+		if (TICK.el) TICK.el.remove();
+		TICK.el = null;
+		document.body.style.paddingBottom = "";
+		toggle.style.bottom = "12px";
+	};
+	const loadTicker = async () => {
+		const B = readBoxFull();
+		if (!B) return;
+		const W = await weekInfo({ abbrevs: B.teams.map((t) => t.abbrev) });
+		if (!W) return;
+		const tids = new Set();
+		for (const x of W.games) if (B.teams.some((t) => t.abbrev === x.homeAbbrev) && B.teams.some((t) => t.abbrev === x.awayAbbrev)) tids.add(x.gid);
+		const our = W.games.find((x) => tids.has(x.gid));
+		if (!our) return;
+		TICK.W = W;
+		TICK.our = our;
+		renderTicker();
+	};
+	const tickerAdvance = (r) => {
+		const s = stripStats(r.orig || "");
+		let m;
+		if (r.header && r.header.clock) TICK.clock.min = toSec(r.header.clock) / 60;
+		if ((m = /^Start of (\d)(?:st|nd|rd|th) quarter$/.exec(s))) {
+			TICK.clock.q = Number(m[1]);
+			TICK.clock.min = 15;
+		}
+		if (/^Start of .*overtime$/.test(s)) {
+			TICK.clock.q = 5;
+			TICK.clock.min = 10;
+		}
+		if (s === "Two minute warning") TICK.clock.min = 2;
+		if (s === "End of game") TICK.clock.final = true;
+	};
+	const ptsOfEvent = (e) => {
+		if (e.safety) return [1 - e.t, 2];
+		if (e.type === "extraPoint") return e.made ? [e.t, 1] : null;
+		if (e.type === "fieldGoal") return e.made ? [e.t, 3] : null;
+		if (e.type === "twoPointConversionFailed") return null;
+		if (e.td) return [e.t, e.twoPointConversionTeam !== undefined ? 2 : 6];
+		return null;
+	};
+	// another game's score at the same point on the clock as ours
+	const scoreAt = (x, clk) => {
+		if (clk.final) return { h: x.hp, a: x.ap, final: true };
+		const sums = [[], []];
+		for (const e of x.ss) {
+			const p = ptsOfEvent(e);
+			if (!p) continue;
+			const qi = (e.quarter || 1) - 1;
+			sums[p[0]][qi] = (sums[p[0]][qi] || 0) + p[1];
+		}
+		const exact = [x.hq, x.aq].every((arr, ti) => arr.every((v, qi) => (sums[ti][qi] || 0) === v));
+		let h = 0;
+		let a = 0;
+		if (exact) {
+			for (const e of x.ss) {
+				const p = ptsOfEvent(e);
+				if (!p) continue;
+				if (e.quarter < clk.q || (e.quarter === clk.q && e.clock >= clk.min - 1e-6)) {
+					if (p[0] === 0) h += p[1];
+					else a += p[1];
+				}
+			}
+		} else {
+			for (let qi = 0; qi < clk.q - 1; qi++) {
+				h += x.hq[qi] || 0;
+				a += x.aq[qi] || 0;
+			}
+		}
+		if (clk.q > x.hq.length) return { h: x.hp, a: x.ap, final: true };
+		return { h, a, final: false };
+	};
+	const clockLabel = (clk) => {
+		if (clk.final) return "FINAL";
+		if (clk.q === 3 && clk.min >= 15 - 1e-6) return "HALFTIME";
+		const mm = Math.floor(clk.min + 1e-6);
+		const ss = Math.round((clk.min - mm) * 60);
+		const c = `${mm}:${String(ss === 60 ? 0 : ss).padStart(2, "0")}`;
+		return clk.q >= 5 ? `OT ${c}` : `Q${clk.q} ${c}`;
+	};
+	const injectTickerStyle = () => {
+		if (document.getElementById("pgm-ticker-style")) return;
+		const st = document.createElement("style");
+		st.id = "pgm-ticker-style";
+		st.textContent = `
+.pgm-ticker{position:fixed;left:0;right:0;bottom:0;height:34px;z-index:1990;display:flex;align-items:center;background:#0b1f3a;color:#fff;font-size:13px;font-weight:600;box-shadow:0 -2px 8px rgba(0,0,0,.3);font-variant-numeric:tabular-nums}
+.pgm-ticker-tag{flex:0 0 auto;padding:0 12px;height:100%;display:flex;align-items:center;background:#c8102e;letter-spacing:.04em;white-space:nowrap}
+.pgm-ticker-track{flex:1;overflow:hidden;height:100%;position:relative}
+.pgm-ticker-inner{display:inline-flex;white-space:nowrap;height:100%;align-items:center}
+.pgm-ticker-inner.run{animation:pgmTick var(--dur,60s) linear infinite}
+.pgm-ticker-inner:hover{animation-play-state:paused}
+.pgm-tk-item{padding:0 16px;border-right:1px solid rgba(255,255,255,.18)}
+.pgm-tk-lbl{color:#ffd166;margin-right:8px;font-size:11px;letter-spacing:.06em}
+.pgm-tk-lead{color:#fff}.pgm-tk-trail{color:rgba(255,255,255,.7);font-weight:500}
+@keyframes pgmTick{from{transform:translateX(0)}to{transform:translateX(-50%)}}`;
+		document.head.appendChild(st);
+	};
+	const renderTicker = () => {
+		const W = TICK.W;
+		const our = TICK.our;
+		if (!W || !our || !enabled || !document.querySelector(".live-game-playbyplay")) {
+			if (TICK.el) TICK.el.style.display = "none";
+			document.body.style.paddingBottom = "";
+			toggle.style.bottom = "12px";
+			return;
+		}
+		const same = W.games.filter((x) => x.slot === our.slot && x.gid !== our.gid && x.played);
+		const bySlot = (a, b) => a.slot - b.slot || a.gid - b.gid;
+		const earlier = W.games.filter((x) => x.slot < our.slot && x.played).sort(bySlot);
+		const later = W.games.filter((x) => x.slot > our.slot || (x.slot === our.slot && !x.played && x.gid !== our.gid)).sort(bySlot);
+		if (!same.length && !earlier.length && !later.length) return;
+		injectTickerStyle();
+		const S = W.slots[our.slot];
+		const clk = TICK.clock;
+		const items = [];
+		const scoreItem = (x, sc, lbl) => {
+			const aLead = sc.a > sc.h;
+			const hLead = sc.h > sc.a;
+			return `<span class="pgm-tk-item">${lbl ? `<span class="pgm-tk-lbl">${esc(lbl)}</span>` : ""}<span class="${aLead ? "pgm-tk-lead" : "pgm-tk-trail"}">${esc(x.awayAbbrev)} ${sc.a}</span> &nbsp;<span class="${hLead ? "pgm-tk-lead" : "pgm-tk-trail"}">${esc(x.homeAbbrev)} ${sc.h}</span>${sc.final ? ' <span class="pgm-tk-lbl" style="margin:0 0 0 6px">F</span>' : ""}</span>`;
+		};
+		for (const x of same) items.push(scoreItem(x, scoreAt(x, clk), ""));
+		for (const x of earlier) items.push(scoreItem(x, { h: x.hp, a: x.ap, final: false }, `${W.slots[x.slot].short} FINAL`));
+		for (const x of later) items.push(`<span class="pgm-tk-item"><span class="pgm-tk-lbl">${esc(W.slots[x.slot].short)} ${esc(W.slots[x.slot].time)}</span>${esc(x.awayAbbrev)} at ${esc(x.homeAbbrev)}</span>`);
+		const tag = `📺 ${S.short} · ${clockLabel(clk)}`;
+		const body = items.join("");
+		if (!TICK.el) {
+			TICK.el = document.createElement("div");
+			TICK.el.className = "pgm-ticker";
+			TICK.el.innerHTML = `<div class="pgm-ticker-tag"></div><div class="pgm-ticker-track"><div class="pgm-ticker-inner"></div></div>`;
+			document.body.appendChild(TICK.el);
+		}
+		TICK.el.style.display = "";
+		document.body.style.paddingBottom = "40px";
+		toggle.style.bottom = "46px";
+		const tagEl = TICK.el.querySelector(".pgm-ticker-tag");
+		if (tagEl.textContent !== tag) tagEl.textContent = tag;
+		if (TICK.built !== body) {
+			TICK.built = body;
+			const inner = TICK.el.querySelector(".pgm-ticker-inner");
+			const track = TICK.el.querySelector(".pgm-ticker-track");
+			inner.classList.remove("run");
+			inner.innerHTML = body;
+			if (inner.scrollWidth > track.clientWidth) {
+				// loop it like a TV crawl; keep the scroll position when only the scores change
+				inner.innerHTML = body + body;
+				inner.style.setProperty("--dur", `${Math.max(20, Math.round(inner.scrollWidth / 2 / 55))}s`);
+				inner.classList.add("run");
+				if (TICK.t0 === undefined) TICK.t0 = performance.now();
+				const anim = inner.getAnimations ? inner.getAnimations()[0] : null;
+				if (anim) anim.currentTime = (performance.now() - TICK.t0) % (anim.effect.getTiming().duration || 60000);
+			}
+		}
+	};
+
 	// on/off switch
 	const toggle = document.createElement("button");
 	const paintToggle = () => {
@@ -1267,6 +1786,7 @@ console.log(JSON.stringify(out));`;
 		paintToggle();
 		const c = document.querySelector(".live-game-playbyplay");
 		if (c) for (const el of c.children) info.has(el) && show(info.get(el));
+		renderTicker();
 	});
 	paintToggle();
 	const mountToggle = () => {
@@ -1279,13 +1799,26 @@ console.log(JSON.stringify(out));`;
 		const c = document.querySelector(".live-game-playbyplay");
 		mountToggle();
 		toggle.style.display = c ? "" : "none";
+		if (!c && TICK.el) tickerReset();
 		if (c && c !== watched) {
 			watched = c;
 			if (observer) observer.disconnect();
+			tickerReset();
 			loadTeamNames().finally(() => {
 				observer = new MutationObserver(() => processAll(c));
 				observer.observe(c, { childList: true });
 				processAll(c);
+				let tries = 0;
+				const tryTicker = () => {
+					if (watched !== c || TICK.W) return;
+					tries += 1;
+					loadTicker()
+						.catch((e) => console.log("Broadcast Booth (ticker): " + e.message))
+						.finally(() => {
+							if (!TICK.W && tries < 10 && watched === c) setTimeout(tryTicker, 2000);
+						});
+				};
+				tryTicker();
 			});
 		}
 	}, 500);
