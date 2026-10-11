@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Football GM: Broadcast Booth
 // @namespace    was-dynasty-fbgm
-// @version      1.1
-// @description  Turns Football GM's live play-by-play into TV-style commentary. Real names, yards, downs, score and in-game stat callbacks; the flavor is made up to fit. Hover any line to see the original.
+// @version      1.2
+// @description  Turns Football GM's live play-by-play into TV-style commentary. Real names, yards, downs, score and in-game stat callbacks; the flavor is made up to fit. Hover any line to see the original. Halftime and postgame shows pop up automatically.
 // @match        https://play.football-gm.com/*
 // @grant        none
 // @inject-into  page
@@ -111,9 +111,13 @@
 			if (q) ctx.quarter = Number(q[1]);
 			if (/^Start of .*overtime/.test(r.orig)) ctx.ot = true;
 			if (r.score && r.t) {
-				ctx.score[r.t] = r.score.mine;
-				ctx.scoredLast = r.t;
-				ctx.otherScore = r.score.theirs;
+				// a safety's score block belongs to the defense, not the team whose logo is on the line
+				const scorer = /safety/i.test(r.orig) ? [...ctx.teams].find((x) => x !== r.t) : r.t;
+				if (scorer) {
+					ctx.score[scorer] = r.score.mine;
+					ctx.scoredLast = scorer;
+					ctx.otherScore = r.score.theirs;
+				}
 			}
 			addToTally(ctx.tally, r);
 		}
@@ -208,13 +212,15 @@
 		};
 		const scoreLine = () => {
 			if (!r.score || !r.t) return "";
-			const o = ctx.opp(r.t);
+			const scorer = /safety/i.test(s) ? ctx.opp(r.t) : r.t;
+			if (!scorer) return "";
+			const o = ctx.opp(scorer);
 			const mine = r.score.mine;
 			const theirs = r.score.theirs;
-			const before = ctx.pts(r.t);
-			if (mine > theirs && before <= theirs) return ` ${nick(r.t)} take the lead, ${mine}-${theirs}!`;
+			const before = ctx.pts(scorer);
+			if (mine > theirs && before <= theirs) return ` ${nick(scorer)} take the lead, ${mine}-${theirs}!`;
 			if (mine === theirs) return ` We're all tied up at ${mine}!`;
-			if (mine > theirs) return ` ${nick(r.t)} up ${mine}-${theirs}.`;
+			if (mine > theirs) return ` ${nick(scorer)} up ${mine}-${theirs}.`;
 			return ` ${nick(o)} still lead, ${theirs}-${mine}.`;
 		};
 		const clutch = S.late && S.close;
@@ -562,6 +568,688 @@
 		}
 		lastBox = box;
 		for (const r of fresh) apply(r);
+		fresh.forEach((r, i) => {
+			try {
+				maybeShow(r, i === fresh.length - 1, container);
+			} catch (e) {
+				console.log("Broadcast Booth (show): " + e.message);
+			}
+		});
+	};
+
+	// ------------------------------------------------------------------ halftime & postgame shows
+	// When the 2nd quarter ends, the game pauses and a halftime show pops up; at the final whistle, a postgame show.
+	// Everything in them comes from what's already happened in this game (the live box score and play-by-play) plus
+	// league info that doesn't spoil anything (records going in, other games, leaders through last week).
+	const CAST = {
+		RICK: ["Rick", "play-by-play", "text-primary"],
+		DEKE: ["Deke", "analyst", "text-success"],
+		MONICA: ["Monica", "studio", "text-danger"],
+	};
+	const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+	const listAnd = (xs) => (xs.length <= 1 ? xs.join("") : xs.length === 2 ? `${xs[0]} and ${xs[1]}` : `${xs.slice(0, -1).join(", ")}, and ${xs[xs.length - 1]}`);
+	const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+	const recStr = (r) => (r ? `${r[0]}-${r[1]}${r[2] ? `-${r[2]}` : ""}` : "");
+
+	// ---- the live box score, as it stands right now
+	const FIELDS = {
+		pass: { cmp: "Completions", att: "Passing Attempts", yds: "Passing Yards", td: "Passing Touchdowns", int: "Interceptions", sk: "Times Sacked" },
+		rush: { att: "Rushing Attempts", yds: "Rushing Yards", td: "Rushing Touchdowns", lng: "Longest Run" },
+		recv: { tgt: "Targets", rec: "Receptions", yds: "Receiving Yards", td: "Receiving Touchdowns", lng: "Longest Reception" },
+		def: { solo: "Solo Tackles", ast: "Assists On Tackles", tck: "Total Tackles", tfl: "Tackles For Loss", sk: "Sacks", pd: "Passes Defended", int: "Interceptions", intTD: "Interceptions returned for touchdowns", ff: "Forced Fumbles", fr: "Fumbles Recovered", frTD: "Fumbles returned for touchdowns" },
+		kick: { fgm: "Field Goals Made", fga: "Field Goals Attempted", lng: "Longest Field Goal", xpm: "Extra Points Made", xpa: "Extra Points Attempted" },
+		ret: { kr: "Kickoff Returns", krYds: "Kickoff Return Yards", krTD: "Kickoffs returned for touchdowns", pr: "Punt Returns", prYds: "Punt Return Yards", prTD: "Punts returned for touchdowns" },
+	};
+	const tableKind = (t) => (t.has("Completions") ? "pass" : t.has("Rushing Attempts") ? "rush" : t.has("Receptions") ? "recv" : t.has("Solo Tackles") ? "def" : t.has("Field Goals Made") ? "kick" : t.has("Kickoff Returns") ? "ret" : null);
+	const readBoxFull = () => {
+		const tables = [...document.querySelectorAll("table")];
+		const titlesOf = (t) => new Set([...t.querySelectorAll("thead th")].map((th) => th.title));
+		const line = tables.find((t) => titlesOf(t).has("Final score"));
+		if (!line) return null;
+		const teams = [];
+		for (const tr of line.querySelectorAll("tbody tr")) {
+			const c = [...tr.children].map((x) => x.textContent.trim());
+			teams.push({ abbrev: c[0], q: c.slice(1, -1).map((x) => (/^\d+$/.test(x) ? Number(x) : null)), pts: Number(c[c.length - 1]) || 0, pass: [], rush: [], recv: [], def: [], kick: [], ret: [], pssYds: 0, rusYds: 0, pen: 0, penYds: 0, tov: 0 });
+		}
+		if (teams.length !== 2) return null;
+		const ts = tables.find((t) => titlesOf(t).has("Turnovers"));
+		if (ts) {
+			[...ts.querySelectorAll("tbody tr")].forEach((tr, i) => {
+				const t = teams[i];
+				if (!t) return;
+				const c = [...tr.children].map((x) => x.textContent.trim());
+				t.pssYds = Number(c[0]) || 0;
+				t.rusYds = Number(c[1]) || 0;
+				const pen = (c[2] || "0-0").split("-");
+				t.pen = Number(pen[0]) || 0;
+				t.penYds = Number(pen[1]) || 0;
+				t.tov = Number(c[3]) || 0;
+			});
+		}
+		const seen = {};
+		for (const table of tables) {
+			const ths = [...table.querySelectorAll("thead tr:last-child th")];
+			if (!ths.length || (ths[0].colSpan || 1) !== 2) continue;
+			const kind = tableKind(new Set(ths.map((th) => th.title)));
+			if (!kind) continue;
+			const full = ths[0].textContent.trim();
+			let ti = teams.findIndex((t) => teamNames[t.abbrev] && (full === teamNames[t.abbrev] || full.endsWith(" " + teamNames[t.abbrev])));
+			if (ti < 0) ti = (seen[kind] || 0) % 2; // tables come in away/home pairs
+			seen[kind] = (seen[kind] || 0) + 1;
+			const col = {};
+			let c = 0;
+			for (const th of ths) {
+				if (th.title && col[th.title] === undefined) col[th.title] = c;
+				c += th.colSpan || 1;
+			}
+			for (const tr of table.querySelectorAll("tbody tr")) {
+				const a = tr.querySelector('a[href*="/player/"]');
+				if (!a) continue;
+				const tds = tr.children;
+				const row = { name: a.textContent.trim(), pos: tds[0] ? tds[0].textContent.trim() : "", team: teams[ti].abbrev };
+				for (const [f, title] of Object.entries(FIELDS[kind])) row[f] = col[title] !== undefined && tds[col[title]] ? Number(tds[col[title]].textContent) || 0 : 0;
+				teams[ti][kind].push(row);
+			}
+		}
+		return { teams };
+	};
+
+	// ---- what happened, from the play-by-play
+	const scanPlays = (container) => {
+		const P = { teams: [], score: {}, half: null, scoring: [], big: [], tos: [], sacks: [], injuries: [], missedFG: [], downs: [], leadChanges: 0, maxLead: {}, ot: false };
+		let q = 1;
+		let off = null;
+		let lastQB = null;
+		let fumble = null;
+		let leader = null;
+		const opp = (t) => P.teams.find((x) => x !== t);
+		for (const el of [...container.children].reverse()) {
+			const r = readEntry(el);
+			if (!r) continue;
+			if (r.t && !P.teams.includes(r.t)) P.teams.push(r.t);
+			if (r.header) off = r.t;
+			const s = stripStats(r.orig || "");
+			let m;
+			if ((m = /^Start of (\d)(?:st|nd|rd|th) quarter$/.exec(s))) {
+				q = Number(m[1]);
+				if (q === 3 && !P.half) P.half = { ...P.score };
+			}
+			if (/^Start of .*overtime$/.test(s)) {
+				q = 5;
+				P.ot = true;
+			}
+			if ((m = /^(.+) drops back to pass$/.exec(s))) lastQB = m[1];
+			if ((m = /^(.+) completed a pass to (.+) for (-?\d+) yards?/.exec(s)) && Number(m[3]) >= 25) P.big.push({ kind: "pass", q, team: r.t, qb: m[1], wr: m[2], yds: Number(m[3]), td: /touchdown/.test(s) });
+			if ((m = /^(.+) rushed for (-?\d+) yards?/.exec(s)) && Number(m[2]) >= 20) P.big.push({ kind: "run", q, team: r.t, who: m[1], yds: Number(m[2]), td: /touchdown/.test(s) });
+			if ((m = /^(.+) returned the (kickoff|punt) (-?\d+) yards?/.exec(s)) && Number(m[3]) >= 40) P.big.push({ kind: "ret", q, team: r.t, who: m[1], what: m[2], yds: Number(m[3]), td: /touchdown/.test(s) });
+			if ((m = /^Intercepted by (.+)!$/.exec(s))) P.tos.push({ kind: "int", q, by: m[1], qb: lastQB, lost: off });
+			if ((m = /^(.+) returned the interception (-?\d+) yards?/.exec(s))) {
+				const to = P.tos[P.tos.length - 1];
+				if (to && to.kind === "int") {
+					to.yds = Number(m[2]);
+					to.td = /touchdown/.test(s);
+				}
+			}
+			if ((m = /^(.+) fumbled the ball! Forced fumble by (.+)$/.exec(s))) fumble = { who: m[1], by: m[2] };
+			if ((m = /^Turnover! (.+) recovered the fumble/.exec(s))) {
+				P.tos.push({ kind: "fum", q, rec: m[1], who: fumble && fumble.who, by: fumble && fumble.by, lost: off, td: /touchdown/.test(s) });
+				fumble = null;
+			}
+			if ((m = /^(.+) was sacked by (.+) for/.exec(s))) P.sacks.push({ q, qb: m[1], by: m[2], team: off ? opp(off) : null });
+			if ((m = /^(.+) missed a (\d+) yard field goal/.exec(s))) P.missedFG.push({ q, who: m[1], yds: Number(m[2]), team: r.t });
+			if (s === "Turnover on downs") P.downs.push({ q, team: off });
+			if ((m = /^([A-Z]{1,2}) (.+) was injured!$/.exec(s))) P.injuries.push({ q, pos: m[1], name: m[2], team: r.t });
+			const scorer = r.score && r.t ? (/safety/i.test(s) ? opp(r.t) : r.t) : null;
+			if (scorer) {
+				const before = P.score[scorer] || 0;
+				P.score[scorer] = r.score.mine;
+				const o = opp(scorer);
+				if (o) P.score[o] = r.score.theirs;
+				const pts = r.score.mine - before;
+				let item = null;
+				if ((m = /^(.+) completed a pass to (.+) for (-?\d+) yards? and a touchdown/.exec(s))) item = { kind: "passTD", qb: m[1], wr: m[2], yds: Number(m[3]) };
+				else if ((m = /^(.+) rushed for (-?\d+) yards? and a touchdown/.exec(s))) item = { kind: "rushTD", who: m[1], yds: Number(m[2]) };
+				else if ((m = /^(.+) returned the interception (-?\d+) yards? for a touchdown/.exec(s))) item = { kind: "intTD", who: m[1], yds: Number(m[2]) };
+				else if ((m = /^(.+) returned the (kickoff|punt) (-?\d+) yards? for a touchdown/.exec(s))) item = { kind: "retTD", who: m[1], what: m[2], yds: Number(m[3]) };
+				else if ((m = /^(?:Turnover! )?(.+) recovered the fumble.*touchdown/.exec(s))) item = { kind: "fumTD", who: m[1] };
+				else if ((m = /^(.+) made a (\d+) yard field goal/.exec(s))) item = { kind: "fg", who: m[1], yds: Number(m[2]) };
+				else if (/safety/i.test(s)) item = { kind: "safety" };
+				else if (pts >= 6) item = { kind: "td" };
+				if (item) P.scoring.push({ ...item, q, team: scorer, pts });
+				const a = P.teams[0];
+				const b = P.teams[1];
+				const sa = P.score[a] || 0;
+				const sb = P.score[b] || 0;
+				const now = sa === sb ? null : sa > sb ? a : b;
+				if (now && leader && now !== leader) P.leadChanges += 1;
+				if (now) {
+					leader = now;
+					P.maxLead[now] = Math.max(P.maxLead[now] || 0, Math.abs(sa - sb));
+				}
+			}
+		}
+		return P;
+	};
+
+	// ---- league info that doesn't spoil anything
+	const leagueInfo = async (abbrevs, mode) => {
+		const code = `
+const { g, idb, PHASE } = bbgm;
+const season = g.get("season");
+const A = ${JSON.stringify(abbrevs)};
+const half = ${JSON.stringify(mode === "half")};
+const teams = (await idb.cache.teams.getAll()).filter((t) => !t.disabled);
+const byTid = new Map(teams.map((t) => [t.tid, t]));
+const ab = (tid) => (byTid.get(tid) || {}).abbrev;
+const tids = A.map((a) => (teams.find((t) => t.abbrev === a) || {}).tid);
+const games = await idb.getCopies.games({ season }, "noCopyCache");
+let live = null;
+for (const gm of games) if (tids.every((tid) => gm.teams.some((t) => t.tid === tid)) && (!live || gm.day > live.day)) live = gm;
+const rec = {};
+for (const ts of await idb.cache.teamSeasons.getAll()) if (ts.season === season) rec[ts.tid] = [ts.won, ts.lost, ts.tied || 0];
+if (half && live) {
+	// records going into today: take this game back out
+	const [x, y] = live.teams;
+	const undo = (t, o) => { const r = rec[t.tid]; if (r) r[t.pts > o.pts ? 0 : t.pts < o.pts ? 1 : 2] -= 1; };
+	undo(x, y); undo(y, x);
+}
+const out = { recs: {}, upcoming: [], finals: [], divs: [], leaders: {} };
+for (const t of teams) out.recs[t.abbrev] = rec[t.tid] || [0, 0, 0];
+const day = live ? live.day : null;
+if (day !== null) {
+	for (const gm of games) if (gm.day === day && gm !== live) out.finals.push({ away: ab(gm.teams[1].tid), home: ab(gm.teams[0].tid), ap: gm.teams[1].pts, hp: gm.teams[0].pts });
+	const sched = (await idb.cache.schedule.getAll()).filter((s) => s.day === day && s.homeTid >= 0 && s.awayTid >= 0);
+	let ovrOf = null;
+	try {
+		const playoffs = g.get("phase") === PHASE.PLAYOFFS;
+		ovrOf = async (tid) => {
+			const raw = await idb.cache.players.indexGetAll("playersByTid", tid);
+			const ps = await idb.getCopies.playersPlus(raw, { attrs: ["injury", "pid", "value", "tid"], ratings: ["ovr", "pos", "ovrs"], season, fuzz: true });
+			const t = byTid.get(tid);
+			const pti = t && t.playThroughInjuries ? t.playThroughInjuries[playoffs ? 1 : 0] : 0;
+			return bbgm.team.ovr(ps, { accountForInjuredPlayers: { numDaysInFuture: 0, playThroughInjuries: pti }, playoffs });
+		};
+	} catch (e) {}
+	for (const s of sched) {
+		let spread = null;
+		try {
+			if (ovrOf) {
+				let sp = 0.3 * ((await ovrOf(s.homeTid)) - (await ovrOf(s.awayTid))) + 3 * g.get("homeCourtAdvantage");
+				sp *= (g.get("numPeriods") * g.get("quarterLength")) / 60;
+				spread = Math.round(sp * 2) / 2;
+			}
+		} catch (e) { spread = null; }
+		out.upcoming.push({ away: ab(s.awayTid), home: ab(s.homeTid), spread });
+	}
+}
+const divs = g.get("divs");
+for (const tid of tids) {
+	const t = byTid.get(tid);
+	if (!t || out.divs.some((d) => d.did === t.did)) continue;
+	const div = divs.find((d) => d.did === t.did);
+	const rows = teams.filter((x) => x.did === t.did).map((x) => ({ abbrev: x.abbrev, r: rec[x.tid] || [0, 0, 0] }));
+	rows.sort((a, b) => (b.r[0] + b.r[2] / 2) / Math.max(1, b.r[0] + b.r[1] + b.r[2]) - (a.r[0] + a.r[2] / 2) / Math.max(1, a.r[0] + a.r[1] + a.r[2]) || b.r[0] - a.r[0]);
+	const conf = div ? (g.get("confs") || []).find((c) => c.cid === div.cid) : null;
+	// "East" alone is ambiguous when both conferences have one: say "American East" (or "AFC East" if that's what the conference is called)
+	const unique = div && divs.filter((d) => d.name === div.name).length === 1;
+	const cn = conf ? conf.name.split(" ").filter(Boolean)[0] : "";
+	out.divs.push({ did: t.did, name: div ? (unique || !cn || div.name.includes(cn) ? div.name : cn + " " + div.name) : "division", rows });
+}
+const KEYS = ["pssYds", "pssTD", "rusYds", "rusTD", "recYds", "recTD", "defSk", "defInt"];
+const tot = new Map();
+for (const gm of games) {
+	if (half && gm === live) continue;
+	for (const t of gm.teams) for (const p of t.players || []) {
+		let o = tot.get(p.pid);
+		if (!o) { o = { pid: p.pid, name: p.name, tid: t.tid }; for (const k of KEYS) o[k] = 0; tot.set(p.pid, o); }
+		o.tid = t.tid;
+		for (const k of KEYS) o[k] += typeof p[k] === "number" ? p[k] : 0;
+	}
+}
+for (const k of ["pssYds", "rusYds", "recYds", "defSk", "defInt"]) {
+	let best = null;
+	for (const o of tot.values()) if (o[k] > 0 && (!best || o[k] > best[k])) best = o;
+	if (best) {
+		let name = best.name;
+		if (!name) { const p = await idb.cache.players.get(best.pid); name = p ? p.firstName + " " + p.lastName : "?"; }
+		out.leaders[k] = { name, abbrev: ab(best.tid), val: best[k] };
+	}
+}
+out.games = live ? games.filter((gm) => !half || gm !== live).length : games.length;
+console.log(JSON.stringify(out));`;
+		return JSON.parse(await window.bbgm.toWorker("main", "evalOnWorker", code));
+	};
+
+	// ---- building the scripts
+	const qbOf = (T) => T.pass.slice().sort((a, b) => b.att - a.att)[0];
+	const qbLine = (q) => `${q.cmp} of ${q.att} for ${q.yds} yards${q.td ? `, ${plural(q.td, "touchdown", "touchdowns")}` : ""}${q.int ? `, ${plural(q.int, "pick", "picks")}` : ""}`;
+	const totYds = (T) => T.pssYds + T.rusYds;
+	const defScore = (d) => d.int * 6 + d.intTD * 6 + d.frTD * 6 + d.sk * 4 + d.ff * 4 + d.fr * 3 + d.pd * 1.5 + d.tck * 0.8 + d.tfl;
+	const defLine = (d) => {
+		const bits = [];
+		if (d.tck) bits.push(plural(d.tck, "tackle", "tackles"));
+		if (d.sk) bits.push(plural(d.sk, "sack", "sacks"));
+		if (d.int) bits.push(plural(d.int, "interception", "interceptions"));
+		if (d.pd) bits.push(plural(d.pd, "pass breakup", "pass breakups"));
+		if (d.ff) bits.push(plural(d.ff, "forced fumble", "forced fumbles"));
+		if (d.intTD || d.frTD) bits.push("a defensive touchdown");
+		return listAnd(bits);
+	};
+	const bestOffense = (T) => {
+		const c = [];
+		const q = qbOf(T);
+		if (q && q.att > 0) c.push({ score: q.yds / 2 + q.td * 15 - q.int * 10, txt: `${last(q.name)} has thrown for ${q.yds} yards${q.td ? ` and ${plural(q.td, "touchdown", "touchdowns")}` : ""}`, name: q.name });
+		for (const r of T.rush) c.push({ score: r.yds + r.td * 15, txt: `${last(r.name)} has ${r.yds} yards on ${plural(r.att, "carry", "carries")}${r.td ? `, ${plural(r.td, "score", "scores")}` : ""}`, name: r.name });
+		for (const r of T.recv) c.push({ score: r.yds + r.td * 15, txt: `${last(r.name)} has ${plural(r.rec, "catch", "catches")} for ${r.yds} yards${r.td ? ` and ${plural(r.td, "touchdown", "touchdowns")}` : ""}`, name: r.name });
+		return c.sort((a, b) => b.score - a.score)[0] || null;
+	};
+	const scoreBit = (s) => {
+		if (s.kind === "passTD") return `${last(s.qb)} to ${last(s.wr)} from ${s.yds}`;
+		if (s.kind === "rushTD") return `${last(s.who)} on a ${s.yds}-yard run`;
+		if (s.kind === "intTD") return `${last(s.who)}'s ${s.yds}-yard pick-six`;
+		if (s.kind === "retTD") return `${last(s.who)}'s ${s.yds}-yard ${s.what} return`;
+		if (s.kind === "fumTD") return `${last(s.who)}'s fumble return`;
+		if (s.kind === "fg") return `a ${s.yds}-yarder from ${last(s.who)}`;
+		if (s.kind === "safety") return "a safety";
+		return "a touchdown";
+	};
+	// the one play everyone will be talking about
+	const playOf = (P, inRange) => {
+		const sc = P.scoring.filter((s) => inRange(s.q));
+		const special = sc.filter((s) => s.kind === "intTD" || s.kind === "fumTD" || s.kind === "retTD").sort((a, b) => (b.yds || 0) - (a.yds || 0))[0];
+		if (special) return { type: special.kind, s: special };
+		const longTD = sc.filter((s) => (s.kind === "passTD" || s.kind === "rushTD") && s.yds >= 30).sort((a, b) => b.yds - a.yds)[0];
+		if (longTD) return { type: longTD.kind, s: longTD };
+		const big = P.big.filter((b) => inRange(b.q)).sort((a, b) => b.yds - a.yds)[0];
+		if (big && big.yds >= 35) return { type: "big", s: big };
+		const to = P.tos.filter((t) => inRange(t.q))[0];
+		if (to) return { type: to.kind, s: to };
+		return null;
+	};
+	const playTalk = (pl, p, when) => {
+		if (!pl) return null;
+		const s = pl.s;
+		if (pl.type === "intTD") return p([`The play of the ${when} has to be ${s.who}. He reads it the whole way and takes it ${s.yds} yards to the house. That changes everything.`, `Give me ${last(s.who)}'s pick-six. Undercuts the route, ${s.yds} yards the other way. That's film study paying off.`]);
+		if (pl.type === "retTD") return p([`${s.who} took that ${s.what} back ${s.yds} yards. Special teams just flipped this game.`, `The ${s.what} return by ${last(s.who)}. ${s.yds} yards, and the coverage unit never laid a finger on him.`]);
+		if (pl.type === "fumTD") return `${s.who} scooping it up and taking it in. That's a gift, and they cashed it.`;
+		if (pl.type === "passTD") return p([`${last(s.wr)} got behind the defense and ${last(s.qb)} put it right on him for ${s.yds}. Somebody blew a coverage there.`, `The ${s.yds}-yard strike from ${last(s.qb)} to ${last(s.wr)}. That's the play of the ${when}, no question.`]);
+		if (pl.type === "rushTD") return p([`${s.who} on that ${s.yds}-yard run. He hit the hole and was gone.`, `That ${s.yds}-yard touchdown run by ${last(s.who)}. The line opened a lane you could drive a truck through.`]);
+		if (pl.type === "big") {
+			if (s.kind === "pass") return `${last(s.qb)} to ${last(s.wr)} for ${s.yds}. That's the kind of chunk play that flips field position.`;
+			if (s.kind === "run") return `${last(s.who)}'s ${s.yds}-yard run. He found the crease and made a man miss.`;
+			return `${last(s.who)}'s ${s.yds}-yard ${s.what} return set up great field position.`;
+		}
+		if (pl.type === "int") return `The turning point was ${last(s.by)}'s interception.${s.qb ? ` ${last(s.qb)} tried to force that one.` : ""}`;
+		if (pl.type === "fum") return `${s.by ? `${last(s.by)} punched that ball out` : "That fumble"}${s.rec ? ` and ${last(s.rec)} fell on it` : ""}. Momentum swing right there.`;
+		return null;
+	};
+	const keyStats = (B, P, lead, phrase) => {
+		const [A, H] = B.teams;
+		const out = [];
+		if (A.tov !== H.tov) {
+			const good = A.tov < H.tov ? A : H;
+			const bad = good === A ? H : A;
+			out.push(`The ${nick(good.abbrev)} have won the turnover battle, ${plural(bad.tov, "giveaway", "giveaways")} to ${good.tov}.${lead && good === lead ? ` That's been the difference ${phrase}.` : lead ? phrase === "today" ? " And they still lost." : " And they're still behind." : ""}`);
+		}
+		const ya = totYds(A);
+		const yh = totYds(H);
+		if (Math.abs(ya - yh) >= 90) {
+			const more = ya > yh ? A : H;
+			const less = more === A ? H : A;
+			out.push(`The ${nick(more.abbrev)} have out-gained the ${nick(less.abbrev)} ${totYds(more)} to ${totYds(less)}${lead && more !== lead ? ", and they're still behind. That tells you about the mistakes" : ""}.`);
+		}
+		for (const T of B.teams) {
+			const sk = P.sacks.filter((s) => s.team === T.abbrev);
+			if (sk.length >= 3) {
+				const by = {};
+				for (const s of sk) by[s.by] = (by[s.by] || 0) + 1;
+				const top = Object.entries(by).sort((a, b) => b[1] - a[1])[0];
+				out.push(`The ${nick(T.abbrev)} pass rush has ${sk.length} sacks${top && top[1] >= 2 ? `, ${top[1]} of them from ${last(top[0])}` : ""}.`);
+			}
+		}
+		for (const T of B.teams) if (T.pen >= 6) out.push(`The ${nick(T.abbrev)} have been flagged ${T.pen} times for ${T.penYds} yards. You can't beat yourself like that.`);
+		for (const T of B.teams) if (T.rusYds < 30 && totYds(T) > 0) out.push(`Just ${T.rusYds} rushing yards for the ${nick(T.abbrev)}. They've been one-dimensional.`);
+		return out;
+	};
+	const injuryTalk = (P, B) => {
+		if (!P.injuries.length) return null;
+		const bits = P.injuries.map((i) => `${i.pos} ${i.name}${i.team ? ` (${nick(i.team)})` : ""}`);
+		return `Injury update: ${listAnd(bits)} ${P.injuries.length === 1 ? "went down" : "have gone down"} today. We'll pass along anything we hear.`;
+	};
+	const studio = (L, B, mode) => {
+		if (!L) return [];
+		const lines = [];
+		const going = mode === "half" ? " going into today" : "";
+		lines.push(mode === "half" ? "Thanks, Rick. Let's take a look around the league." : "Thanks, guys. Let's check in around the league.");
+		if (L.finals.length) lines.push(`Already final this week: ${listAnd(L.finals.slice(0, 5).map((f) => (f.hp >= f.ap ? `${nick(f.home)} ${f.hp}, ${nick(f.away)} ${f.ap}` : `${nick(f.away)} ${f.ap}, ${nick(f.home)} ${f.hp}`)))}.`);
+		if (L.upcoming.length) {
+			const mine = new Set(B.teams.map((t) => t.abbrev));
+			const divTeams = new Set(L.divs.flatMap((d) => d.rows.map((r) => r.abbrev)));
+			const pct = (a) => {
+				const r = L.recs[a] || [0, 0, 0];
+				return (r[0] + r[2] / 2) / Math.max(1, r[0] + r[1] + r[2]);
+			};
+			const ranked = L.upcoming.filter((u) => !mine.has(u.away) && !mine.has(u.home)).map((u) => ({ ...u, w: (divTeams.has(u.away) || divTeams.has(u.home) ? 2 : 0) + pct(u.away) + pct(u.home) })).sort((a, b) => b.w - a.w);
+			const pick = ranked.slice(0, 4);
+			const say = (u) => {
+				const line = u.spread === null || u.spread === undefined ? "" : u.spread === 0 ? ", a pick'em" : u.spread > 0 ? `, ${nick(u.home)} by ${Math.abs(u.spread)}` : `, ${nick(u.away)} by ${Math.abs(u.spread)}`;
+				return `${nick(u.away)} (${recStr(L.recs[u.away])}) at ${nick(u.home)} (${recStr(L.recs[u.home])})${line}`;
+			};
+			if (pick.length) lines.push(`Still to come this week: ${pick.map(say).join("; ")}${ranked.length > pick.length ? `, plus ${plural(ranked.length - pick.length, "more game", "more games")}` : ""}.`);
+		}
+		for (const d of L.divs) lines.push(`In the ${d.name}${going}: ${d.rows.map((r) => `${nick(r.abbrev)} ${recStr(r.r)}`).join(", ")}.`);
+		const ld = L.leaders;
+		const lb = [];
+		if (ld.pssYds) lb.push(`${ld.pssYds.name} (${ld.pssYds.abbrev}) leads the league with ${ld.pssYds.val.toLocaleString()} passing yards`);
+		if (ld.rusYds) lb.push(`${ld.rusYds.name} (${ld.rusYds.abbrev}) tops the rushers at ${ld.rusYds.val.toLocaleString()}`);
+		if (ld.recYds) lb.push(`${ld.recYds.name} (${ld.recYds.abbrev}) has a league-best ${ld.recYds.val.toLocaleString()} receiving yards`);
+		if (ld.defSk && ld.defSk.val >= 2) lb.push(`and ${ld.defSk.name} (${ld.defSk.abbrev}) leads with ${ld.defSk.val} sacks`);
+		if (lb.length && L.games > 0) lines.push(`${mode === "half" ? "League leaders through last week" : "League leaders after today"}: ${lb.join("; ")}.`);
+		lines.push(mode === "half" ? "Back to you, Rick." : "That's going to do it for us. For Rick and Deke, I'm Monica. Thanks for watching.");
+		return lines;
+	};
+	const strip = (B, upToQ) => B.teams.map((T) => ({ abbrev: T.abbrev, q: T.q.slice(0, upToQ ? upToQ : T.q.length), pts: T.pts, yds: totYds(T), tov: T.tov }));
+
+	const buildHalftime = (B, P, L) => {
+		const [A, H] = B.teams;
+		const p = picker(`half|${A.abbrev}|${H.abbrev}|${A.pts}-${H.pts}|${totYds(A)}`);
+		const lines = [];
+		const say = (who, text) => text && lines.push({ who, text });
+		const seg = (t) => lines.push({ seg: t });
+		const lead = A.pts === H.pts ? null : A.pts > H.pts ? A : H;
+		const trail = lead ? (lead === A ? H : A) : null;
+		const diff = Math.abs(A.pts - H.pts);
+		const N = (T) => nick(T.abbrev);
+		seg("The first half");
+		if (!lead && A.pts === 0) say("RICK", p([`Welcome back, everybody. It's halftime, and nobody's found the end zone yet. Scoreless between the ${N(A)} and the ${N(H)}.`, "Halftime, and the defenses own this one so far. Still 0-0."]));
+		else if (!lead) say("RICK", p([`All square at the break, ${A.pts} apiece. The ${N(A)} and ${N(H)} have traded punches all half.`, `We're tied at ${A.pts} at halftime. Anybody's ballgame.`]));
+		else if (diff >= 21) say("RICK", p([`Halftime, and this one's gotten away from the ${N(trail)}. ${N(lead)} ${lead.pts}, ${N(trail)} ${trail.pts}.`, `It's been all ${N(lead)} so far. They lead ${lead.pts} to ${trail.pts} at the break.`]));
+		else if (diff >= 9) say("RICK", p([`Welcome back. The ${N(lead)} take a ${diff}-point lead into the locker room, ${lead.pts} to ${trail.pts}.`, `Halftime here, and the ${N(lead)} are up ${lead.pts}-${trail.pts}. A two-score cushion.`]));
+		else say("RICK", p([`One-score game at the half. ${N(lead)} ${lead.pts}, ${N(trail)} ${trail.pts}.`, `The ${N(lead)} clinging to a ${diff}-point lead at the break, ${lead.pts} to ${trail.pts}.`]));
+		if (P.leadChanges >= 2) say("RICK", `We've already had ${P.leadChanges} lead changes.`);
+
+		const focus = lead || (totYds(A) >= totYds(H) ? A : H);
+		const q = qbOf(focus);
+		if (q && q.att >= 5) {
+			const pct = q.cmp / q.att;
+			const adj = q.int >= 2 && q.int >= q.td ? "careless with the football" : q.td >= 3 && pct >= 0.6 ? p(["on fire", "dealing", "in a groove"]) : q.td >= 2 && q.int === 0 && pct >= 0.6 ? p(["surgical", "dialed in", "sharp"]) : pct >= 0.7 && q.int <= 1 ? p(["efficient", "sharp"]) : pct < 0.5 ? "up and down" : "steady";
+			const sk = q.sk >= 3 ? ` And he's been sacked ${q.sk} times, so he's earned every one of those yards.` : "";
+			say("DEKE", `${p([`Rick, ${last(q.name)} has been ${adj}`, `${q.name} has been ${adj}`])}: ${qbLine(q)}.${sk}`);
+		}
+		const rb = focus.rush.slice().sort((a, b) => b.yds - a.yds)[0];
+		if (rb && (rb.yds >= 60 || rb.td >= 2)) say("DEKE", `And ${last(rb.name)} has been the engine on the ground: ${rb.yds} yards on ${plural(rb.att, "carry", "carries")}${rb.td ? `, ${plural(rb.td, "touchdown", "touchdowns")}` : ""}.`);
+		const byTeam = B.teams.map((T) => ({ T, s: P.scoring.filter((s) => s.team === T.abbrev && s.q <= 2) })).filter((x) => x.s.length);
+		if (lead) byTeam.sort((a, b) => (b.T === lead) - (a.T === lead));
+		if (byTeam.length === 1) say("RICK", `All the scoring so far belongs to the ${N(byTeam[0].T)}: ${listAnd(byTeam[0].s.map(scoreBit))}.`);
+		else if (byTeam.length === 2) say("RICK", `Scoring for the ${N(byTeam[0].T)}: ${listAnd(byTeam[0].s.map(scoreBit))}. The ${N(byTeam[1].T)} have answered with ${listAnd(byTeam[1].s.map(scoreBit))}.`);
+
+		const pl = playOf(P, (qq) => qq <= 2);
+		const talk = playTalk(pl, p, "half");
+		if (talk) {
+			seg("Play of the half");
+			say("DEKE", talk);
+		}
+
+		seg("Inside the numbers");
+		if (trail) {
+			const best = bestOffense(trail);
+			if (diff >= 21) say("RICK", `Not much going right for the ${N(trail)}: ${totYds(trail)} total yards and ${plural(trail.tov, "turnover", "turnovers")}.`);
+			else if (best) say("RICK", `${p([`The ${N(trail)} aren't out of this.`, `Don't count out the ${N(trail)}.`])} ${best.txt}.`);
+		} else {
+			const bests = B.teams.map(bestOffense).filter(Boolean);
+			if (bests.length) say("RICK", `${listAnd(bests.map((b) => b.txt))}.`);
+		}
+		const ks = keyStats(B, P, lead, "so far");
+		for (const k of ks.slice(0, 2)) say("DEKE", k);
+		const defs = B.teams.flatMap((T) => T.def).sort((a, b) => defScore(b) - defScore(a));
+		if (defs[0] && defScore(defs[0]) >= 4) say("RICK", `${p(["Defensive standout so far", "Defensive player of the half"])}: ${defs[0].pos} ${defs[0].name} of the ${nick(defs[0].team)}. ${cap(defLine(defs[0]))}.`);
+		const inj = injuryTalk(P, B);
+		if (inj) {
+			seg("Injury report");
+			say("RICK", inj);
+		}
+		const st = studio(L, B, "half");
+		if (st.length) {
+			seg("Around the league");
+			for (const s of st) say("MONICA", s);
+		}
+		seg("Second half");
+		if (trail) {
+			const tips = [];
+			if (trail.tov >= 2) tips.push("take care of the football");
+			if (trail.rusYds < 40) tips.push("get the run game going");
+			const skd = trail.pass.reduce((a, x) => a + x.sk, 0);
+			if (skd >= 3) tips.push("get the ball out quicker");
+			if (P.big.filter((b) => b.team === lead.abbrev && b.q <= 2).length >= 2) tips.push("stop giving up the big play");
+			if (!tips.length) tips.push("get a stop on the first series");
+			say("DEKE", `If I'm the ${N(trail)}, I want to ${listAnd(tips.slice(0, 2))}. ${diff >= 17 ? "They need points on just about every possession now." : "There's plenty of time."}`);
+		} else say("DEKE", "Whoever wins the turnover battle in the second half wins this game.");
+		say("RICK", p(["Second half coming up. Stick with us.", "We'll be right back with the third quarter.", "Don't go anywhere. The second half is next."]));
+		return { kind: "half", title: `Halftime · ${N(A)} ${A.pts}, ${N(H)} ${H.pts}`, lines, strip: strip(B, 2) };
+	};
+
+	const buildPostgame = (B, P, L) => {
+		const [A, H] = B.teams;
+		const p = picker(`post|${A.abbrev}|${H.abbrev}|${A.pts}-${H.pts}|${totYds(A)}`);
+		const lines = [];
+		const say = (who, text) => text && lines.push({ who, text });
+		const seg = (t) => lines.push({ seg: t });
+		const N = (T) => nick(T.abbrev);
+		const W = A.pts === H.pts ? null : A.pts > H.pts ? A : H;
+		const Lz = W ? (W === A ? H : A) : null;
+		const m = Math.abs(A.pts - H.pts);
+		seg("Final");
+		const half = P.half;
+		const hd = half && W ? (half[Lz.abbrev] || 0) - (half[W.abbrev] || 0) : 0;
+		if (!W) say("RICK", `It ends in a tie, ${A.pts}-${H.pts}. Nobody goes home happy.`);
+		else if (hd > 0) say("RICK", p([`What a comeback! The ${N(W)} were down ${hd} at the half and win it ${W.pts}-${Lz.pts}.`, `They were down ${hd} at halftime, and the ${N(W)} storm back to win ${W.pts}-${Lz.pts}!`]));
+		else if (P.ot) say("RICK", `They needed overtime, but the ${N(W)} get it done, ${W.pts}-${Lz.pts}.`);
+		else if (m >= 21) say("RICK", p([`That's a wrap. The ${N(W)} roll, ${W.pts}-${Lz.pts}.`, `Total domination. ${N(W)} ${W.pts}, ${N(Lz)} ${Lz.pts}.`]));
+		else if (m <= 3) say("RICK", p([`What a finish! The ${N(W)} hang on, ${W.pts}-${Lz.pts}.`, `A nail-biter to the end, and the ${N(W)} survive, ${W.pts}-${Lz.pts}.`]));
+		else say("RICK", p([`Final here: ${N(W)} ${W.pts}, ${N(Lz)} ${Lz.pts}.`, `That's the ballgame. The ${N(W)} win it ${W.pts}-${Lz.pts}.`]));
+		if (half) {
+			const s2 = B.teams.map((T) => T.pts - (half[T.abbrev] || 0));
+			if (s2[0] !== s2[1] && Math.abs(s2[0] - s2[1]) >= 10) {
+				const i = s2[0] > s2[1] ? 0 : 1;
+				say("RICK", `The ${N(B.teams[i])} won the second half ${s2[i]}-${s2[1 - i]}.`);
+			}
+		}
+
+		// player of the game
+		const imp = new Map();
+		const add = (T, row, v, kind) => {
+			const k = `${T.abbrev}|${row.name}`;
+			const o = imp.get(k) || { name: row.name, pos: row.pos, team: T.abbrev, v: 0, rows: {} };
+			o.v += v;
+			o.rows[kind] = row;
+			imp.set(k, o);
+		};
+		for (const T of B.teams) {
+			for (const r of T.pass) add(T, r, r.yds / 20 + r.td * 4 - r.int * 3, "pass");
+			for (const r of T.rush) add(T, r, r.yds / 10 + r.td * 6, "rush");
+			for (const r of T.recv) add(T, r, r.yds / 10 + r.td * 6 + r.rec * 0.3, "recv");
+			for (const r of T.def) add(T, r, defScore(r), "def");
+			for (const r of T.ret) add(T, r, (r.krYds + r.prYds) / 25 + (r.krTD + r.prTD) * 6, "ret");
+			for (const r of T.kick) add(T, r, r.fgm * 3, "kick");
+		}
+		const all = [...imp.values()].sort((a, b) => b.v - a.v);
+		const pog = (W ? all.filter((x) => x.team === W.abbrev) : all)[0];
+		const statLine = (o) => {
+			const bits = [];
+			const r = o.rows;
+			if (r.pass && r.pass.att) bits.push(qbLine(r.pass));
+			if (r.rush && r.rush.att) bits.push(`${plural(r.rush.att, "carry", "carries")} for ${r.rush.yds} yards${r.rush.td ? ` and ${plural(r.rush.td, "touchdown", "touchdowns")}` : ""}`);
+			if (r.recv && r.recv.rec) bits.push(`${plural(r.recv.rec, "catch", "catches")} for ${r.recv.yds} yards${r.recv.td ? ` and ${plural(r.recv.td, "touchdown", "touchdowns")}` : ""}`);
+			if (r.def && defScore(r.def) >= 2) bits.push(defLine(r.def));
+			if (r.ret && (r.ret.krTD || r.ret.prTD || r.ret.krYds + r.ret.prYds >= 80)) bits.push(`${r.ret.krYds + r.ret.prYds} return yards${r.ret.krTD + r.ret.prTD ? " and a return touchdown" : ""}`);
+			if (r.kick && r.kick.fgm) bits.push(`${r.kick.fgm} of ${r.kick.fga} on field goals`);
+			return bits.join("; ");
+		};
+		if (pog) {
+			seg("Player of the game");
+			say("DEKE", `${p(["Player of the game has to be", "My player of the game:", "Give the game ball to"])} ${pog.pos} ${pog.name}. ${cap(statLine(pog))}.`);
+		}
+		const pl = playOf(P, () => true);
+		const talk = playTalk(pl, p, "game");
+		if (talk) {
+			seg("Play of the game");
+			say("DEKE", talk);
+		}
+		seg("Inside the numbers");
+		if (Lz) {
+			const best = bestOffense(Lz);
+			if (best && (!pog || best.name !== pog.name)) say("RICK", `For the ${N(Lz)}, ${best.txt} in a losing effort.`);
+		}
+		for (const k of keyStats(B, P, W, "today").slice(0, 2)) say("DEKE", k);
+		const defs = B.teams.flatMap((T) => T.def).sort((a, b) => defScore(b) - defScore(a));
+		if (defs[0] && defScore(defs[0]) >= 4 && (!pog || defs[0].name !== pog.name)) say("RICK", `Defensively, ${defs[0].pos} ${defs[0].name} of the ${nick(defs[0].team)} was everywhere: ${defLine(defs[0])}.`);
+		const missed = P.missedFG.length ? `${P.missedFG.map((f) => `${last(f.who)} missed from ${f.yds}`).join(", ")}.` : "";
+		if (missed && m <= 7) say("DEKE", `And don't forget the kicks: ${missed} In a game this close, those points matter.`);
+		const inj = injuryTalk(P, B);
+		if (inj) {
+			seg("Injury report");
+			say("RICK", inj.replace("Injury update: ", "On the injury front: "));
+		}
+		if (L && W) say("RICK", `The ${N(W)} move to ${recStr(L.recs[W.abbrev])}; the ${N(Lz)} fall to ${recStr(L.recs[Lz.abbrev])}.`);
+		else if (L) say("RICK", `The ${N(A)} are now ${recStr(L.recs[A.abbrev])}, the ${N(H)} ${recStr(L.recs[H.abbrev])}.`);
+		const st = studio(L, B, "post");
+		if (st.length) {
+			seg("Around the league");
+			for (const s of st) say("MONICA", s);
+		}
+		return { kind: "post", title: `Final · ${N(A)} ${A.pts}, ${N(H)} ${H.pts}${P.ot ? " (OT)" : ""}`, lines, strip: strip(B) };
+	};
+
+	// ---- on screen
+	const injectStyle = () => {
+		if (document.getElementById("pgm-show-style")) return;
+		const st = document.createElement("style");
+		st.id = "pgm-show-style";
+		st.textContent = `
+.pgm-show-bg{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:2050;display:flex;align-items:center;justify-content:center;padding:16px}
+.pgm-show{background:var(--bs-body-bg,#fff);color:var(--bs-body-color,#212529);border:1px solid var(--bs-border-color,#dee2e6);border-radius:10px;max-width:760px;width:100%;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,.45)}
+.pgm-show-head{padding:12px 16px;border-bottom:1px solid var(--bs-border-color,#dee2e6);display:flex;align-items:center;gap:10px}
+.pgm-show-head h4{margin:0;font-size:1.15rem;flex:1}
+.pgm-show-body{padding:8px 16px 12px;overflow-y:auto}
+.pgm-show-line{margin:0 0 10px;line-height:1.5}
+.pgm-show-who{font-weight:700}
+.pgm-show-role{font-size:.72em;opacity:.65;margin:0 6px 0 3px;text-transform:uppercase;letter-spacing:.05em}
+.pgm-show-seg{font-size:.72em;font-weight:700;text-transform:uppercase;letter-spacing:.09em;opacity:.55;margin:14px 0 6px;border-bottom:1px solid var(--bs-border-color,#dee2e6);padding-bottom:2px}
+.pgm-show-foot{padding:10px 16px;border-top:1px solid var(--bs-border-color,#dee2e6);display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.pgm-show-strip{font-size:.85em;margin:8px 0 2px;width:auto}
+.pgm-show-strip td,.pgm-show-strip th{padding:2px 8px;text-align:center}
+.pgm-show-strip td:first-child,.pgm-show-strip th:first-child{text-align:left}
+@keyframes pgmShowIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.pgm-show-line,.pgm-show-seg{animation:pgmShowIn .35s ease-out}`;
+		document.head.appendChild(st);
+	};
+	const clickVisible = (pred) => {
+		const b = [...document.querySelectorAll("button")].find((x) => x.offsetParent !== null && pred(x.title || ""));
+		if (b) b.click();
+		return !!b;
+	};
+	let openShowEl = null;
+	const openShow = (show, pausedByUs) => {
+		if (!show) return;
+		injectStyle();
+		if (openShowEl) openShowEl.remove();
+		const bg = document.createElement("div");
+		bg.className = "pgm-show-bg";
+		const box = document.createElement("div");
+		box.className = "pgm-show";
+		bg.appendChild(box);
+		const qs = Math.max(...show.strip.map((s) => s.q.length));
+		const qName = (i) => (i < 4 ? String(i + 1) : i === 4 ? "OT" : `${i - 3}OT`);
+		box.innerHTML = `<div class="pgm-show-head"><h4>🎙 ${esc(show.kind === "half" ? "Halftime Show" : "Postgame Show")}</h4><button type="button" class="btn-close" aria-label="Close"></button></div>
+<div class="pgm-show-body"><div class="fw-bold">${esc(show.title)}</div>
+<table class="table table-sm pgm-show-strip"><thead><tr><th></th>${Array.from({ length: qs }, (_, i) => `<th>${qName(i)}</th>`).join("")}<th>Pts</th><th>Yds</th><th>TOV</th></tr></thead><tbody>${show.strip.map((s) => `<tr><td>${esc(s.abbrev)}</td>${Array.from({ length: qs }, (_, i) => `<td>${s.q[i] ?? "-"}</td>`).join("")}<td class="fw-bold">${show.kind === "half" ? s.q.reduce((a, x) => a + (x || 0), 0) : s.pts}</td><td>${s.yds}</td><td>${s.tov}</td></tr>`).join("")}</tbody></table>
+<div class="pgm-show-lines"></div></div>
+<div class="pgm-show-foot"><button type="button" class="btn btn-secondary btn-sm pgm-show-skip">Show it all</button><button type="button" class="btn btn-primary btn-sm pgm-show-go">${show.kind === "half" ? "Start the second half ▶" : "Close"}</button></div>`;
+		const body = box.querySelector(".pgm-show-body");
+		const holder = box.querySelector(".pgm-show-lines");
+		const skip = box.querySelector(".pgm-show-skip");
+		let i = 0;
+		const addLine = () => {
+			const l = show.lines[i++];
+			if (!l) return false;
+			const d = document.createElement("div");
+			if (l.seg) {
+				d.className = "pgm-show-seg";
+				d.textContent = l.seg;
+			} else {
+				const [name, role, cls] = CAST[l.who];
+				d.className = "pgm-show-line";
+				d.innerHTML = `<span class="pgm-show-who ${cls}">${esc(name.toUpperCase())}</span><span class="pgm-show-role">${esc(role)}</span>${esc(l.text)}`;
+			}
+			holder.appendChild(d);
+			return true;
+		};
+		const atBottom = () => body.scrollHeight - body.scrollTop - body.clientHeight < 40;
+		let timer = null;
+		const tick = () => {
+			const follow = atBottom();
+			// segment headers come with the line after them
+			let more = addLine();
+			while (more && show.lines[i - 1].seg) more = addLine();
+			if (follow) body.scrollTop = body.scrollHeight;
+			if (!more || i >= show.lines.length) {
+				skip.style.display = "none";
+				clearInterval(timer);
+			}
+		};
+		tick();
+		timer = setInterval(tick, 1700);
+		skip.addEventListener("click", () => {
+			clearInterval(timer);
+			while (addLine());
+			skip.style.display = "none";
+		});
+		const close = () => {
+			clearInterval(timer);
+			bg.remove();
+			document.removeEventListener("keydown", onKey);
+			if (openShowEl === bg) openShowEl = null;
+			if (pausedByUs) clickVisible((t) => t.startsWith("Resume Simulation"));
+		};
+		const onKey = (e) => {
+			if (e.key === "Escape") close();
+		};
+		document.addEventListener("keydown", onKey);
+		box.querySelector(".btn-close").addEventListener("click", close);
+		box.querySelector(".pgm-show-go").addEventListener("click", close);
+		document.body.appendChild(bg);
+		openShowEl = bg;
+	};
+
+	const showDone = new WeakSet();
+	const maybeShow = (r, isLast, container) => {
+		if (!enabled || !r || !r.orig || showDone.has(r.el)) return;
+		const s = stripStats(r.orig);
+		const kind = s === "Start of 3rd quarter" ? "half" : s === "End of game" ? "post" : null;
+		if (!kind) return;
+		showDone.add(r.el);
+		// pause right away so the 3rd quarter doesn't start under the show
+		const pausedByUs = kind === "half" && isLast ? clickVisible((t) => t.startsWith("Pause Simulation")) : false;
+		const B = readBoxFull();
+		if (!B) return;
+		const P = scanPlays(container);
+		const ready = leagueInfo(B.teams.map((t) => t.abbrev), kind)
+			.catch((e) => {
+				console.log("Broadcast Booth (league info): " + e.message);
+				return null;
+			})
+			.then((L) => (kind === "half" ? buildHalftime(B, P, L) : buildPostgame(B, P, L)))
+			.catch((e) => {
+				console.log("Broadcast Booth (show): " + e.message);
+				return null;
+			});
+		const b = document.createElement("button");
+		b.type = "button";
+		b.className = "btn btn-sm btn-outline-secondary ms-2 py-0 pgm-show-btn";
+		b.textContent = kind === "half" ? "🎙 Halftime show" : "🎙 Postgame show";
+		b.addEventListener("click", () => ready.then((sh) => openShow(sh, false)));
+		r.body.insertBefore(b, r.scoreDiv);
+		if (isLast) ready.then((sh) => (sh ? openShow(sh, pausedByUs) : pausedByUs && clickVisible((t) => t.startsWith("Resume Simulation"))));
 	};
 
 	// on/off switch
