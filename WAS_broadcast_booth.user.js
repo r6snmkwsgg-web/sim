@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Football GM: Broadcast Booth
 // @namespace    was-dynasty-fbgm
-// @version      1.3.2
+// @version      1.3.3
 // @description  Turns Football GM's live play-by-play into TV-style commentary. Real names, yards, downs, score and in-game stat callbacks; the flavor is made up to fit. Hover any line to see the original. Halftime and postgame shows, NFL-style kickoff windows on the schedule, and a score ticker.
 // @match        https://play.football-gm.com/*
 // @grant        none
@@ -609,76 +609,111 @@
 		const days = [...new Set(games.map((x) => x.day).concat(sched.map((x) => x.day)))].sort((a, b) => a - b);
 		const week = days.indexOf(day) + 1;
 		if (week <= 0) return null;
-		const list = [];
-		for (const gm of games) {
-			if (gm.day !== day) continue;
-			list.push({ gid: gm.gid, home: gm.teams[0].tid, away: gm.teams[1].tid, played: true, hp: gm.teams[0].pts, ap: gm.teams[1].pts, hq: gm.teams[0].ptsQtrs || [], aq: gm.teams[1].ptsQtrs || [], ss: gm.scoringSummary || [], ot: gm.overtimes || 0 });
-		}
-		for (const s of sched) if (s.day === day) list.push({ gid: s.gid, home: s.homeTid, away: s.awayTid, played: false });
-		list.sort((a, b) => a.gid - b.gid);
-		if (!list.length) return null;
-		// records from earlier weeks only
-		const rec = new Map(teams.map((t) => [t.tid, [0, 0, 0]]));
-		for (const gm of games) {
-			if (gm.day >= day) continue;
-			const rh = rec.get(gm.teams[0].tid);
-			const ra = rec.get(gm.teams[1].tid);
-			if (!rh || !ra) continue;
-			const hp = gm.teams[0].pts;
-			const ap = gm.teams[1].pts;
-			if (hp > ap) {
-				rh[0]++;
-				ra[1]++;
-			} else if (hp < ap) {
-				rh[1]++;
-				ra[0]++;
-			} else {
-				rh[2]++;
-				ra[2]++;
+		const listFor = (d) => {
+			const out = [];
+			for (const gm of games) {
+				if (gm.day !== d) continue;
+				out.push({ gid: gm.gid, home: gm.teams[0].tid, away: gm.teams[1].tid, played: true, hp: gm.teams[0].pts, ap: gm.teams[1].pts, hq: gm.teams[0].ptsQtrs || [], aq: gm.teams[1].ptsQtrs || [], ss: gm.scoringSummary || [], ot: gm.overtimes || 0 });
 			}
-		}
+			for (const s of sched) if (s.day === d) out.push({ gid: s.gid, home: s.homeTid, away: s.awayTid, played: false });
+			return out.sort((a, b) => a.gid - b.gid);
+		};
+		// records from earlier weeks only
+		const recBefore = (d) => {
+			const rec = new Map(teams.map((t) => [t.tid, [0, 0, 0]]));
+			for (const gm of games) {
+				if (gm.day >= d) continue;
+				const rh = rec.get(gm.teams[0].tid);
+				const ra = rec.get(gm.teams[1].tid);
+				if (!rh || !ra) continue;
+				const hp = gm.teams[0].pts;
+				const ap = gm.teams[1].pts;
+				if (hp > ap) {
+					rh[0]++;
+					ra[1]++;
+				} else if (hp < ap) {
+					rh[1]++;
+					ra[0]++;
+				} else {
+					rh[2]++;
+					ra[2]++;
+				}
+			}
+			return rec;
+		};
 		const prev = new Map();
 		for (const ts of await idb.cache.teamSeasons.getAll()) {
 			if (ts.season !== season - 1) continue;
 			const n = ts.won + ts.lost + (ts.tied || 0);
 			if (n > 0) prev.set(ts.tid, (ts.won + (ts.tied || 0) / 2) / n);
 		}
-		const seed = season + "|" + week + "|" + list.map((x) => x.gid).join(",");
-		let h = 2166136261;
-		for (let i = 0; i < seed.length; i++) h = Math.imul(h ^ seed.charCodeAt(i), 16777619);
-		let st = h >>> 0;
-		const rnd = () => {
-			st = (st + 0x6d2b79f5) >>> 0;
-			let t = st;
-			t = Math.imul(t ^ (t >>> 15), t | 1);
-			t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-			return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-		};
-		const wp = (tid) => {
-			const r = rec.get(tid) || [0, 0, 0];
-			const pv = prev.has(tid) ? prev.get(tid) : 0.5;
-			return (r[0] + r[2] / 2 + 3 * pv) / (r[0] + r[1] + r[2] + 3);
-		};
-		const ranked = list.map((x) => ({ x, a: wp(x.home) + wp(x.away) + rnd() * 0.35 })).sort((p, q) => q.a - p.a).map((o) => o.x);
-		// 0 TNF, 1 Sun 11:00, 2 Sun 1:00, 3 SNF, 4 MNF
-		const slotOf = new Map();
-		if (ranked.length >= 5) {
-			slotOf.set(ranked[0].gid, 3);
-			slotOf.set(ranked[1].gid, 4);
-			const rest = ranked.slice(2);
-			const tnf = rest.splice(Math.floor(rnd() * rest.length), 1)[0];
-			slotOf.set(tnf.gid, 0);
-			for (let i = rest.length - 1; i > 0; i--) {
-				const j = Math.floor(rnd() * (i + 1));
-				const tmp = rest[i];
-				rest[i] = rest[j];
-				rest[j] = tmp;
+		// No team gets three primetime games (TNF/SNF/MNF) in a row. This rule starts with 2082 Week 8, so the
+		// weeks already played keep the slots they had.
+		const capOn = (w) => season > 2082 || (season === 2082 && w >= 8);
+		const assign = (d, w, streak) => {
+			const list = listFor(d);
+			const rec = recBefore(d);
+			const seed = season + "|" + w + "|" + list.map((x) => x.gid).join(",");
+			let h = 2166136261;
+			for (let i = 0; i < seed.length; i++) h = Math.imul(h ^ seed.charCodeAt(i), 16777619);
+			let st = h >>> 0;
+			const rnd = () => {
+				st = (st + 0x6d2b79f5) >>> 0;
+				let t = st;
+				t = Math.imul(t ^ (t >>> 15), t | 1);
+				t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+				return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+			};
+			const wp = (tid) => {
+				const r = rec.get(tid) || [0, 0, 0];
+				const pv = prev.has(tid) ? prev.get(tid) : 0.5;
+				return (r[0] + r[2] / 2 + 3 * pv) / (r[0] + r[1] + r[2] + 3);
+			};
+			const blocked = (x) => capOn(w) && ((streak.get(x.home) || 0) >= 2 || (streak.get(x.away) || 0) >= 2);
+			const ranked = list.map((x) => ({ x, a: wp(x.home) + wp(x.away) + rnd() * 0.35 })).sort((p, q) => q.a - p.a).map((o) => o.x);
+			// 0 TNF, 1 Sun 11:00, 2 Sun 1:00, 3 SNF, 4 MNF
+			const slotOf = new Map();
+			if (ranked.length >= 5) {
+				const order = ranked.filter((x) => !blocked(x)).concat(ranked.filter((x) => blocked(x)));
+				slotOf.set(order[0].gid, 3);
+				slotOf.set(order[1].gid, 4);
+				const rest = ranked.filter((x) => x !== order[0] && x !== order[1]);
+				const allowed = rest.filter((x) => !blocked(x));
+				const pool = allowed.length ? allowed : rest;
+				const tnf = pool[Math.floor(rnd() * pool.length)];
+				rest.splice(rest.indexOf(tnf), 1);
+				slotOf.set(tnf.gid, 0);
+				for (let i = rest.length - 1; i > 0; i--) {
+					const j = Math.floor(rnd() * (i + 1));
+					const tmp = rest[i];
+					rest[i] = rest[j];
+					rest[j] = tmp;
+				}
+				const n11 = Math.round(rest.length * 0.4);
+				rest.forEach((x, i) => slotOf.set(x.gid, i < n11 ? 1 : 2));
+			} else {
+				ranked.forEach((x, i) => slotOf.set(x.gid, [3, 2, 4, 1][i] ?? 2));
 			}
-			const n11 = Math.round(rest.length * 0.4);
-			rest.forEach((x, i) => slotOf.set(x.gid, i < n11 ? 1 : 2));
-		} else {
-			ranked.forEach((x, i) => slotOf.set(x.gid, [3, 2, 4, 1][i] ?? 2));
+			return { list, rec, slotOf };
+		};
+		// walk the season week by week so the primetime streaks are known
+		const streak = new Map();
+		let cur = null;
+		for (let i = 0; i < week; i++) {
+			const res = assign(days[i], i + 1, streak);
+			if (i === week - 1) {
+				cur = res;
+				break;
+			}
+			const prime = new Set();
+			for (const x of res.list) if ([0, 3, 4].includes(res.slotOf.get(x.gid))) {
+				prime.add(x.home);
+				prime.add(x.away);
+			}
+			for (const t of teams) streak.set(t.tid, prime.has(t.tid) ? (streak.get(t.tid) || 0) + 1 : 0);
 		}
+		const { list, rec, slotOf } = cur;
+		if (!list.length) return null;
 		// Week 1 kicks off the Thursday after Labor Day
 		const ld = new Date(season, 8, 1);
 		while (ld.getDay() !== 1) ld.setDate(ld.getDate() + 1);
