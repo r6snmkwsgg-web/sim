@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Football GM: Broadcast Booth
 // @namespace    was-dynasty-fbgm
-// @version      1.3
+// @version      1.3.1
 // @description  Turns Football GM's live play-by-play into TV-style commentary. Real names, yards, downs, score and in-game stat callbacks; the flavor is made up to fit. Hover any line to see the original. Halftime and postgame shows, NFL-style kickoff windows on the schedule, and a score ticker.
 // @match        https://play.football-gm.com/*
 // @grant        none
@@ -1015,17 +1015,22 @@ console.log(JSON.stringify(out));`;
 		return "a touchdown";
 	};
 	// the one play everyone will be talking about
-	const playOf = (P, inRange) => {
-		const sc = P.scoring.filter((s) => inRange(s.q));
-		const special = sc.filter((s) => s.kind === "intTD" || s.kind === "fumTD" || s.kind === "retTD").sort((a, b) => (b.yds || 0) - (a.yds || 0))[0];
-		if (special) return { type: special.kind, s: special };
-		const longTD = sc.filter((s) => (s.kind === "passTD" || s.kind === "rushTD") && s.yds >= 30).sort((a, b) => b.yds - a.yds)[0];
-		if (longTD) return { type: longTD.kind, s: longTD };
-		const big = P.big.filter((b) => inRange(b.q)).sort((a, b) => b.yds - a.yds)[0];
-		if (big && big.yds >= 35) return { type: "big", s: big };
-		const to = P.tos.filter((t) => inRange(t.q))[0];
-		if (to) return { type: to.kind, s: to };
-		return null;
+	// the one play everyone will be talking about (after a win, one of the winner's plays if there's a good one)
+	const playOf = (P, inRange, team) => {
+		const pick = (mine) => {
+			const ok = (x) => !mine || x.team === team;
+			const sc = P.scoring.filter((s) => inRange(s.q) && ok(s));
+			const special = sc.filter((s) => s.kind === "intTD" || s.kind === "fumTD" || s.kind === "retTD").sort((a, b) => (b.yds || 0) - (a.yds || 0))[0];
+			if (special) return { type: special.kind, s: special };
+			const longTD = sc.filter((s) => (s.kind === "passTD" || s.kind === "rushTD") && s.yds >= 30).sort((a, b) => b.yds - a.yds)[0];
+			if (longTD) return { type: longTD.kind, s: longTD };
+			const big = P.big.filter((b) => inRange(b.q) && ok(b)).sort((a, b) => b.yds - a.yds)[0];
+			if (big && big.yds >= 35) return { type: "big", s: big };
+			const to = P.tos.filter((t) => inRange(t.q) && (!mine || t.lost !== team))[0];
+			if (to) return { type: to.kind, s: to };
+			return null;
+		};
+		return (team && pick(true)) || pick(false);
 	};
 	const playTalk = (pl, p, when) => {
 		if (!pl) return null;
@@ -1292,7 +1297,7 @@ console.log(JSON.stringify(out));`;
 			seg("Player of the game");
 			say("DEKE", `${p(["Player of the game has to be", "My player of the game:", "Give the game ball to"])} ${pog.pos} ${pog.name}. ${cap(statLine(pog))}.`);
 		}
-		const pl = playOf(P, () => true);
+		const pl = playOf(P, () => true, W ? W.abbrev : null);
 		const talk = playTalk(pl, p, "game");
 		if (talk) {
 			seg("Play of the game");
