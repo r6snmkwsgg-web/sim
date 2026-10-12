@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Football GM: Broadcast Booth
 // @namespace    was-dynasty-fbgm
-// @version      1.3.1
+// @version      1.3.2
 // @description  Turns Football GM's live play-by-play into TV-style commentary. Real names, yards, downs, score and in-game stat callbacks; the flavor is made up to fit. Hover any line to see the original. Halftime and postgame shows, NFL-style kickoff windows on the schedule, and a score ticker.
 // @match        https://play.football-gm.com/*
 // @grant        none
@@ -861,7 +861,64 @@
 				}
 			}
 		}
+		// Football GM's own scoring summary is the official record (a touchdown wiped out by a penalty
+		// still shows up in the play-by-play, but it's removed there), so use it when it's on the page
+		const official = readScoring();
+		if (official) {
+			P.scoring = [];
+			P.leadChanges = 0;
+			P.maxLead = {};
+			let lead = null;
+			for (const e of official) {
+				if (e.miss) continue;
+				const s = stripStats(e.text);
+				let m;
+				let item = null;
+				if ((m = /^(.+?) completed a pass to (.+?) for (-?\d+) yards? and a touchdown/.exec(s))) item = { kind: "passTD", qb: m[1], wr: m[2], yds: Number(m[3]) };
+				else if ((m = /^(.+?) rushed for (-?\d+) yards? and a touchdown/.exec(s))) item = { kind: "rushTD", who: m[1], yds: Number(m[2]) };
+				else if ((m = /^(.+?) returned the interception (-?\d+) yards? for a touchdown/.exec(s))) item = { kind: "intTD", who: m[1], yds: Number(m[2]) };
+				else if ((m = /^(.+?) returned the (kickoff|punt) (-?\d+) yards? for a touchdown/.exec(s))) item = { kind: "retTD", who: m[1], what: m[2], yds: Number(m[3]) };
+				else if ((m = /^(?:Turnover! )?(.+?) recovered the fumble.*touchdown/.exec(s))) item = { kind: "fumTD", who: m[1] };
+				else if ((m = /^(.+?) made a (\d+) yard field goal/.exec(s))) item = { kind: "fg", who: m[1], yds: Number(m[2]) };
+				else if (e.type === "SF" || /safety/i.test(s)) item = { kind: "safety" };
+				else if (e.type === "TD") item = { kind: "td" };
+				if (item) P.scoring.push({ ...item, q: e.q, team: e.team, pts: e.type === "FG" ? 3 : e.type === "SF" ? 2 : 6 });
+				const [sa, sb] = e.score;
+				const now = sa === sb ? null : sa > sb ? 0 : 1;
+				if (now !== null && lead !== null && now !== lead) P.leadChanges += 1;
+				if (now !== null) {
+					lead = now;
+					P.maxLead[now] = Math.max(P.maxLead[now] || 0, Math.abs(sa - sb));
+				}
+			}
+		}
 		return P;
+	};
+	// the "Scoring Summary" table on the live page: [{ q, team, type, miss, score: [away, home], text }]
+	const readScoring = () => {
+		const h = [...document.querySelectorAll("h2")].find((x) => x.textContent.trim() === "Scoring Summary");
+		if (!h) return null;
+		let t = h.nextElementSibling;
+		while (t && t.tagName !== "TABLE" && t.tagName !== "P" && !(t.querySelector && t.querySelector("table"))) t = t.nextElementSibling;
+		if (!t) return null;
+		if (t.tagName === "P") return [];
+		const table = t.tagName === "TABLE" ? t : t.querySelector("table");
+		const out = [];
+		let q = 1;
+		for (const tr of table.querySelectorAll("tbody tr")) {
+			const tds = tr.children;
+			if (tds.length === 1) {
+				const txt = tds[0].textContent.trim();
+				const m = /^(\d+)/.exec(txt);
+				q = m ? Number(m[1]) : /overtime/i.test(txt) ? 5 : q;
+				continue;
+			}
+			if (tds.length < 5) continue;
+			const score = tds[2].textContent.trim().split("-").map((x) => Number(x));
+			if (score.length !== 2 || score.some((x) => Number.isNaN(x))) continue;
+			out.push({ q, team: tds[0].textContent.trim(), type: tds[1].textContent.trim(), miss: !!tds[2].querySelector(".text-danger"), score, text: tds[4].textContent.replace(/\s+/g, " ").trim() });
+		}
+		return out;
 	};
 
 	// ---- league info that doesn't spoil anything
@@ -1247,7 +1304,8 @@ console.log(JSON.stringify(out));`;
 		const Lz = W ? (W === A ? H : A) : null;
 		const m = Math.abs(A.pts - H.pts);
 		seg("Final");
-		const half = P.half;
+		// halftime score straight from the line score
+		const half = Object.fromEntries(B.teams.map((T) => [T.abbrev, (T.q[0] || 0) + (T.q[1] || 0)]));
 		const hd = half && W ? (half[Lz.abbrev] || 0) - (half[W.abbrev] || 0) : 0;
 		if (!W) say("RICK", `It ends in a tie, ${A.pts}-${H.pts}. Nobody goes home happy.`);
 		else if (hd > 0) say("RICK", p([`What a comeback! The ${N(W)} were down ${hd} at the half and win it ${W.pts}-${Lz.pts}.`, `They were down ${hd} at halftime, and the ${N(W)} storm back to win ${W.pts}-${Lz.pts}!`]));
