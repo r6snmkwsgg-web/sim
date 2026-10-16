@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WAS Dynasty: in-season progs
 // @namespace    was-dynasty-fbgm
-// @version      1.0
+// @version      1.1
 // @description  Turns on the 30% offseason / 70% in-season progression every time Football GM opens. Only acts in the WAS Dynasty league.
 // @match        https://play.football-gm.com/*
 // @grant        none
@@ -28,7 +28,8 @@ async function pgmInSeasonProgs() {
 		const lid = g.lid;
 		if (lid === undefined) return false;
 		if (self.__pgmProgLid === lid) return self.__pgmProgIsWas;
-		const p = await idb.getCopy.players({ pid: 5263 }, "noCopyCache");
+		// Football GM 2026.10.16 moved this to idb.merged; the old name is kept as a fallback
+		const p = idb.merged ? await idb.merged.players.get(5263) : await idb.getCopy.players({ pid: 5263 }, "noCopyCache");
 		if (!p) return false; // league still loading, check again next time
 		self.__pgmProgLid = lid;
 		self.__pgmProgIsWas = p.firstName === "Jason" && p.lastName === "Latham";

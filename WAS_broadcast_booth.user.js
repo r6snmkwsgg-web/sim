@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Football GM: Broadcast Booth
 // @namespace    was-dynasty-fbgm
-// @version      1.3.3
+// @version      1.3.4
 // @description  Turns Football GM's live play-by-play into TV-style commentary. Real names, yards, downs, score and in-game stat callbacks; the flavor is made up to fit. Hover any line to see the original. Halftime and postgame shows, NFL-style kickoff windows on the schedule, and a score ticker.
 // @match        https://play.football-gm.com/*
 // @grant        none
@@ -46,11 +46,17 @@
 	// ------------------------------------------------------------------ team names
 	const teamNames = {};
 	let namesLoaded = false;
+	// Run code in Football GM's worker and parse the JSON it logs. Only the last line is ours; anything above it is
+	// something else that happened to log at the same time (like Football GM's own "deprecated" notices).
+	const fromWorker = async (code) => {
+		const out = await window.bbgm.toWorker("main", "evalOnWorker", code);
+		const lines = String(out ?? "").split("\n").filter((x) => x.trim() !== "");
+		return JSON.parse(lines[lines.length - 1]);
+	};
 	const loadTeamNames = async () => {
 		if (namesLoaded) return;
 		try {
-			const out = await window.bbgm.toWorker("main", "evalOnWorker", 'console.log(JSON.stringify(bbgm.g.get("teamInfoCache").map((t) => [t.abbrev, t.name])))');
-			for (const [a, n] of JSON.parse(out)) teamNames[a] = n;
+			for (const [a, n] of await fromWorker('console.log(JSON.stringify(bbgm.g.get("teamInfoCache").map((t) => [t.abbrev, t.name])))')) teamNames[a] = n;
 			namesLoaded = true;
 		} catch {}
 	};
@@ -594,7 +600,7 @@
 		if (opts.season !== undefined && opts.season !== season) return null;
 		const teams = (await idb.cache.teams.getAll()).filter((t) => !t.disabled);
 		const byTid = new Map(teams.map((t) => [t.tid, t]));
-		const games = await idb.getCopies.games({ season }, "noCopyCache");
+		const games = idb.merged ? await idb.merged.games.getAll({ season }) : await idb.getCopies.games({ season }, "noCopyCache");
 		const sched = (await idb.cache.schedule.getAll()).filter((s) => s.homeTid >= 0 && s.awayTid >= 0);
 		let day = opts.day;
 		if (day === undefined && opts.abbrevs) {
@@ -743,7 +749,7 @@
 			games: list.map((x) => ({ ...x, slot: slotOf.get(x.gid), homeAbbrev: ab(x.home), awayAbbrev: ab(x.away), homeRec: rec.get(x.home), awayRec: rec.get(x.away) })),
 		};
 	};
-	const weekInfo = async (opts) => JSON.parse(await window.bbgm.toWorker("main", "evalOnWorker", `console.log(JSON.stringify(await (${pgmWeekFn.toString()})(${JSON.stringify(opts)})));`));
+	const weekInfo = async (opts) => fromWorker(`console.log(JSON.stringify(await (${pgmWeekFn.toString()})(${JSON.stringify(opts)})));`);
 
 	// ------------------------------------------------------------------ halftime & postgame shows
 	// When the 2nd quarter ends, the game pauses and a halftime show pops up; at the final whistle, a postgame show.
@@ -967,7 +973,7 @@ const teams = (await idb.cache.teams.getAll()).filter((t) => !t.disabled);
 const byTid = new Map(teams.map((t) => [t.tid, t]));
 const ab = (tid) => (byTid.get(tid) || {}).abbrev;
 const tids = A.map((a) => (teams.find((t) => t.abbrev === a) || {}).tid);
-const games = await idb.getCopies.games({ season }, "noCopyCache");
+const games = idb.merged ? await idb.merged.games.getAll({ season }) : await idb.getCopies.games({ season }, "noCopyCache");
 const gidMap = new Map(games.map((gm) => [gm.gid, gm]));
 let live = null;
 for (const gm of games) if (tids.every((tid) => gm.teams.some((t) => t.tid === tid)) && (!live || gm.day > live.day)) live = gm;
@@ -999,7 +1005,8 @@ try {
 	ovrOf = async (tid) => {
 		if (cacheOvr.has(tid)) return cacheOvr.get(tid);
 		const raw = await idb.cache.players.indexGetAll("playersByTid", tid);
-		const ps = await idb.getCopies.playersPlus(raw, { attrs: ["injury", "pid", "value", "tid"], ratings: ["ovr", "pos", "ovrs"], season, fuzz: true });
+		const fmtOpts = { attrs: ["injury", "pid", "value", "tid"], ratings: ["ovr", "pos", "ovrs"], season, fuzz: true };
+		const ps = bbgm.player.formatAll ? await bbgm.player.formatAll(raw, fmtOpts) : await idb.getCopies.playersPlus(raw, fmtOpts);
 		const t = byTid.get(tid);
 		const pti = t && t.playThroughInjuries ? t.playThroughInjuries[playoffs ? 1 : 0] : 0;
 		const v = bbgm.team.ovr(ps, { accountForInjuredPlayers: { numDaysInFuture: 0, playThroughInjuries: pti }, playoffs });
@@ -1070,7 +1077,7 @@ for (const k of ["pssYds", "rusYds", "recYds", "defSk", "defInt"]) {
 }
 out.games = counted;
 console.log(JSON.stringify(out));`;
-		return JSON.parse(await window.bbgm.toWorker("main", "evalOnWorker", code));
+		return fromWorker(code);
 	};
 
 	// ---- building the scripts
