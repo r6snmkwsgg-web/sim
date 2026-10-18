@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Football GM: Realistic Targets
 // @namespace    was-dynasty-fbgm
-// @version      1.0
+// @version      1.1
 // @description  Rewrites how quarterbacks pick receivers in Football GM, league-wide: a depth-chart pecking order, stars get fed, situational reads (deep shots, red zone, short yardage, 3rd & long), receiver-vs-coverage matchups, QB chemistry, a hot hand, and diminishing returns. If Football GM changes and the hook can't be found, the game runs with its normal targeting and a small notice says the mod is off.
 // @match        https://play.football-gm.com/*
 // @grant        none
@@ -24,7 +24,7 @@ const WAS_TARGET_SETTINGS = {
 	pecking: {
 		enabled: true,
 		WR: [1.0, 0.75, 0.55, 0.22, 0.18],
-		TE: [0.7, 0.3, 0.25],
+		TE: [0.5, 0.25, 0.2],
 		RB: [0.55, 0.3, 0.25],
 	},
 
@@ -63,7 +63,7 @@ const WAS_TARGET_SETTINGS = {
 // (tacklers, pass rushers, defenders, returners...) is untouched. Re-running it just swaps in new settings.
 // ============================================================================================================
 function wasTargetModInstall(cfg) {
-	const VERSION = "1.0";
+	const VERSION = "1.1";
 	const bbgm = self.bbgm;
 	const GS = bbgm && bbgm.GameSim;
 	if (!GS || !GS.prototype || typeof GS.prototype.pickPlayer !== "function") {
