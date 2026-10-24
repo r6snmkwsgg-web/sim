@@ -16,6 +16,7 @@ import { talentLevel } from "./gen/roster";
 import { generateSchedule } from "./schedule";
 import { chooseStrategy, aiRedshirts } from "./ai";
 import { emptyLine, emptyTeamSeason } from "./stats";
+import { applyRealignment } from "./realignment";
 
 export const NBA_TEAMS = [
   "Atlanta", "Boston", "Brooklyn", "Charlotte", "Chicago", "Cleveland", "Dallas", "Denver", "Detroit", "Golden State",
@@ -379,6 +380,7 @@ export function rollover(L: League) {
   for (const p of L.players) {
     if (p.status === "active") p.hist.push({ season: L.season, ovr: p.ovr, pot: p.pot, r: { ...p.r } });
   }
+  applyRealignment(L);
   // teams
   for (const t of L.teams) {
     t.seasons.push(emptyTeamSeason(L.season, t.coachId, t.prestige));

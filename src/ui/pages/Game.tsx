@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useLeague } from "../store";
 import { dayLabel, team } from "../../engine/core";
 import type { BoxLine, BoxScore, Game, League, TeamBox } from "../../engine/types";
@@ -227,6 +227,90 @@ function PlayByPlay({ L, box }: { L: League; box: BoxScore }) {
   );
 }
 
+
+function LiveReplay({ L, box, onDone }: { L: League; box: BoxScore; onDone: () => void }) {
+  const ev = box.pbp ?? [];
+  const [i, setI] = useState(0);
+  const [speed, setSpeed] = useState(2);
+  const [paused, setPaused] = useState(false);
+  const feedRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (paused || i >= ev.length - 1) return;
+    const delay = [0, 900, 450, 200, 70][speed];
+    const t = setTimeout(() => setI((x) => Math.min(ev.length - 1, x + 1)), ev[i]?.text.startsWith("Substitution") ? delay / 3 : delay);
+    return () => clearTimeout(t);
+  }, [i, paused, speed, ev]);
+  useEffect(() => {
+    if (feedRef.current) feedRef.current.scrollTop = 0;
+  }, [i]);
+  if (!ev.length) return null;
+  const e = ev[i];
+  const ht = team(L, box.home.tid);
+  const at = team(L, box.away.tid);
+  const done = i >= ev.length - 1;
+  const recent = ev.slice(Math.max(0, i - 14), i + 1).reverse();
+  const perLabel = e.per === 1 ? "1st Half" : e.per === 2 ? "2nd Half" : `OT${e.per > 3 ? e.per - 2 : ""}`;
+  return (
+    <div className="card" style={{ overflow: "hidden" }}>
+      <div style={{ background: "#0f1622", color: "#fff", padding: "18px 20px" }}>
+        <div className="row" style={{ justifyContent: "center", gap: 28 }}>
+          <div className="row" style={{ gap: 10, width: 240, justifyContent: "flex-end" }}>
+            <span style={{ fontWeight: 700, fontSize: 16 }}>{at.name}</span>
+            <Logo team={at} size={44} />
+          </div>
+          <span className="score-big" style={{ color: "#fff" }}>{e.as}</span>
+          <div className="center" style={{ width: 120 }}>
+            <div style={{ fontSize: 22, fontWeight: 800, fontVariantNumeric: "tabular-nums" }}>{done ? "FINAL" : clock(e.t, e.per)}</div>
+            <div className="small" style={{ opacity: 0.7 }}>{done ? (box.ot ? `${box.ot > 1 ? box.ot : ""}OT` : "") : perLabel}</div>
+          </div>
+          <span className="score-big" style={{ color: "#fff" }}>{e.hs}</span>
+          <div className="row" style={{ gap: 10, width: 240 }}>
+            <Logo team={ht} size={44} />
+            <span style={{ fontWeight: 700, fontSize: 16 }}>{ht.name}</span>
+          </div>
+        </div>
+        <div className="meter mt-12" style={{ background: "rgba(255,255,255,0.12)" }}>
+          <span style={{ width: `${(100 * i) / Math.max(1, ev.length - 1)}%`, background: "#93c5fd" }} />
+        </div>
+      </div>
+      <div className="card-h">
+        <button className="btn btn-sm" onClick={() => setPaused(!paused)} disabled={done}>
+          {paused ? "Resume" : "Pause"}
+        </button>
+        <div className="seg">
+          {[1, 2, 3, 4].map((x) => (
+            <button key={x} className={speed === x ? "on" : ""} onClick={() => setSpeed(x)}>
+              {["", "1x", "2x", "4x", "Fast"][x]}
+            </button>
+          ))}
+        </div>
+        <div className="spacer" />
+        <button className="btn btn-sm" onClick={() => setI(ev.length - 1)} disabled={done}>
+          Skip to end
+        </button>
+        <button className="btn btn-sm btn-primary" onClick={onDone}>
+          Box score
+        </button>
+      </div>
+      <div ref={feedRef} className="pbp" style={{ maxHeight: 420 }}>
+        {recent.map((x, k) => {
+          const t = x.side === 0 ? ht : at;
+          return (
+            <div key={i - k} className="pbp-row" style={{ opacity: k === 0 ? 1 : Math.max(0.35, 1 - k * 0.05), fontWeight: k === 0 ? 650 : undefined }}>
+              <span className="muted num">{clock(x.t, x.per)}</span>
+              <Logo team={t} size={20} />
+              <span>{x.text}</span>
+              <span className="num right">
+                {x.as}-{x.hs}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function Preview({ L, g }: { L: League; g: Game }) {
   const ht = team(L, g.home);
   const at = team(L, g.away);
@@ -287,6 +371,8 @@ export function GamePage() {
     const box = g?.played ? await getBox(L.id, id) : undefined;
     return { g, box };
   }, [id, L.id, L.games.length, L.day]);
+  const [sp, setSp] = useSearchParams();
+  const watching = sp.get("watch") === "1";
   const [tab, setTab] = useState<"box" | "team" | "pbp">("box");
   if (loading && !data) return <Empty>Loading…</Empty>;
   const g = data?.g;
@@ -297,7 +383,7 @@ export function GamePage() {
   const halves = box ? box.home.halves.map((_, i) => i) : [];
   return (
     <div className="col gap-16">
-      <div className="card">
+      <div className="card" style={watching && box?.pbp ? { display: "none" } : undefined}>
         <div className="card-b">
           <div className="muted small center">
             {dayLabel(g.season, g.day)} · {g.event ?? (g.type === "conf" ? "Conference game" : g.type === "nc" ? "Non-conference" : g.type.toUpperCase())} · {g.neutral ? "Neutral site" : `at ${ht.name}`}
@@ -349,21 +435,31 @@ export function GamePage() {
           )}
         </div>
       </div>
-      {!g.played ? (
+      {watching && box?.pbp ? (
+        <LiveReplay L={L} box={box} onDone={() => setSp({})} />
+      ) : !g.played ? (
         <Preview L={L} g={g} />
       ) : !box ? (
         <Empty>No box score was saved for this game (box scores for games between other teams can be turned off in Settings).</Empty>
       ) : (
         <>
-          <Tabs
-            tabs={[
-              { key: "box", label: "Box Score" },
-              { key: "team", label: "Team Stats" },
-              { key: "pbp", label: "Play-by-Play" },
-            ]}
-            value={tab}
-            onChange={setTab}
-          />
+          <div className="row">
+            <Tabs
+              tabs={[
+                { key: "box", label: "Box Score" },
+                { key: "team", label: "Team Stats" },
+                { key: "pbp", label: "Play-by-Play" },
+              ]}
+              value={tab}
+              onChange={setTab}
+            />
+            <div className="spacer" />
+            {box.pbp && (
+              <button className="btn" onClick={() => setSp({ watch: "1" })}>
+                ▶ Watch replay
+              </button>
+            )}
+          </div>
           {tab === "box" && (
             <div className="col gap-16">
               <BoxTable L={L} tb={box.away} colors={at.colors} />

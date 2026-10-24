@@ -32,6 +32,7 @@ import { Transfers } from "./pages/Transfers";
 import { SettingsPage } from "./pages/Settings";
 import { SeasonReview } from "./pages/SeasonReview";
 import { Signing } from "./pages/Signing";
+import { Guide } from "./pages/Guide";
 
 function LeagueRoot() {
   const { lid } = useParams();
@@ -92,6 +93,7 @@ export function App() {
           <Route path="settings" element={<SettingsPage />} />
           <Route path="season-review" element={<SeasonReview />} />
           <Route path="signing" element={<Signing />} />
+          <Route path="guide" element={<Guide />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

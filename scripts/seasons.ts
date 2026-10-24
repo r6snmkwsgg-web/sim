@@ -34,6 +34,9 @@ function report() {
     if (ts.length) parts.push(`${bands[i]}-${bands[i + 1]}:${mean(ts.map((t) => rosterStrength(L, t.id))).toFixed(1)}(${ts.length})`);
   }
   console.log(`  strength by prestige band: ${parts.join(" ")}`);
+  const csz = L.conferences.map((c) => L.teams.filter((t) => t.cid === c.id).length);
+  const coachSk = L.coaches.filter((c) => c.tid !== null).map((c) => (c.recruiting + c.development + c.tactics) / 3);
+  console.log(`  conf sizes ${Math.min(...csz)}-${Math.max(...csz)}; coach skill mean ${mean(coachSk).toFixed(1)}; prestige>=90: ${L.teams.filter((t) => t.prestige >= 90).length}, >=80: ${L.teams.filter((t) => t.prestige >= 80).length}`);
   const pp = L.players.filter((p) => p.status === "active").map((p) => p.ovr).sort((a, b) => b - a);
   console.log(`  top player ovrs: ${pp.slice(0, 8).join(",")}; #100: ${pp[99]}; #500: ${pp[499]}`);
 }
@@ -93,6 +96,8 @@ for (let s = 0; s < SEASONS; s++) {
   console.log(`  portal entrants ${portalN}, transfers completed ${L.transfers.length}`);
   const recs2 = L.players.filter((p) => p.recruit?.kind === "hs");
   console.log(`  after signing day: signed ${recs2.filter((p) => p.recruit!.stage === "signed").length}, unsigned ${recs2.filter((p) => p.recruit!.stage === "unsigned").length}`);
+  const moves = (L.realign ?? []).map((r) => `${team(L, r.tid).name}->${L.conferences[r.toCid].short}`);
+  if (moves.length) console.log(`  realignment: ${moves.join(", ")}`);
   advancePhase(L); // signing -> preseason (rollover)
   console.log(`  offseason ${Date.now() - t1}ms; players in memory ${L.players.length}; archived players ${getMemorySink().players.length}`);
   report();

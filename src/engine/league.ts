@@ -12,6 +12,7 @@ import { chooseStrategy, aiRedshirts } from "./ai";
 import { emptyTeamSeason } from "./stats";
 import { emptyRecordBook } from "./records";
 import { nilBudgetFor } from "./coaches";
+import { DATA_VERSION } from "./migrate";
 
 export const DEFAULT_SETTINGS: Settings = {
   nil: true,
@@ -76,7 +77,7 @@ export function createLeague(o: NewLeagueOptions): League {
   const L: League = {
     id: uid(),
     name: o.name,
-    version: 1,
+    version: DATA_VERSION,
     created: Date.now(),
     updated: Date.now(),
     seed,
@@ -111,6 +112,7 @@ export function createLeague(o: NewLeagueOptions): League {
     transferLog: [],
     jobOffers: [],
     vacancies: [],
+    realign: [],
     fired: false,
     recruitPts: BASE_POINTS,
     recruitPtsMax: BASE_POINTS,

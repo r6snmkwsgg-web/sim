@@ -6,6 +6,7 @@ import { reindex, setSink, syncRng } from "../engine/core";
 import { advancePhase, isDayPhase, simDay } from "../engine/advance";
 import { currentDateLabel } from "../engine/core";
 import { loadLeague, saveLeague, type Pending } from "./db";
+import { migrate } from "../engine/migrate";
 
 let league: League | null = null;
 let version = 0;
@@ -54,6 +55,7 @@ export async function openLeague(lid: string): Promise<League | null> {
   if (league?.id === lid) return league;
   const L = await loadLeague(lid);
   if (!L) return null;
+  migrate(L);
   reindex(L);
   league = L;
   emit();
@@ -80,12 +82,33 @@ export async function save() {
   await saving;
 }
 
-/** Apply a mutation from the UI, then re-render and save. */
-export async function mutate(fn: (L: League) => void) {
+let saveTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** Save soon; coalesces bursts of UI edits (e.g. dragging a slider). */
+export function saveSoon(delay = 700) {
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    saveTimer = null;
+    void save();
+  }, delay);
+}
+
+/** Apply a mutation from the UI, re-render, and schedule a save. */
+export function mutate(fn: (L: League) => void) {
   if (!league) return;
   fn(league);
   emit();
-  await save();
+  saveSoon();
+}
+
+// make sure pending edits are written when the tab closes
+if (typeof window !== "undefined") {
+  window.addEventListener("beforeunload", () => {
+    if (saveTimer) {
+      clearTimeout(saveTimer);
+      void save();
+    }
+  });
 }
 
 // ---------------- sim runner ----------------
@@ -124,6 +147,10 @@ const tick = () => new Promise((r) => setTimeout(r, 0));
 export async function runSim(target: SimTarget): Promise<{ userGameId: number | null }> {
   const L = league;
   if (!L || sim.running) return { userGameId: null };
+  if (saveTimer) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+  }
   sim.running = true;
   sim.stop = false;
   sim.label = "Simulating…";

@@ -71,6 +71,32 @@ export function CoachPage() {
           </div>
         </Card>
       )}
+      {(L.realign ?? [])
+        .filter((r) => r.tid === L.userTid)
+        .map((r) => {
+          const toC = L.conferences[r.toCid];
+          const fromC = L.conferences[ut.cid];
+          return (
+            <Card key={r.toCid} title={`Conference invitation: ${toC.name}`} sub={`Moving up from the ${fromC.short} takes effect next season.`} className="mb-16">
+              <div className="row">
+                <div style={{ flex: 1 }} className="small">
+                  A stronger conference means tougher league games and a better NCAA resume, more prestige upside, a bigger NIL budget, and more appeal to recruits.
+                </div>
+                {r.accepted === true ? (
+                  <span className="badge good">Accepted</span>
+                ) : r.accepted === false ? (
+                  <span className="badge">Declined</span>
+                ) : null}
+                <button className="btn btn-primary" disabled={r.accepted === true} onClick={() => mutate(() => void (r.accepted = true))}>
+                  Accept
+                </button>
+                <button className="btn" disabled={r.accepted === false} onClick={() => mutate(() => void (r.accepted = false))}>
+                  Decline
+                </button>
+              </div>
+            </Card>
+          );
+        })}
       <Tabs
         tabs={[
           { key: "me", label: "Your Career" },

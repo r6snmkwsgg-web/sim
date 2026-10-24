@@ -204,6 +204,9 @@ function ResultToast() {
             {g.event ? ` · ${g.event}` : ""}
           </div>
         </div>
+        <Link className="btn btn-sm" to={`/l/${L.id}/game/${g.id}?watch=1`} onClick={() => setShown(null)}>
+          ▶ Watch
+        </Link>
         <Link className="btn btn-sm" to={`/l/${L.id}/game/${g.id}`} onClick={() => setShown(null)}>
           Box Score
         </Link>
@@ -300,6 +303,10 @@ export function Layout({ children }: { children: ReactNode }) {
           </div>
         ))}
         <div className="nav-section">
+          <NavLink to={`/l/${L.id}/guide`} className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
+            <Icon name="ball" />
+            How to Play
+          </NavLink>
           <NavLink to={`/l/${L.id}/settings`} className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
             <Icon name="settings" />
             Settings

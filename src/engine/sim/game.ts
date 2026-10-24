@@ -215,7 +215,7 @@ export class GameSim {
     this.rng = rng;
     this.opts = opts;
     this.t = [this.makeTS(home, 0), this.makeTS(away, 1)];
-    for (const ts of this.t) ts.form = rng.normal(0, 0.016);
+    for (const ts of this.t) ts.form = rng.normal(0, 0.024);
     const avgTempo = (this.t[0].tempoPoss + this.t[1].tempoPoss) / 2;
     for (const ts of this.t) ts.tempoPoss = 0.55 * ts.tempoPoss + 0.45 * avgTempo;
     if (!opts.neutral) {

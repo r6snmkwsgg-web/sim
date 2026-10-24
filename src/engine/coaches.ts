@@ -5,31 +5,32 @@ import { generateCoach } from "./gen/coach";
 import { curSeason } from "./play";
 import { winPct } from "./stats";
 import { prestigeTier } from "./ratings";
+import { proposeRealignment } from "./realignment";
 
 const POST_SCORE: Record<string, number> = {
-  Champion: 35,
-  "Runner-up": 28,
-  "Final Four": 22,
-  "Elite Eight": 16,
-  "Sweet 16": 11,
-  "Round of 32": 7,
-  "Round of 64": 4,
-  "First Four": 2,
+  Champion: 21,
+  "Runner-up": 17,
+  "Final Four": 13,
+  "Elite Eight": 9.5,
+  "Sweet 16": 6.5,
+  "Round of 32": 4,
+  "Round of 64": 2.5,
+  "First Four": 1.2,
 };
-const TIER_CAP = [100, 100, 90, 78, 68];
+const TIER_CAP = [100, 100, 92, 84, 76];
 
 export function seasonScore(L: League, t: Team): number {
   const s = curSeason(t);
-  // strength of the team (opponent-adjusted) matters more than raw record
+  // team strength sets the base (tops out at "Elite"); Blue Blood status takes March runs, titles and top classes
   const power = L.power[t.id]?.power ?? 0;
-  let score = clamp(43 + 2.0 * power, 2, 96) + 10 * (winPct(s.w, s.l) - 0.5);
-  if (s.post?.event === "ncaa") score += POST_SCORE[s.post.result] ?? 3;
-  else if (s.post?.event === "nit") score += s.post.result === "Champion" ? 4 : 1;
-  else if (s.post?.event === "cbi") score += 0.5;
-  if (s.confChamp) score += 3;
-  if (s.confTourney === "Champion") score += 2;
-  if (s.apFinal !== null) score += s.apFinal <= 5 ? 6 : s.apFinal <= 10 ? 4 : 2;
-  if (s.recruitRank !== null) score += s.recruitRank <= 5 ? 5 : s.recruitRank <= 10 ? 3 : s.recruitRank <= 25 ? 1.5 : 0;
+  let score = clamp(43 + 2.0 * power, 2, 84) + 10 * (winPct(s.w, s.l) - 0.5);
+  if (s.post?.event === "ncaa") score += POST_SCORE[s.post.result] ?? 2;
+  else if (s.post?.event === "nit") score += s.post.result === "Champion" ? 3 : 0.8;
+  else if (s.post?.event === "cbi") score += 0.3;
+  if (s.confChamp) score += 2;
+  if (s.confTourney === "Champion") score += 1.5;
+  if (s.apFinal !== null) score += s.apFinal <= 5 ? 4 : s.apFinal <= 10 ? 2.5 : 1.2;
+  if (s.recruitRank !== null) score += s.recruitRank <= 5 ? 3 : s.recruitRank <= 10 ? 2 : s.recruitRank <= 25 ? 1 : 0;
   return clamp(score, 0, 100);
 }
 
@@ -49,8 +50,8 @@ export function updatePrograms(L: League) {
     let rate = delta > 0 ? 0.13 : 0.1;
     if (delta < 0 && old > 85) rate *= 0.7;
     let np = old + rate * delta;
-    const cap = TIER_CAP[conference(L, t.cid).tier] ?? 68;
-    if (np > cap && np > old) np = Math.max(old, cap + (np - cap) * 0.35);
+    const cap = TIER_CAP[conference(L, t.cid).tier] ?? 76;
+    if (np > cap && np > old) np = Math.max(old, cap + (np - cap) * 0.5);
     t.prestige = Math.round(clamp(np, 1, 99) * 10) / 10;
     s.prestige = t.prestige;
     t.facilities = Math.round(clamp(t.facilities + 0.08 * (t.prestige - t.facilities) + rng.normal(0, 1), 5, 99));
@@ -68,6 +69,11 @@ export function updatePrograms(L: League) {
     // coach reputation & security
     const c = coach(L, t.coachId);
     if (c) {
+      // coaches sharpen their craft with experience, faster when winning
+      const growth = (c.age < 60 ? 0.6 : 0.2) + Math.max(0, (score - old) / 25);
+      for (const k of ["recruiting", "development", "tactics"] as const) {
+        c[k] = Math.round(clamp(c[k] + growth * rng.uniform(0.4, 1.4) - (c.age > 66 ? 0.6 : 0), 10, 95) * 10) / 10;
+      }
       c.rep = Math.round(clamp(c.rep + 0.2 * (score - c.rep) + (score - old) * 0.05, 1, 99) * 10) / 10;
       const yearsIn = L.season - c.hired + 1;
       let sec = c.security + (score - old) * 0.9 + 3;
@@ -154,6 +160,7 @@ export function startCarousel(L: League) {
     addNews(L, "job", `You have ${L.jobOffers.length} job offer${L.jobOffers.length > 1 ? "s" : ""}: ${L.jobOffers.map((o) => team(L, o.tid).name).join(", ")}.`, { tid: ut.id, user: true });
   }
   L.vacancies = vacancies;
+  proposeRealignment(L);
 }
 
 export function acceptJob(L: League, tid: number): boolean {

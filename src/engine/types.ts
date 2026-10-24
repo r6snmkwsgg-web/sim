@@ -540,6 +540,7 @@ export interface League {
   transferLog: TransferMove[]; // every completed transfer, kept forever
   jobOffers: JobOffer[];
   vacancies: number[];
+  realign: { tid: number; toCid: number; accepted: boolean | null }[];
   fired: boolean;
   /** user's recruiting points left this week */
   recruitPts: number;

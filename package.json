@@ -10,7 +10,9 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "calibrate": "tsx scripts/calibrate.ts"
+    "calibrate": "tsx scripts/calibrate.ts",
+    "build:single": "npm run build && node scripts/singlefile.mjs",
+    "seasons": "tsx scripts/seasons.ts"
   },
   "dependencies": {
     "facesjs": "^5.0.3",

@@ -59,9 +59,52 @@ function Guide({ L }: { L: League }) {
   );
 }
 
+function BracketNext({ L }: { L: League }) {
+  const ut = team(L, L.userTid);
+  for (const br of L.brackets) {
+    if (br.champion !== null) continue;
+    const bg = br.games.find((g) => g.winner === null && (g.a === L.userTid || g.b === L.userTid));
+    if (!bg) continue;
+    const oppId = bg.a === L.userTid ? bg.b : bg.a;
+    const opp = oppId !== null ? team(L, oppId) : null;
+    const day = bg.round < 0 ? br.playinDay : br.days[bg.round];
+    const round = bg.round < 0 ? br.playinName : br.rounds[bg.round];
+    const mySeed = bg.a === L.userTid ? bg.sa : bg.sb;
+    const oppSeed = bg.a === L.userTid ? bg.sb : bg.sa;
+    return (
+      <Card title="Next Game" sub={`${day !== undefined ? shortDayLabel(L.season, day) : ""} · ${br.name} ${round}`} right={<Link to={`/l/${L.id}/tournaments`} className="btn btn-sm">Bracket</Link>}>
+        <div className="row" style={{ justifyContent: "space-around", padding: "6px 0" }}>
+          <div className="col center" style={{ alignItems: "center" }}>
+            <Logo team={ut} size={60} />
+            <div className="bold">
+              {mySeed ? <span className="muted">({mySeed}) </span> : null}
+              {ut.name}
+            </div>
+          </div>
+          <div className="center" style={{ fontSize: 22, fontWeight: 800 }}>
+            vs
+          </div>
+          <div className="col center" style={{ alignItems: "center" }}>
+            {opp ? <Logo team={opp} size={60} /> : <div className="logo" style={{ width: 60, height: 60, background: "var(--panel-3)", color: "var(--faint)" }}>?</div>}
+            <div className="bold">
+              {opp && oppSeed ? <span className="muted">({oppSeed}) </span> : null}
+              {opp ? <Link to={`/l/${L.id}/team/${opp.id}`}>{opp.name}</Link> : "Winner of the previous round"}
+            </div>
+          </div>
+        </div>
+      </Card>
+    );
+  }
+  return null;
+}
+
 function NextGameCard({ L }: { L: League }) {
   const g = nextGame(L, L.userTid);
   const ut = team(L, L.userTid);
+  if (!g && (L.phase === "confTourney" || L.phase === "ncaa" || L.phase === "selection")) {
+    const bn = BracketNext({ L });
+    if (bn) return bn;
+  }
   if (!g) {
     const s = curSeason(ut);
     return (
@@ -73,7 +116,13 @@ function NextGameCard({ L }: { L: League }) {
               {s.w}-{s.l} ({s.cw}-{s.cl} conf)
             </div>
             <div className="muted">
-              {s.post ? `${s.post.event.toUpperCase()}: ${s.post.result}${s.post.event === "ncaa" ? ` (${s.post.seed} seed)` : ""}` : L.phase === "preseason" ? "The season hasn't started." : "No games scheduled."}
+              {s.post
+                ? `${s.post.event.toUpperCase()}: ${s.post.result}${s.post.event === "ncaa" ? ` (${s.post.seed} seed)` : ""}`
+                : L.phase === "preseason"
+                  ? "The season hasn't started."
+                  : s.confTourney && s.confTourney !== "Champion"
+                    ? `Conference tournament: ${s.confTourney === "Did not qualify" ? "did not qualify" : `out in the ${s.confTourney.toLowerCase()}`}. Waiting on Selection Sunday.`
+                    : "No games scheduled."}
             </div>
           </div>
         </div>

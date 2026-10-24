@@ -172,7 +172,7 @@ export function generateRecruitClass(L: League) {
 
 export function rankAndStar(L: League, ps: Player[], kind: "hs" | "portal", classSeason: number) {
   const rng = rngOf(L);
-  const scored = ps.map((p) => ({ p, s: recruitValue(p) + rng.normal(0, kind === "hs" ? 2.5 : 1.5) }));
+  const scored = ps.map((p) => ({ p, s: recruitValue(p) + rng.normal(0, kind === "hs" ? 4.5 : 1.5) }));
   scored.sort((a, b) => b.s - a.s);
   const posCount: Record<string, number> = {};
   scored.forEach(({ p }, i) => {
