@@ -104,8 +104,8 @@ export function PlayerLink({ L, p, face = false, size = 30, colors, meta }: { L:
 }
 
 // ---------------- ratings ----------------
-export function Grade({ v, letter = true, lg }: { v: number; letter?: boolean; lg?: boolean }) {
-  return <span className={cls("grade", gradeClass(v), lg && "lg")}>{letter ? grade(v) : Math.round(v)}</span>;
+export function Grade({ v, letter = true, lg, md }: { v: number; letter?: boolean; lg?: boolean; md?: boolean }) {
+  return <span className={cls("grade", gradeClass(v), lg && "lg", md && "md")}>{letter ? grade(v) : Math.round(v)}</span>;
 }
 /** A rating as a heat cell: one hue, stronger for higher values; the number stays in text color. */
 export function Rating({ v }: { v: number }) {
@@ -172,7 +172,7 @@ export function RatingBar({ name, v }: { name: ReactNode; v: number }) {
       <span className="v">{Math.round(v)}</span>
       <Grade v={v} />
       <div className="track">
-        <span style={{ width: `${Math.max(2, Math.min(100, v))}%`, background: gradeColor(v) }} />
+        <span style={{ width: `${Math.max(2, Math.min(100, v))}%`, background: `rgba(var(--heat), ${(0.45 + 0.55 * Math.max(0, Math.min(1, (v - 30) / 60))).toFixed(2)})` }} />
       </div>
     </div>
   );

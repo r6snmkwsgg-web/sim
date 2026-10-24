@@ -58,7 +58,7 @@ function renderSvg(face: FaceConfig, teamColors: [string, string, string]): stri
   return out;
 }
 
-export const Face = memo(function Face({ seed, race, colors, size = 40, round, frame = true, ratio = 1.05 }: { seed: number; race: Race; colors?: [string, string]; size?: number; round?: boolean; frame?: boolean; ratio?: number }) {
+export const Face = memo(function Face({ seed, race, colors, size = 40, round, frame = true, ratio }: { seed: number; race: Race; colors?: [string, string]; size?: number; round?: boolean; frame?: boolean; ratio?: number }) {
   const c = colors ?? ["#4b5563", "#e5e7eb"];
   const key = `${seed}:${race}:${c[0]}:${c[1]}`;
   let svg = svgCache.get(key);
@@ -69,8 +69,15 @@ export const Face = memo(function Face({ seed, race, colors, size = 40, round, f
   }
   return (
     <div
-      className={round ? "face round" : "face"}
-      style={{ width: size, height: round ? size : Math.round(size * ratio), ["--face-c" as string]: c[0], ...(frame ? null : { background: "none", border: "none" }) }}
+      // without an explicit ratio, crop to a headshot centered on the face
+      className={`face${round ? " round" : ""}${ratio === undefined ? " crop" : ""}`}
+      style={{
+        width: size,
+        height: round ? size : Math.round(size * (ratio ?? 1.02)),
+        ["--face-c" as string]: c[0],
+        ["--crop" as string]: `${Math.round(-size * 0.17)}px`,
+        ...(frame ? null : { background: "none", border: "none" }),
+      }}
       dangerouslySetInnerHTML={{ __html: svg }}
     />
   );

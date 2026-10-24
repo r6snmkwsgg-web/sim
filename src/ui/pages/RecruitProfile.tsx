@@ -310,7 +310,7 @@ export function RecruitProfile({ p }: { p: Player }) {
       <div className="hero-banner" style={heroStyle(colors as [string, string])}>
         <div className="hero-inner" style={{ paddingBottom: 0, alignItems: "stretch" }}>
           <div className="player-portrait">
-            <Face seed={p.faceSeed} race={p.race} colors={colors as [string, string]} size={150} ratio={1.06} frame={false} />
+            <Face seed={p.faceSeed} race={p.race} colors={colors as [string, string]} size={150} ratio={1.3} frame={false} />
           </div>
           <div style={{ flex: 1, minWidth: 0, paddingBottom: 22, display: "flex", flexDirection: "column", justifyContent: "center" }}>
             <div className="hero-kicker">

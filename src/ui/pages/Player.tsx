@@ -280,7 +280,7 @@ export function PlayerPage() {
         <div className="hero-inner" style={{ paddingBottom: 0, alignItems: "stretch" }}>
           <div className="player-portrait">
             {p.status === "active" && <span className="portrait-num">{p.jersey}</span>}
-            <Face seed={p.faceSeed} race={p.race} colors={colors} size={150} ratio={1.06} frame={false} />
+            <Face seed={p.faceSeed} race={p.race} colors={colors} size={150} ratio={1.3} frame={false} />
           </div>
           <div style={{ flex: 1, minWidth: 0, paddingBottom: 22, display: "flex", flexDirection: "column", justifyContent: "center" }}>
             <div className="hero-kicker">

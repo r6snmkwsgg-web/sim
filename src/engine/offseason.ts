@@ -367,7 +367,7 @@ export function rollover(L: League) {
     p.year = 1;
     p.eligUsed = 0;
     p.nilDeal = r.nil[tid] ?? 0;
-    p.recruitedBy = { tid, season: L.season, stars: r.stars, rank: r.rank, kind: "hs" };
+    p.recruitedBy = { tid, season: L.season, stars: r.stars, rank: r.rank, kind: "hs", hs: r.hs };
     p.recruit = null;
     const used = new Set(roster(L, tid).map((q) => q.jersey));
     p.jersey = assignJersey(rng, used);

@@ -144,7 +144,7 @@ export interface Player {
   awards: { season: number; name: string }[];
   transfers: { season: number; from: number; to: number }[];
   recruit: RecruitInfo | null;
-  recruitedBy?: { tid: number; season: number; stars: number; rank: number; kind: "hs" | "portal" };
+  recruitedBy?: { tid: number; season: number; stars: number; rank: number; kind: "hs" | "portal"; hs?: { pts: number; reb: number; ast: number } };
   draft?: { season: number; round: number; pick: number; team: string };
   nilDeal: number; // $K per year with current team
   morale: number; // 0-100
