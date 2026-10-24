@@ -1,0 +1,379 @@
+import { useState } from "react";
+import { Link, useParams } from "react-router-dom";
+import { useLeague } from "../store";
+import { dayLabel, team } from "../../engine/core";
+import type { BoxLine, BoxScore, Game, League, TeamBox } from "../../engine/types";
+import { Card, Empty, Logo, Tabs, TeamLink } from "../components/common";
+import { getBox } from "../db";
+import { fetchSeason, pct100, useAsync, cls, f1 } from "../util";
+import { curSeason } from "../../engine/play";
+import { currentRank, rosterStrength } from "../../engine/rankings";
+import { teamLeaders } from "../helpers";
+import { grade } from "../../engine/ratings";
+
+function totals(lines: BoxLine[]) {
+  const t = { min: 0, pts: 0, fgm: 0, fga: 0, tpm: 0, tpa: 0, ftm: 0, fta: 0, orb: 0, drb: 0, ast: 0, stl: 0, blk: 0, tov: 0, pf: 0 };
+  for (const l of lines) for (const k of Object.keys(t) as (keyof typeof t)[]) t[k] += l[k];
+  return t;
+}
+
+function BoxTable({ L, tb, colors }: { L: League; tb: TeamBox; colors: [string, string] }) {
+  const t = team(L, tb.tid);
+  const starters = tb.lines.filter((l) => l.starter);
+  const bench = tb.lines.filter((l) => !l.starter);
+  const tot = totals(tb.lines);
+  const row = (l: BoxLine) => (
+    <tr key={l.pid}>
+      <td>
+        <Link to={`/l/${L.id}/player/${l.pid}`}>{l.name}</Link> <span className="faint small">{l.pos}</span>
+      </td>
+      <td className="n">{Math.round(l.min)}</td>
+      <td className="n bold">{l.pts}</td>
+      <td className="n">
+        {l.fgm}-{l.fga}
+      </td>
+      <td className="n">
+        {l.tpm}-{l.tpa}
+      </td>
+      <td className="n">
+        {l.ftm}-{l.fta}
+      </td>
+      <td className="n">{l.orb}</td>
+      <td className="n">{l.drb}</td>
+      <td className="n">{l.orb + l.drb}</td>
+      <td className="n">{l.ast}</td>
+      <td className="n">{l.stl}</td>
+      <td className="n">{l.blk}</td>
+      <td className="n">{l.tov}</td>
+      <td className="n">{l.pf}</td>
+      <td className={cls("n", l.pm > 0 ? "good" : l.pm < 0 ? "bad" : "")}>{l.pm > 0 ? `+${l.pm}` : l.pm}</td>
+    </tr>
+  );
+  const head = (label: string) => (
+    <tr className="grp">
+      <th>{label}</th>
+      <th className="n">MIN</th>
+      <th className="n">PTS</th>
+      <th className="n">FG</th>
+      <th className="n">3PT</th>
+      <th className="n">FT</th>
+      <th className="n">OREB</th>
+      <th className="n">DREB</th>
+      <th className="n">REB</th>
+      <th className="n">AST</th>
+      <th className="n">STL</th>
+      <th className="n">BLK</th>
+      <th className="n">TO</th>
+      <th className="n">PF</th>
+      <th className="n">+/-</th>
+    </tr>
+  );
+  return (
+    <div className="card">
+      <div className="card-h" style={{ borderTop: `4px solid ${colors[0]}`, borderRadius: "8px 8px 0 0" }}>
+        <Logo team={t} size={30} />
+        <h2 style={{ fontSize: 16, letterSpacing: "0.02em", textTransform: "uppercase" }}>{t.name}</h2>
+      </div>
+      <div className="tbl-wrap">
+        <table className="tbl compact">
+          <thead>{head("Starters")}</thead>
+          <tbody>{starters.map(row)}</tbody>
+          <thead>{head("Bench")}</thead>
+          <tbody>{bench.map(row)}</tbody>
+          <tfoot>
+            <tr>
+              <td>Totals</td>
+              <td className="n">{Math.round(tot.min)}</td>
+              <td className="n">{tot.pts}</td>
+              <td className="n">
+                {tot.fgm}-{tot.fga}
+              </td>
+              <td className="n">
+                {tot.tpm}-{tot.tpa}
+              </td>
+              <td className="n">
+                {tot.ftm}-{tot.fta}
+              </td>
+              <td className="n">{tot.orb}</td>
+              <td className="n">{tot.drb}</td>
+              <td className="n">{tot.orb + tot.drb}</td>
+              <td className="n">{tot.ast}</td>
+              <td className="n">{tot.stl}</td>
+              <td className="n">{tot.blk}</td>
+              <td className="n">{tot.tov}</td>
+              <td className="n">{tot.pf}</td>
+              <td />
+            </tr>
+            <tr>
+              <td className="muted">Percentages</td>
+              <td />
+              <td />
+              <td className="n muted">{pct100(tot.fgm, tot.fga)}%</td>
+              <td className="n muted">{pct100(tot.tpm, tot.tpa)}%</td>
+              <td className="n muted">{pct100(tot.ftm, tot.fta)}%</td>
+              <td colSpan={9} />
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function TeamCompare({ L, box }: { L: League; box: BoxScore }) {
+  const a = totals(box.home.lines);
+  const b = totals(box.away.lines);
+  const rows: [string, string, string, number, number][] = [
+    ["Field goals", `${a.fgm}-${a.fga} (${pct100(a.fgm, a.fga)}%)`, `${b.fgm}-${b.fga} (${pct100(b.fgm, b.fga)}%)`, a.fgm / Math.max(1, a.fga), b.fgm / Math.max(1, b.fga)],
+    ["Three-pointers", `${a.tpm}-${a.tpa} (${pct100(a.tpm, a.tpa)}%)`, `${b.tpm}-${b.tpa} (${pct100(b.tpm, b.tpa)}%)`, a.tpm / Math.max(1, a.tpa), b.tpm / Math.max(1, b.tpa)],
+    ["Free throws", `${a.ftm}-${a.fta} (${pct100(a.ftm, a.fta)}%)`, `${b.ftm}-${b.fta} (${pct100(b.ftm, b.fta)}%)`, a.ftm, b.ftm],
+    ["Rebounds", `${a.orb + a.drb} (${a.orb} off)`, `${b.orb + b.drb} (${b.orb} off)`, a.orb + a.drb, b.orb + b.drb],
+    ["Assists", String(a.ast), String(b.ast), a.ast, b.ast],
+    ["Turnovers", String(a.tov), String(b.tov), -a.tov, -b.tov],
+    ["Steals", String(a.stl), String(b.stl), a.stl, b.stl],
+    ["Blocks", String(a.blk), String(b.blk), a.blk, b.blk],
+    ["Fouls", String(a.pf), String(b.pf), -a.pf, -b.pf],
+    ["Points per possession", (box.home.pts / Math.max(1, box.poss)).toFixed(2), (box.away.pts / Math.max(1, box.poss)).toFixed(2), box.home.pts, box.away.pts],
+  ];
+  return (
+    <Card title="Team Stats" sub={`${box.poss} possessions each`} flush>
+      <table className="tbl">
+        <thead>
+          <tr>
+            <th className="n" style={{ width: "35%" }}>
+              {team(L, box.home.tid).short}
+            </th>
+            <th className="c" />
+            <th style={{ width: "35%" }}>{team(L, box.away.tid).short}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(([label, x, y, vx, vy]) => (
+            <tr key={label}>
+              <td className={cls("n", vx > vy && "bold")}>{x}</td>
+              <td className="c muted small">{label}</td>
+              <td className={cls(vy > vx && "bold")}>{y}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </Card>
+  );
+}
+
+function clock(t: number, per: number): string {
+  const start = per <= 2 ? (per - 1) * 1200 : 2400 + (per - 3) * 300;
+  const len = per <= 2 ? 1200 : 300;
+  const rem = Math.max(0, len - (t - start));
+  const m = Math.floor(rem / 60);
+  const s = Math.floor(rem % 60);
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+function PlayByPlay({ L, box }: { L: League; box: BoxScore }) {
+  const [per, setPer] = useState<number>(0);
+  const [scoring, setScoring] = useState(false);
+  if (!box.pbp) return <Empty>Play-by-play is only kept for your games and late-round NCAA Tournament games.</Empty>;
+  const pers = [...new Set(box.pbp.map((e) => e.per))];
+  let prev = { hs: 0, as: 0 };
+  const rows = box.pbp.filter((e) => {
+    const isScore = e.hs !== prev.hs || e.as !== prev.as;
+    prev = { hs: e.hs, as: e.as };
+    if (per && e.per !== per) return false;
+    if (scoring && !isScore) return false;
+    return !e.text.startsWith("Substitution") || !scoring;
+  });
+  const ht = team(L, box.home.tid);
+  const at = team(L, box.away.tid);
+  let last = { hs: 0, as: 0 };
+  return (
+    <div className="card">
+      <div className="card-h">
+        <div className="seg">
+          <button className={per === 0 ? "on" : ""} onClick={() => setPer(0)}>
+            All
+          </button>
+          {pers.map((p) => (
+            <button key={p} className={per === p ? "on" : ""} onClick={() => setPer(p)}>
+              {p === 1 ? "1st Half" : p === 2 ? "2nd Half" : `OT${p > 3 ? p - 2 : ""}`}
+            </button>
+          ))}
+        </div>
+        <label className="check small">
+          <input type="checkbox" checked={scoring} onChange={(e) => setScoring(e.target.checked)} /> Scoring plays only
+        </label>
+      </div>
+      <div className="pbp">
+        {rows.map((e, i) => {
+          const isScore = e.hs !== last.hs || e.as !== last.as;
+          last = { hs: e.hs, as: e.as };
+          const t = e.side === 0 ? ht : at;
+          return (
+            <div key={i} className={cls("pbp-row", isScore && "score")}>
+              <span className="muted num">
+                {e.per <= 2 ? `${e.per === 1 ? "1st" : "2nd"} ` : "OT "}
+                {clock(e.t, e.per)}
+              </span>
+              <Logo team={t} size={20} />
+              <span>{e.text}</span>
+              <span className="num right">
+                {e.hs}-{e.as}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function Preview({ L, g }: { L: League; g: Game }) {
+  const ht = team(L, g.home);
+  const at = team(L, g.away);
+  const side = (tid: number) => {
+    const t = team(L, tid);
+    const s = curSeason(t);
+    const p = L.power[tid];
+    const ld = teamLeaders(L, tid);
+    return (
+      <Card title={t.name} sub={`${s.w}-${s.l} (${s.cw}-${s.cl}) · ${currentRank(L, tid) ? `#${currentRank(L, tid)}` : "Unranked"}`}>
+        <dl className="kv">
+          <dt>Power rating</dt>
+          <dd>{p ? p.power.toFixed(1) : "-"}</dd>
+          <dt>Offense / Defense</dt>
+          <dd>{p ? `${p.off.toFixed(1)} / ${p.def.toFixed(1)}` : "-"}</dd>
+          <dt>Roster strength</dt>
+          <dd>{grade(rosterStrength(L, tid))}</dd>
+          <dt>Style</dt>
+          <dd className="muted">
+            {["", "Grind", "Slow", "Normal", "Fast", "Run & Gun"][t.strategy.tempo]} tempo · {t.strategy.offense} offense · {t.strategy.defense === "man" ? "man-to-man" : t.strategy.defense === "zone" ? "2-3 zone" : "full-court press"}
+          </dd>
+          {ld.pts && (
+            <>
+              <dt>Leading scorer</dt>
+              <dd>
+                <Link to={`/l/${L.id}/player/${ld.pts.p.id}`}>
+                  {ld.pts.p.first} {ld.pts.p.last}
+                </Link>{" "}
+                ({f1(ld.pts.s.pts / ld.pts.s.g)} ppg)
+              </dd>
+            </>
+          )}
+        </dl>
+      </Card>
+    );
+  };
+  return (
+    <div className="grid g2">
+      {side(at.id)}
+      {side(ht.id)}
+    </div>
+  );
+}
+
+export function GamePage() {
+  const L = useLeague();
+  const { gid } = useParams();
+  const id = Number(gid);
+  const { data, loading } = useAsync(async () => {
+    let g = L.games.find((x) => x.id === id);
+    if (!g) {
+      for (const h of L.history.slice().reverse()) {
+        const a = await fetchSeason(L, h.season);
+        g = a?.games.find((x) => x.id === id);
+        if (g) break;
+      }
+    }
+    const box = g?.played ? await getBox(L.id, id) : undefined;
+    return { g, box };
+  }, [id, L.id, L.games.length, L.day]);
+  const [tab, setTab] = useState<"box" | "team" | "pbp">("box");
+  if (loading && !data) return <Empty>Loading…</Empty>;
+  const g = data?.g;
+  if (!g) return <Empty>Game not found.</Empty>;
+  const ht = team(L, g.home);
+  const at = team(L, g.away);
+  const box = data?.box;
+  const halves = box ? box.home.halves.map((_, i) => i) : [];
+  return (
+    <div className="col gap-16">
+      <div className="card">
+        <div className="card-b">
+          <div className="muted small center">
+            {dayLabel(g.season, g.day)} · {g.event ?? (g.type === "conf" ? "Conference game" : g.type === "nc" ? "Non-conference" : g.type.toUpperCase())} · {g.neutral ? "Neutral site" : `at ${ht.name}`}
+          </div>
+          <div className="row" style={{ justifyContent: "center", gap: 40, marginTop: 10 }}>
+            <div className="col" style={{ alignItems: "center", width: 220 }}>
+              <Logo team={at} size={64} />
+              <TeamLink L={L} tid={at.id} logo={false} season={g.season} />
+              <span className="muted small">{at.mascot}</span>
+            </div>
+            <div className="row" style={{ gap: 24 }}>
+              <span className={cls("score-big", g.played && g.as < g.hs && "faint")}>{g.played ? g.as : "-"}</span>
+              <span className="muted bold">{g.played ? `FINAL${g.ot ? ` / ${g.ot > 1 ? g.ot : ""}OT` : ""}` : "vs"}</span>
+              <span className={cls("score-big", g.played && g.hs < g.as && "faint")}>{g.played ? g.hs : "-"}</span>
+            </div>
+            <div className="col" style={{ alignItems: "center", width: 220 }}>
+              <Logo team={ht} size={64} />
+              <TeamLink L={L} tid={ht.id} logo={false} season={g.season} />
+              <span className="muted small">{ht.mascot}</span>
+            </div>
+          </div>
+          {box && (
+            <table className="tbl compact" style={{ width: 360, margin: "14px auto 0" }}>
+              <thead>
+                <tr>
+                  <th />
+                  {halves.map((i) => (
+                    <th key={i} className="n">
+                      {i === 0 ? "1st" : i === 1 ? "2nd" : `OT${i > 2 ? i - 1 : ""}`}
+                    </th>
+                  ))}
+                  <th className="n">T</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[box.away, box.home].map((tb) => (
+                  <tr key={tb.tid}>
+                    <td className="bold">{team(L, tb.tid).short}</td>
+                    {tb.halves.map((h, i) => (
+                      <td key={i} className="n">
+                        {h}
+                      </td>
+                    ))}
+                    <td className="n bold">{tb.pts}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+      {!g.played ? (
+        <Preview L={L} g={g} />
+      ) : !box ? (
+        <Empty>No box score was saved for this game (box scores for games between other teams can be turned off in Settings).</Empty>
+      ) : (
+        <>
+          <Tabs
+            tabs={[
+              { key: "box", label: "Box Score" },
+              { key: "team", label: "Team Stats" },
+              { key: "pbp", label: "Play-by-Play" },
+            ]}
+            value={tab}
+            onChange={setTab}
+          />
+          {tab === "box" && (
+            <div className="col gap-16">
+              <BoxTable L={L} tb={box.away} colors={at.colors} />
+              <BoxTable L={L} tb={box.home} colors={ht.colors} />
+            </div>
+          )}
+          {tab === "team" && <TeamCompare L={L} box={box} />}
+          {tab === "pbp" && <PlayByPlay L={L} box={box} />}
+        </>
+      )}
+    </div>
+  );
+}

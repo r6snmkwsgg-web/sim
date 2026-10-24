@@ -205,6 +205,7 @@ export interface TeamSeason {
   apBest: number | null;
   power: number;
   prestige: number; // prestige at the end of this season
+  prestigeStart: number; // prestige when the season began
   recruitRank: number | null;
   recruitPts: number;
   roster: number[];
@@ -536,6 +537,7 @@ export interface League {
   records: RecordBook;
   draftHistory: DraftPick[];
   transfers: TransferMove[]; // current cycle
+  transferLog: TransferMove[]; // every completed transfer, kept forever
   jobOffers: JobOffer[];
   vacancies: number[];
   fired: boolean;

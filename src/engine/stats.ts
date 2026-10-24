@@ -79,6 +79,7 @@ export function emptyTeamSeason(season: number, coachId: number, prestige: numbe
     apBest: null,
     power: 0,
     prestige,
+    prestigeStart: prestige,
     recruitRank: null,
     recruitPts: 0,
     roster: [],

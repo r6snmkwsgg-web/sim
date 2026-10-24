@@ -1,9 +1,9 @@
 import type { Conference, League, Settings, Team } from "./types";
 import { clamp } from "./rng";
-import { addCoach, addPlayer, reindex, roster, rngOf } from "./core";
+import { addCoach, addNews, addPlayer, reindex, roster, rngOf } from "./core";
 import confData from "./data/conferences.json";
 import teamData from "./data/teams.json";
-import { generateInitialRoster } from "./gen/roster";
+import { generateInitialRoster, talentLevel } from "./gen/roster";
 import { generateCoach } from "./gen/coach";
 import { generateSchedule } from "./schedule";
 import { generateRecruitClass, BASE_POINTS, staffPoints } from "./recruiting";
@@ -108,6 +108,7 @@ export function createLeague(o: NewLeagueOptions): League {
     records: emptyRecordBook(),
     draftHistory: [],
     transfers: [],
+    transferLog: [],
     jobOffers: [],
     vacancies: [],
     fired: false,
@@ -179,14 +180,18 @@ export function createLeague(o: NewLeagueOptions): League {
     const ps = generateInitialRoster(rng, t.id, t.prestige, () => L.nextPid++, size);
     for (const p of ps) {
       p.hist.push({ season, ovr: p.ovr, pot: p.pot, r: { ...p.r } });
-      p.recruitedBy = { tid: t.id, season: season - p.year + 1, stars: 0, rank: 0, kind: "hs" };
+      // plausible recruiting pedigree for the generated starting rosters
+      const walkOn = p.ovr < talentLevel(t.prestige) - 9;
+      const stars = walkOn ? 0 : p.pot >= 82 ? 5 : p.pot >= 71 ? 4 : p.pot >= 60 ? 3 : p.pot >= 50 ? 2 : 1;
+      p.recruitedBy = { tid: t.id, season: season - p.year + 1, stars, rank: 0, kind: "hs" };
       addPlayer(L, p);
     }
     t.seasons.push(emptyTeamSeason(season, t.coachId, t.prestige));
   }
   for (const t of L.teams) {
+    if (t.id === user.id) continue; // the user starts from neutral tactics
     t.strategy = chooseStrategy(L, t, roster(L, t.id));
-    if (t.id !== user.id) aiRedshirts(L, t);
+    aiRedshirts(L, t);
   }
   L.games = generateSchedule(L);
   generateRecruitClass(L);
@@ -194,5 +199,9 @@ export function createLeague(o: NewLeagueOptions): League {
   makePoll(L, "Preseason");
   L.recruitPtsMax = staffPoints(L, user);
   L.recruitPts = L.recruitPtsMax;
+  const rank = L.polls[0]?.ranks.find((r) => r.tid === user.id)?.rank;
+  const welcome = rank ? `Expectations are high: the ${user.mascot} open the season ranked No. ${rank}.` : "Nobody expects much yet. Time to change that.";
+  addNews(L, "job", `Welcome to ${user.name}, Coach ${o.coachLast || "You"}. ${welcome}`, { tid: user.id, user: true });
+  addNews(L, "recruit", `The class of ${season + 1} is on the board: ${L.players.filter((p) => p.status === "recruit").length} prospects. You have ${L.recruitPtsMax} recruiting points per week.`, { tid: user.id, user: true });
   return L;
 }

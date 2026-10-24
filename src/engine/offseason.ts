@@ -15,7 +15,7 @@ import { generatePlayer, assignJersey } from "./gen/player";
 import { talentLevel } from "./gen/roster";
 import { generateSchedule } from "./schedule";
 import { chooseStrategy, aiRedshirts } from "./ai";
-import { emptyTeamSeason } from "./stats";
+import { emptyLine, emptyTeamSeason } from "./stats";
 
 export const NBA_TEAMS = [
   "Atlanta", "Boston", "Brooklyn", "Charlotte", "Chicago", "Cleveland", "Dallas", "Denver", "Detroit", "Golden State",
@@ -47,8 +47,16 @@ export function endSeason(L: League) {
   const aw = computeAwards(L);
   L.awards.push(aw);
   recordSeason(L);
-  // snapshot rosters and ratings
-  for (const t of L.teams) curSeason(t).roster = roster(L, t.id).map((p) => p.id);
+  // snapshot rosters; redshirt seasons get an explicit (empty) stat line
+  for (const t of L.teams) {
+    const ps = roster(L, t.id);
+    curSeason(t).roster = ps.map((p) => p.id);
+    for (const p of ps) {
+      if (p.redshirt && !p.stats.some((x) => x.season === L.season && x.tid === t.id)) {
+        p.stats.push({ ...emptyLine(), season: L.season, tid: t.id, year: p.eligUsed + 1, rs: true });
+      }
+    }
+  }
   updatePrograms(L);
   // summary
   const ncaa = L.brackets.find((b) => b.key === "ncaa");
@@ -164,7 +172,8 @@ export function transferRisk(L: League, p: Player): number {
   const s = p.stats.find((x) => x.season === L.season && x.tid === p.tid);
   const mpg = s && s.g ? s.min / s.g : 0;
   const expected = rank <= 5 ? 26 : rank <= 8 ? 15 : rank <= 10 ? 7 : 2;
-  const dis = Math.max(0, expected - mpg - 4) / 20;
+  // playing-time frustration only counts once there's a real sample of games
+  const dis = s && s.g >= 6 ? Math.max(0, expected - mpg - 4) / 20 : 0;
   let pr = 0.03 + 0.3 * Math.min(1, dis);
   const lvl = talentLevel(t.prestige);
   if (p.ovr > lvl + 6 && t.prestige < 70) pr += 0.12 * Math.min(2, (p.ovr - lvl - 6) / 6);
@@ -172,7 +181,7 @@ export function transferRisk(L: League, p: Player): number {
   if (c && c.hired === L.season + 1) pr += 0.12;
   if (p.eligUsed === 3 && mpg < 15) pr += 0.08;
   // buried well below the program's level: look for minutes elsewhere
-  if (rank > 9 && p.ovr < lvl - 10 && mpg < 6 && p.eligUsed < 3) pr += 0.3;
+  if (rank > 9 && p.ovr < lvl - 10 && mpg < 6 && p.eligUsed < 3 && s && s.g >= 6) pr += 0.3;
   pr *= 1.35 - p.loyalty / 100;
   pr *= 1 - 0.5 * Math.min(1, p.nilDeal / NIL_VALUE[3]);
   const ts = curSeason(t);
@@ -264,6 +273,7 @@ export function closePortal(L: League) {
   }
   removePlayers(L, new Set(L.players.filter((p) => p.status === "left").map((p) => p.id)));
   L.transfers = L.transfers.filter((m) => m.to !== null);
+  (L.transferLog ??= []).push(...L.transfers);
   dirtyRec(L);
   invalidateFit(L);
 }

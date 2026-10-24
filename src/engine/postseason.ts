@@ -153,17 +153,18 @@ export function createConfTourneys(L: League) {
     const B = nextPow2(n);
     const R = Math.log2(B);
     const days = Array.from({ length: R }, (_, r) => CT_FINAL_DAY - (R - 1 - r));
-    const rounds = ["First Round", "Second Round", "Quarterfinals", "Semifinals", "Championship"];
-    const br = makeBracket(`conf:${c.id}`, `${c.short} Tournament`, seeds, rounds.slice(5 - R), days, true);
+    const names: Record<number, string[]> = {
+      1: ["Championship"],
+      2: ["Semifinals", "Championship"],
+      3: ["Quarterfinals", "Semifinals", "Championship"],
+      4: ["First Round", "Quarterfinals", "Semifinals", "Championship"],
+      5: ["First Round", "Second Round", "Quarterfinals", "Semifinals", "Championship"],
+    };
+    const br = makeBracket(`conf:${c.id}`, `${c.short} Tournament`, seeds, names[R] ?? names[5], days, true);
     L.brackets.push(br);
     for (const tid of order.slice(n)) curSeason(team(L, tid)).confTourney = "Did not qualify";
   }
 }
-
-const CT_RESULT = (R: number, round: number): string => {
-  const fromEnd = R - 1 - round;
-  return ["Runner-up", "Semifinals", "Quarterfinals", "Second Round", "First Round"][fromEnd] ?? "First Round";
-};
 
 // ---------------- selection ----------------
 export function runSelection(L: League) {
@@ -357,8 +358,7 @@ export function recordBracketResult(L: League, game: Game) {
   const ls = curSeason(team(L, loser));
   const ws = curSeason(team(L, winner));
   if (br.key.startsWith("conf:")) {
-    const R = maxRound + 1;
-    ls.confTourney = CT_RESULT(R, g.round);
+    ls.confTourney = g.round === maxRound ? "Runner-up" : br.rounds[g.round];
     if (br.champion !== null) {
       ws.confTourney = "Champion";
       const c = conferenceOf(L, winner);
