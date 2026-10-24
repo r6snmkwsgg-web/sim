@@ -11,6 +11,7 @@ export function migrate(L: League): League {
   L.vacancies ??= [];
   L.achievements ??= [];
   L.board ??= [];
+  L.settings.autoRecruit ??= false;
   for (const t of L.teams) {
     for (const s of t.seasons) s.prestigeStart ??= s.prestige;
   }

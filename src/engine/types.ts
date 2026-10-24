@@ -488,6 +488,7 @@ export interface Settings {
   injuries: boolean;
   keepAllBoxScores: boolean;
   homeCourt: number; // points of home advantage, roughly
+  autoRecruit: boolean; // the user's staff recruits automatically
 }
 
 export interface SeasonArchive {

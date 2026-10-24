@@ -18,7 +18,8 @@ export const EARLY_SIGNING_WEEK = 3;
 /** Weekly processing: recruiting, development, polls. */
 export function resetUserPoints(L: League) {
   L.recruitPtsMax = staffPoints(L, userTeam(L));
-  L.recruitPts = L.recruitPtsMax;
+  // with auto recruiting on, the staff spends the week's points itself
+  L.recruitPts = L.settings.autoRecruit ? 0 : L.recruitPtsMax;
 }
 
 export function weekTick(L: League, poll: boolean) {

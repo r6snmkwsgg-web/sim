@@ -119,6 +119,7 @@ interface TS {
   aPerD: number;
   aIntD: number;
   aBlk: number;
+  aBlkMax: number;
   aPass: number;
 }
 
@@ -170,7 +171,7 @@ function makeGP(p: Player, starters: number[], minutes: Record<number, number>):
       Math.pow(post, 2) * 1.6 * (0.35 + hf),
       Math.pow(drive, 2) * 1.35 * (1 - hf * 0.55),
     ],
-    usageBase: Math.exp(2.5 * offSkill),
+    usageBase: Math.exp(3.9 * offSkill),
     energy: 1,
     on: false,
     fouls: 0,
@@ -249,6 +250,7 @@ export class GameSim {
       aPerD: 0,
       aIntD: 0,
       aBlk: 0,
+      aBlkMax: 0,
       aPass: 0,
     };
   }
@@ -418,7 +420,7 @@ export class GameSim {
   }
 
   aggregates(ts: TS) {
-    let sec = 0, stl = 0, reb = 0, perD = 0, intD = 0, blk = 0, pass = 0;
+    let sec = 0, stl = 0, reb = 0, perD = 0, intD = 0, blk = 0, pass = 0, blkMax = 0;
     for (const g of ts.on) {
       const f = 0.86 + 0.14 * g.energy;
       sec += g.sec * f;
@@ -427,6 +429,7 @@ export class GameSim {
       perD += g.perD * f;
       intD += g.intD * f;
       blk += g.blk * f;
+      if (g.blk * f > blkMax) blkMax = g.blk * f;
       pass += g.pass * f;
     }
     const n = ts.on.length || 1;
@@ -436,6 +439,7 @@ export class GameSim {
     ts.aPerD = perD / n;
     ts.aIntD = intD / n;
     ts.aBlk = blk / n;
+    ts.aBlkMax = blkMax;
     ts.aPass = pass / n;
   }
 
@@ -549,12 +553,12 @@ export class GameSim {
     if (blocked) p += 0.08;
     p = clamp(p, 0.08, 0.55);
     if (this.rng.next() < p) {
-      const g = this.pickWeighted(off.on, (x) => Math.pow(x.reb, 3) * (0.6 + x.hf));
+      const g = this.pickWeighted(off.on, (x) => Math.pow(x.reb, 1.6) * (0.7 + 0.6 * x.hf));
       g.orb++;
       this.log(off.side, `Offensive rebound by ${g.name}.`);
       return true;
     }
-    const g = this.pickWeighted(def.on, (x) => Math.pow(x.reb, 3) * (0.7 + x.hf));
+    const g = this.pickWeighted(def.on, (x) => Math.pow(x.reb, 1.6) * (0.75 + 0.6 * x.hf));
     g.drb++;
     this.log(def.side, `Defensive rebound by ${g.name}.`);
     return false;
@@ -611,7 +615,7 @@ export class GameSim {
       if (def.strat.defense === "press") stealP *= 1.15;
       if (def.strat.defense === "zone") stealP *= 0.88;
       if (this.rng.next() < stealP) {
-        const s = this.pickWeighted(def.on, (x) => Math.pow(x.stl, 2.5) * (x.posIdx <= 2 ? 1.3 : 0.8));
+        const s = this.pickWeighted(def.on, (x) => Math.pow(x.stl, 1.7) * (x.posIdx <= 2 ? 1.15 : 0.9));
         s.stl_++;
         this.log(def.side, `${s.name} steals the ball from ${g.name}.`);
         this.deadBall = false;
@@ -773,7 +777,8 @@ export class GameSim {
     if (def.strat.rebounding === "crash") p += 0.006; // transition opportunities
     if (buzzer) p *= 0.45;
     p = clamp(p, 0.05, 0.9);
-    blockP *= Math.exp(2.2 * (def.aBlk - 0.5));
+    // rim protection: the best shot-blocker on the floor matters as much as the average
+    blockP *= Math.exp(3.2 * (0.45 * def.aBlk + 0.55 * def.aBlkMax - 0.56));
     // shooting foul?
     if (!buzzer && this.rng.next() < foulP) {
       const fouler = this.rng.next() < 0.55 ? md : this.pickWeighted(def.on, (x) => x.foulProp * (type === "three" ? 1 : 0.5 + x.hf));
@@ -803,7 +808,7 @@ export class GameSim {
       this.score(off, def, g, isThree ? 3 : 2);
       let assister: GP | null = null;
       if (this.rng.next() < assistP * (0.75 + 0.5 * off.aPass)) {
-        assister = this.pickWeighted(off.on, (x) => Math.pow(x.pass, 2.2), g);
+        assister = this.pickWeighted(off.on, (x) => Math.pow(x.pass, 4) * (x.posIdx === 0 ? 1.7 : x.posIdx === 1 ? 1.15 : 1), g);
         if (assister === g) assister = null;
         else assister.ast++;
       }
@@ -812,7 +817,7 @@ export class GameSim {
     }
     // miss: blocked?
     if (this.rng.next() < Math.min(0.6, blockP / (1 - p))) {
-      const b = this.pickWeighted(def.on, (x) => Math.pow(x.blk, 3) * (x === md ? 1.6 : 1));
+      const b = this.pickWeighted(def.on, (x) => Math.pow(x.blk, 5) * (0.4 + x.hf) * (x === md ? 1.4 : 1));
       b.blk_++;
       this.log(def.side, `${b.name} blocks ${g.name}'s shot!`);
       return "blocked";

@@ -22,7 +22,7 @@ export function LeagueHistory() {
           <Empty>History is written at the end of each season. Every champion, award and record will be kept here.</Empty>
         </Card>
       ) : (
-        <div className="grid g-main">
+        <div className="col gap-16">
           <Card title="Champions" flush>
             <div className="tbl-wrap">
               <table className="tbl">
@@ -82,7 +82,7 @@ export function LeagueHistory() {
               </table>
             </div>
           </Card>
-          <div className="col gap-16">
+          <div className="grid g2">
             <Card title="Most titles" flush>
               <table className="tbl compact">
                 <tbody>

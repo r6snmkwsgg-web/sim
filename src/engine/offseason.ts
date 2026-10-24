@@ -241,7 +241,7 @@ export function closePortal(L: League) {
     if (r.committedTo !== null && (r.stage === "committed" || r.stage === "signed")) dest = r.committedTo;
     else if (spots(from) > 0 && rng.chance(0.6)) dest = from;
     else {
-      const needy = L.teams.filter((t) => t.id !== L.userTid && spots(t.id) > 0);
+      const needy = L.teams.filter((t) => (t.id !== L.userTid || L.settings.autoRecruit) && spots(t.id) > 0);
       if (needy.length) {
         const fitting = needy.sort((a, b) => Math.abs(talentLevel(a.prestige) - p.ovr) - Math.abs(talentLevel(b.prestige) - p.ovr)).slice(0, 10);
         dest = rng.pick(fitting).id;

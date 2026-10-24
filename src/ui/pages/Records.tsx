@@ -16,10 +16,10 @@ function List({ L, entries, avg, kind, pctFmt }: { L: League; entries: RecordEnt
       <tbody>
         {entries.map((e, i) => (
           <tr key={`${e.pid}-${e.season}-${e.gid ?? 0}-${i}`} className={e.tid === L.userTid ? "hl" : ""}>
-            <td className="muted" style={{ width: 24 }}>
+            <td className="muted" style={{ width: 24, verticalAlign: "top" }}>
               {i + 1}
             </td>
-            <td>
+            <td style={{ whiteSpace: "normal" }}>
               {kind === "team" ? (
                 <TeamLink L={L} tid={e.tid} size={18} season={e.season} />
               ) : (
@@ -27,19 +27,23 @@ function List({ L, entries, avg, kind, pctFmt }: { L: League; entries: RecordEnt
                   <Link to={`/l/${L.id}/player/${e.pid}`}>{e.name}</Link> <span className="faint small">{team(L, e.tid).short}</span>
                 </>
               )}
+              <div className="tiny muted">
+                {kind === "game" && e.gid !== undefined ? (
+                  <Link to={`/l/${L.id}/game/${e.gid}`} className="muted">
+                    {seasonLabel(e.season)}
+                    {e.opp !== undefined ? ` vs ${team(L, e.opp).name}` : ""}
+                  </Link>
+                ) : kind === "career" ? (
+                  `through ${seasonLabel(e.season)}`
+                ) : kind === "team" ? null : (
+                  seasonLabel(e.season)
+                )}
+              </div>
             </td>
-            <td className="muted small">
-              {kind === "game" && e.gid !== undefined ? (
-                <Link to={`/l/${L.id}/game/${e.gid}`}>
-                  {seasonLabel(e.season)} {e.opp !== undefined ? `vs ${team(L, e.opp).short}` : ""}
-                </Link>
-              ) : kind === "career" ? (
-                `thru ${seasonLabel(e.season)}`
-              ) : (
-                seasonLabel(e.season)
-              )}
+            <td className="n bold" style={{ verticalAlign: "top" }}>
+              {pctFmt ? e.value.toFixed(3).replace(/^0/, "") : avg ? e.value.toFixed(1) : e.value}
+              {kind === "team" && <div className="tiny muted" style={{ fontWeight: 400 }}>{seasonLabel(e.season)}</div>}
             </td>
-            <td className="n bold">{pctFmt ? e.value.toFixed(3).replace(/^0/, "") : avg ? e.value.toFixed(1) : e.value}</td>
           </tr>
         ))}
       </tbody>

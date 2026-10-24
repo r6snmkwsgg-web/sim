@@ -13,6 +13,11 @@ export function RecruitingSummary() {
   const offers = L.players.filter((p) => p.recruit && p.recruit.offers.includes(L.userTid) && p.recruit.stage !== "signed" && p.recruit.committedTo !== L.userTid).length;
   return (
     <div className="card mb-16">
+      {L.settings.autoRecruit && (
+        <div className="card-b small" style={{ borderBottom: "1px solid var(--border)", background: "var(--accent-soft)" }}>
+          <b>Auto recruiting is on:</b> your staff spends your points each week. Turn it off in Settings to recruit yourself.
+        </div>
+      )}
       <div className="stat-row">
         <div className="stat">
           <div className="label">Points this week</div>

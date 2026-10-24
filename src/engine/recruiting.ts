@@ -489,7 +489,7 @@ export function aiRecruitWeek(L: League, kind: "hs" | "portal" | "both" = "both"
   const hsPool = pool.filter((p) => p.recruit!.kind === "hs");
   const portalPool = pool.filter((p) => p.recruit!.kind === "portal");
   for (const t of L.teams) {
-    if (t.id === L.userTid) continue;
+    if (t.id === L.userTid && !L.settings.autoRecruit) continue;
     const needs = openSpots(L, t.id);
     if (needs <= 0) continue;
     t.recruitPoints = Math.round(staffPoints(L, t) * diff);
@@ -716,7 +716,7 @@ export function finalSigning(L: League) {
     }
     // late scramble: programs with open spots take remaining players at their level
     if (rng.chance(0.65)) {
-      const needy = L.teams.filter((t) => t.id !== L.userTid && openSpots(L, t.id) > 0);
+      const needy = L.teams.filter((t) => (t.id !== L.userTid || L.settings.autoRecruit) && openSpots(L, t.id) > 0);
       const level = (pr: number) => 38 + 0.26 * pr;
       const fits = needy.filter((t) => level(t.prestige) - (p.ovr + 6) < 9);
       if (fits.length) {

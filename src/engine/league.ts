@@ -24,6 +24,7 @@ export const DEFAULT_SETTINGS: Settings = {
   injuries: true,
   keepAllBoxScores: true,
   homeCourt: 3.5,
+  autoRecruit: false,
 };
 
 export interface TeamInfo {

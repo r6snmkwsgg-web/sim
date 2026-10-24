@@ -41,6 +41,9 @@ export function Guide() {
             <li>Recruits narrow their list to a top five, then commit to a school that has offered. Verbal commitments can flip until they sign (early signing period in week 3, or signing day).</li>
             <li>Official visits are limited each season. Use them on players you can actually land.</li>
             <li>Open roster spots depend on who's returning. Projected NBA early entries count as departures.</li>
+            <li>
+              Don't want to manage recruiting? Turn on <Link to={`${b}/settings`}>auto recruiting</Link> and your staff will handle it (about as well as an average AI program).
+            </li>
           </ul>
         </Card>
         <Card title="Players & development">

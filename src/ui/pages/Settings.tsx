@@ -52,6 +52,9 @@ export function SettingsPage() {
         <Card title="Rules">
           <div className="col gap-12">
             <label className="check">
+              <input type="checkbox" checked={L.settings.autoRecruit} onChange={(e) => set("autoRecruit", e.target.checked)} /> Let my staff handle recruiting (auto)
+            </label>
+            <label className="check">
               <input type="checkbox" checked={L.settings.portal} onChange={(e) => set("portal", e.target.checked)} /> Transfer portal
             </label>
             <label className="check">
