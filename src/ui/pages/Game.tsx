@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useLeague } from "../store";
-import { dayLabel, team } from "../../engine/core";
+import { dayLabel, shortDayLabel, team } from "../../engine/core";
 import type { BoxLine, BoxScore, Game, League, TeamBox } from "../../engine/types";
-import { Card, Empty, Logo, Tabs, TeamLink } from "../components/common";
+import { Card, Empty, Logo, Tabs } from "../components/common";
 import { getBox } from "../db";
-import { fetchSeason, pct100, useAsync, cls, f1 } from "../util";
+import { fetchSeason, pct100, useAsync, cls, f1, heroColors } from "../util";
+import { Icon } from "../components/Icons";
 import { curSeason } from "../../engine/play";
 import { currentRank, rosterStrength } from "../../engine/rankings";
 import { teamLeaders } from "../helpers";
@@ -25,7 +26,10 @@ function BoxTable({ L, tb, colors }: { L: League; tb: TeamBox; colors: [string, 
   const row = (l: BoxLine) => (
     <tr key={l.pid}>
       <td>
-        <Link to={`/l/${L.id}/player/${l.pid}`}>{l.name}</Link> <span className="faint small">{l.pos}</span>
+        <Link to={`/l/${L.id}/player/${l.pid}`} className="bold">
+          {l.name}
+        </Link>{" "}
+        <span className="faint small">{l.pos}</span>
       </td>
       <td className="n">{Math.round(l.min)}</td>
       <td className="n bold">{l.pts}</td>
@@ -70,9 +74,12 @@ function BoxTable({ L, tb, colors }: { L: League; tb: TeamBox; colors: [string, 
   );
   return (
     <div className="card">
-      <div className="card-h" style={{ borderTop: `4px solid ${colors[0]}`, borderRadius: "8px 8px 0 0" }}>
-        <Logo team={t} size={30} />
-        <h2 style={{ fontSize: 16, letterSpacing: "0.02em", textTransform: "uppercase" }}>{t.name}</h2>
+      <div className="card-h box-h" style={{ ["--tc" as string]: heroColors(colors).h1 }}>
+        <Logo team={t} size={34} />
+        <h2 style={{ fontSize: 20 }}>{t.name}</h2>
+        <span className="muted small">{t.mascot}</span>
+        <span className="spacer" />
+        <span className="box-pts">{tot.pts}</span>
       </div>
       <div className="tbl-wrap">
         <table className="tbl compact">
@@ -252,25 +259,31 @@ function LiveReplay({ L, box, onDone }: { L: League; box: BoxScore; onDone: () =
   const perLabel = e.per === 1 ? "1st Half" : e.per === 2 ? "2nd Half" : `OT${e.per > 3 ? e.per - 2 : ""}`;
   return (
     <div className="card" style={{ overflow: "hidden" }}>
-      <div style={{ background: "#0f1622", color: "#fff", padding: "18px 20px" }}>
-        <div className="row" style={{ justifyContent: "center", gap: 28 }}>
-          <div className="row" style={{ gap: 10, width: 240, justifyContent: "flex-end" }}>
-            <span style={{ fontWeight: 700, fontSize: 16 }}>{at.name}</span>
-            <Logo team={at} size={44} />
+      <div className="scoreboard" style={{ ["--ca" as string]: heroColors(at.colors).h1, ["--ch" as string]: heroColors(ht.colors).h1, borderRadius: 0, border: "none", boxShadow: "none" }}>
+        <div className="sb-main">
+          <div className="sb-team">
+            <Logo team={at} size={68} />
+            <div>
+              <div className="sb-name">{at.name}</div>
+              <div className="sb-sub">{at.mascot}</div>
+            </div>
           </div>
-          <span className="score-big" style={{ color: "#fff" }}>{e.as}</span>
-          <div className="center" style={{ width: 120 }}>
-            <div style={{ fontSize: 22, fontWeight: 800, fontVariantNumeric: "tabular-nums" }}>{done ? "FINAL" : clock(e.t, e.per)}</div>
-            <div className="small" style={{ opacity: 0.7 }}>{done ? (box.ot ? `${box.ot > 1 ? box.ot : ""}OT` : "") : perLabel}</div>
+          <span className={cls("sb-score", done && e.as < e.hs && "lose")}>{e.as}</span>
+          <div className="sb-mid">
+            <span className="sb-clock">{done ? "FINAL" : clock(e.t, e.per)}</span>
+            <span className="sb-per">{done ? (box.ot ? `${box.ot > 1 ? box.ot : ""}OT` : "") : perLabel}</span>
           </div>
-          <span className="score-big" style={{ color: "#fff" }}>{e.hs}</span>
-          <div className="row" style={{ gap: 10, width: 240 }}>
-            <Logo team={ht} size={44} />
-            <span style={{ fontWeight: 700, fontSize: 16 }}>{ht.name}</span>
+          <span className={cls("sb-score", done && e.hs < e.as && "lose")}>{e.hs}</span>
+          <div className="sb-team home">
+            <Logo team={ht} size={68} />
+            <div>
+              <div className="sb-name">{ht.name}</div>
+              <div className="sb-sub">{ht.mascot}</div>
+            </div>
           </div>
         </div>
-        <div className="meter mt-12" style={{ background: "rgba(255,255,255,0.12)" }}>
-          <span style={{ width: `${(100 * i) / Math.max(1, ev.length - 1)}%`, background: "#93c5fd" }} />
+        <div className="sb-progress">
+          <span style={{ width: `${(100 * i) / Math.max(1, ev.length - 1)}%` }} />
         </div>
       </div>
       <div className="card-h">
@@ -383,56 +396,55 @@ export function GamePage() {
   const halves = box ? box.home.halves.map((_, i) => i) : [];
   return (
     <div className="col gap-16">
-      <div className="card" style={watching && box?.pbp ? { display: "none" } : undefined}>
-        <div className="card-b">
-          <div className="muted small center">
-            {dayLabel(g.season, g.day)} · {g.event ?? (g.type === "conf" ? "Conference game" : g.type === "nc" ? "Non-conference" : g.type.toUpperCase())} · {g.neutral ? "Neutral site" : `at ${ht.name}`}
-          </div>
-          <div className="row" style={{ justifyContent: "center", gap: 40, marginTop: 10 }}>
-            <div className="col" style={{ alignItems: "center", width: 220 }}>
-              <Logo team={at} size={64} />
-              <TeamLink L={L} tid={at.id} logo={false} season={g.season} />
-              <span className="muted small">{at.mascot}</span>
+      <div className="scoreboard" style={{ ["--ca" as string]: heroColors(at.colors).h1, ["--ch" as string]: heroColors(ht.colors).h1, ...(watching && box?.pbp ? { display: "none" } : null) }}>
+        <div className="sb-kicker">
+          {dayLabel(g.season, g.day)} · {g.event ?? (g.type === "conf" ? "Conference game" : g.type === "nc" ? "Non-conference" : g.type.toUpperCase())} · {g.neutral ? "Neutral site" : `at ${ht.name}`}
+        </div>
+        <div className="sb-main">
+          <Link to={`/l/${L.id}/team/${at.id}?season=${g.season}`} className="sb-team">
+            <Logo team={at} size={80} />
+            <div>
+              <div className="sb-name">{at.name}</div>
+              <div className="sb-sub">{at.mascot}</div>
             </div>
-            <div className="row" style={{ gap: 24 }}>
-              <span className={cls("score-big", g.played && g.as < g.hs && "faint")}>{g.played ? g.as : "-"}</span>
-              <span className="muted bold">{g.played ? `FINAL${g.ot ? ` / ${g.ot > 1 ? g.ot : ""}OT` : ""}` : "vs"}</span>
-              <span className={cls("score-big", g.played && g.hs < g.as && "faint")}>{g.played ? g.hs : "-"}</span>
-            </div>
-            <div className="col" style={{ alignItems: "center", width: 220 }}>
-              <Logo team={ht} size={64} />
-              <TeamLink L={L} tid={ht.id} logo={false} season={g.season} />
-              <span className="muted small">{ht.mascot}</span>
-            </div>
-          </div>
-          {box && (
-            <table className="tbl compact" style={{ width: 360, margin: "14px auto 0" }}>
-              <thead>
-                <tr>
-                  <th />
-                  {halves.map((i) => (
-                    <th key={i} className="n">
-                      {i === 0 ? "1st" : i === 1 ? "2nd" : `OT${i > 2 ? i - 1 : ""}`}
-                    </th>
-                  ))}
-                  <th className="n">T</th>
-                </tr>
-              </thead>
-              <tbody>
-                {[box.away, box.home].map((tb) => (
-                  <tr key={tb.tid}>
-                    <td className="bold">{team(L, tb.tid).short}</td>
-                    {tb.halves.map((h, i) => (
-                      <td key={i} className="n">
-                        {h}
-                      </td>
+          </Link>
+          <span className={cls("sb-score", g.played && g.as < g.hs && "lose")}>{g.played ? g.as : ""}</span>
+          <div className="sb-mid">
+            <span className="sb-clock">{g.played ? "FINAL" : "VS"}</span>
+            <span className="sb-per">{g.played && g.ot ? `${g.ot > 1 ? g.ot : ""}OT` : g.played ? "" : shortDayLabel(g.season, g.day)}</span>
+            {box && (
+              <table className="sb-lines">
+                <thead>
+                  <tr>
+                    <th />
+                    {halves.map((i) => (
+                      <th key={i}>{i === 0 ? "1" : i === 1 ? "2" : `OT${i > 2 ? i - 1 : ""}`}</th>
                     ))}
-                    <td className="n bold">{tb.pts}</td>
+                    <th>T</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+                </thead>
+                <tbody>
+                  {[box.away, box.home].map((tb) => (
+                    <tr key={tb.tid}>
+                      <td>{team(L, tb.tid).abbrev}</td>
+                      {tb.halves.map((h, i) => (
+                        <td key={i}>{h}</td>
+                      ))}
+                      <td className="t">{tb.pts}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+          <span className={cls("sb-score", g.played && g.hs < g.as && "lose")}>{g.played ? g.hs : ""}</span>
+          <Link to={`/l/${L.id}/team/${ht.id}?season=${g.season}`} className="sb-team home">
+            <Logo team={ht} size={80} />
+            <div>
+              <div className="sb-name">{ht.name}</div>
+              <div className="sb-sub">{ht.mascot}</div>
+            </div>
+          </Link>
         </div>
       </div>
       {watching && box?.pbp ? (
@@ -455,8 +467,8 @@ export function GamePage() {
             />
             <div className="spacer" />
             {box.pbp && (
-              <button className="btn" onClick={() => setSp({ watch: "1" })}>
-                ▶ Watch replay
+              <button className="btn btn-primary" onClick={() => setSp({ watch: "1" })}>
+                <Icon name="play" size={12} /> Watch replay
               </button>
             )}
           </div>

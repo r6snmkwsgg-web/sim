@@ -1,33 +1,78 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import type { League, Player, Team } from "../../engine/types";
 import { grade, gradeClass } from "../../engine/ratings";
-import { textOn, cls } from "../util";
+import { cls, contrast, luminance, heroColors } from "../util";
+import { Icon } from "./Icons";
 import { Face } from "./Face";
 import { teamMaybe } from "../../engine/core";
 
 // ---------------- team visuals ----------------
+const SHAPES = ["circle", "shield", "round", "hex", "circle", "shield"] as const;
+type Shape = (typeof SHAPES)[number];
+const OUTER: Record<Shape, string> = {
+  circle: "M50 1a49 49 0 1 0 0.01 0z",
+  shield: "M50 1.5L95 13.5V49c0 27-19.5 43.5-45 50.5C24.5 92.5 5 76 5 49V13.5z",
+  round: "M27 2h46a25 25 0 0 1 25 25v46a25 25 0 0 1-25 25H27A25 25 0 0 1 2 73V27A25 25 0 0 1 27 2z",
+  hex: "M50 1l44 24.5v49L50 99 6 74.5v-49z",
+};
+const INNER: Record<Shape, string> = {
+  circle: "M50 8a42 42 0 1 0 0.01 0z",
+  shield: "M50 9l37.5 10V49c0 22.5-16 36.5-37.5 43C28.5 85.5 12.5 71.5 12.5 49V19z",
+  round: "M28 9.5h44A18.5 18.5 0 0 1 90.5 28v44A18.5 18.5 0 0 1 72 90.5H28A18.5 18.5 0 0 1 9.5 72V28A18.5 18.5 0 0 1 28 9.5z",
+  hex: "M50 9.5l36.5 20.3v40.4L50 90.5 13.5 70.2V29.8z",
+};
+const logoCache = new Map<string, { p: string; ring: string; text: string; shape: Shape }>();
+function logoStyle(abbrev: string, colors: [string, string]) {
+  const key = `${abbrev}${colors[0]}${colors[1]}`;
+  let v = logoCache.get(key);
+  if (!v) {
+    const [p, s] = colors;
+    const ring = contrast(p, s) >= 1.4 ? s : luminance(p) < 0.4 ? "#ffffff" : "#111827";
+    const text = contrast(s, p) >= 3 ? s : contrast("#ffffff", p) >= contrast("#0f1726", p) ? "#ffffff" : "#0f1726";
+    let h = 0;
+    for (const ch of abbrev) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+    v = { p, ring, text, shape: SHAPES[h % SHAPES.length] };
+    logoCache.set(key, v);
+  }
+  return v;
+}
+
 export function Logo({ team, size = 28 }: { team: Pick<Team, "abbrev" | "colors"> | undefined; size?: number }) {
-  if (!team) return <span className="logo" style={{ width: size, height: size, background: "#9ca3af" }} />;
-  const [bg, fg0] = team.colors;
-  const fg = Math.abs(lumDiff(bg, fg0)) > 0.25 ? fg0 : textOn(bg);
+  if (!team)
+    return (
+      <span className="logo" style={{ width: size, height: size }}>
+        <svg viewBox="0 0 100 100">
+          <path d={OUTER.circle} fill="var(--border-strong)" />
+          <text x="50" y="50" dy="0.35em" textAnchor="middle" fontSize="44" fill="var(--muted)" className="logo-text">
+            ?
+          </text>
+        </svg>
+      </span>
+    );
+  const st = logoStyle(team.abbrev, team.colors);
+  const shape: Shape = size < 22 ? "circle" : st.shape;
   const n = team.abbrev.length;
-  const fs = size * (n <= 1 ? 0.55 : n === 2 ? 0.42 : n === 3 ? 0.33 : 0.27);
+  const fs = n <= 2 ? 46 : n === 3 ? 37 : 29;
+  const ty = shape === "shield" ? 47 : 50;
   return (
-    <span className="logo" style={{ width: size, height: size, background: bg, color: fg, fontSize: fs }}>
-      {team.abbrev}
+    <span className="logo" style={{ width: size, height: size }}>
+      <svg viewBox="0 0 100 100" aria-hidden>
+        <path d={OUTER[shape]} fill={st.ring} />
+        <path d={INNER[shape]} fill={st.p} />
+        {size >= 36 && <path d={INNER[shape]} fill="none" stroke={st.ring} strokeOpacity={0.4} strokeWidth={1.6} transform="translate(50 50) scale(0.88) translate(-50 -50)" />}
+        <text x="50" y={ty} dy="0.35em" textAnchor="middle" fontSize={fs} fill={st.text} className="logo-text">
+          {team.abbrev}
+        </text>
+      </svg>
     </span>
   );
 }
-function lumDiff(a: string, b: string): number {
-  const l = (h: string) => {
-    const x = h.replace("#", "");
-    const r = parseInt(x.slice(0, 2), 16) / 255;
-    const g = parseInt(x.slice(2, 4), 16) / 255;
-    const bb = parseInt(x.slice(4, 6), 16) / 255;
-    return 0.2126 * r + 0.7152 * g + 0.0722 * bb;
-  };
-  return l(a) - l(b);
+
+/** CSS variables that paint a hero banner in a team's colors. */
+export function heroStyle(colors: [string, string]): CSSProperties {
+  const h = heroColors(colors);
+  return { ["--h1" as string]: h.h1, ["--hd" as string]: h.hd, ["--h2" as string]: h.h2 };
 }
 
 export function TeamLink({ L, tid, short, logo = true, size = 22, rank, season }: { L: League; tid: number | null | undefined; short?: boolean; logo?: boolean; size?: number; rank?: number | null; season?: number }) {
@@ -37,41 +82,145 @@ export function TeamLink({ L, tid, short, logo = true, size = 22, rank, season }
     <span className="team-cell">
       {logo && <Logo team={t} size={size} />}
       <Link to={`/l/${L.id}/team/${t.id}${season !== undefined ? `?season=${season}` : ""}`}>
-        {rank ? <span className="muted small">#{rank} </span> : null}
+        {rank ? <span className="faint small" style={{ fontWeight: 650 }}>{rank} </span> : null}
         {short ? t.short : t.name}
       </Link>
     </span>
   );
 }
 
-export function PlayerLink({ L, p, face = false, size = 30, colors }: { L: League; p: Pick<Player, "id" | "first" | "last" | "faceSeed" | "race">; face?: boolean; size?: number; colors?: [string, string] }) {
+export function PlayerLink({ L, p, face = false, size = 30, colors, meta }: { L: League; p: Pick<Player, "id" | "first" | "last" | "faceSeed" | "race">; face?: boolean; size?: number; colors?: [string, string]; meta?: ReactNode }) {
   return (
     <span className="player-cell">
       {face && <Face seed={p.faceSeed} race={p.race} colors={colors} size={size} />}
-      <Link to={`/l/${L.id}/player/${p.id}`}>
-        {p.first} {p.last}
-      </Link>
+      <span>
+        <Link to={`/l/${L.id}/player/${p.id}`}>
+          {p.first} {p.last}
+        </Link>
+        {meta && <span className="meta">{meta}</span>}
+      </span>
     </span>
   );
 }
 
 // ---------------- ratings ----------------
-export function Grade({ v, letter = true }: { v: number; letter?: boolean }) {
-  return <span className={cls("grade", gradeClass(v))}>{letter ? grade(v) : Math.round(v)}</span>;
+export function Grade({ v, letter = true, lg }: { v: number; letter?: boolean; lg?: boolean }) {
+  return <span className={cls("grade", gradeClass(v), lg && "lg")}>{letter ? grade(v) : Math.round(v)}</span>;
 }
+/** A rating as a heat cell: one hue, stronger for higher values; the number stays in text color. */
 export function Rating({ v }: { v: number }) {
-  return <span className={cls("rt", gradeClass(v))}>{Math.round(v)}</span>;
-}
-export function Stars({ n, max = 5 }: { n: number; max?: number }) {
-  const full = Math.floor(n);
-  const half = n - full >= 0.5;
+  const h = Math.max(0, Math.min(1, (v - 52) / 36)) ** 1.25;
   return (
-    <span className="stars" title={`${n} stars`}>
-      {"★".repeat(full)}
-      {half ? "⯪" : ""}
-      <span className="off">{"★".repeat(Math.max(0, max - full - (half ? 1 : 0)))}</span>
+    <span className={cls("rt", v < 40 && "lo", v >= 75 && "hi")} style={{ ["--h" as string]: h.toFixed(3) }}>
+      {Math.round(v)}
     </span>
   );
+}
+export const GRADE_COLOR: Record<string, string> = { "g-a": "var(--ga)", "g-b": "var(--gb)", "g-c": "var(--gc)", "g-d": "var(--gd)", "g-f": "var(--gf)" };
+export function gradeColor(v: number): string {
+  return GRADE_COLOR[gradeClass(v)];
+}
+const STAR = "M12 2.6l2.85 6.05 6.6.78-4.88 4.55 1.28 6.52L12 17.3l-5.85 3.2 1.28-6.52L2.55 9.43l6.6-.78z";
+export function Stars({ n, max = 5, lg }: { n: number; max?: number; lg?: boolean }) {
+  const out: ReactNode[] = [];
+  for (let i = 0; i < max; i++) {
+    const f = Math.max(0, Math.min(1, n - i));
+    out.push(
+      <span key={i} style={{ position: "relative", display: "inline-block" }}>
+        <svg viewBox="0 0 24 24">
+          <path d={STAR} className="star-off" />
+        </svg>
+        {f > 0 && (
+          <svg viewBox="0 0 24 24" style={{ position: "absolute", inset: 0, clipPath: f >= 1 ? undefined : "inset(0 50% 0 0)" }}>
+            <path d={STAR} className="star-on" />
+          </svg>
+        )}
+      </span>,
+    );
+  }
+  return (
+    <span className={cls("stars", lg && "lg")} title={`${n} star${n === 1 ? "" : "s"}`}>
+      {out}
+    </span>
+  );
+}
+
+/** Ring gauge for a 0-100 value (OVR/POT, interest, security). */
+export function Gauge({ v, label, size = 72, color, text, track }: { v: number; label?: ReactNode; size?: number; color?: string; text?: ReactNode; track?: string }) {
+  const r = 44;
+  const c = 2 * Math.PI * r;
+  const f = Math.max(0, Math.min(1, v / 100));
+  return (
+    <span className="gauge" style={{ width: size, height: size }}>
+      <svg viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r={r} fill="none" stroke={track ?? "rgba(127,127,127,0.22)"} strokeWidth="8" />
+        <circle cx="50" cy="50" r={r} fill="none" stroke={color ?? gradeColor(v)} strokeWidth="8" strokeLinecap="round" strokeDasharray={`${c * f} ${c}`} />
+      </svg>
+      <span className="gv">
+        <b style={{ fontSize: size * 0.34 }}>{text ?? Math.round(v)}</b>
+        {label && <small>{label}</small>}
+      </span>
+    </span>
+  );
+}
+
+/** Rating bar with value and letter grade. */
+export function RatingBar({ name, v }: { name: ReactNode; v: number }) {
+  return (
+    <div className="rbar">
+      <span className="nm">{name}</span>
+      <span className="v">{Math.round(v)}</span>
+      <Grade v={v} />
+      <div className="track">
+        <span style={{ width: `${Math.max(2, Math.min(100, v))}%`, background: gradeColor(v) }} />
+      </div>
+    </div>
+  );
+}
+
+export function FormStrip({ results, n = 5 }: { results: boolean[]; n?: number }) {
+  const r = results.slice(0, n);
+  const pad = Math.max(0, n - r.length);
+  return (
+    <span className="form">
+      {r.map((w, i) => (
+        <span key={i} className={w ? "w" : "l"}>
+          {w ? "W" : "L"}
+        </span>
+      ))}
+      {Array.from({ length: pad }, (_, i) => (
+        <span key={`o${i}`} className="o">
+          -
+        </span>
+      ))}
+    </span>
+  );
+}
+
+export function Tile({ label, value, foot, icon, style, children }: { label: ReactNode; value?: ReactNode; foot?: ReactNode; icon?: string; style?: CSSProperties; children?: ReactNode }) {
+  return (
+    <div className="tile" style={style}>
+      <div className="label">
+        {icon && <Icon name={icon} size={13} />}
+        {label}
+      </div>
+      {value !== undefined && <div className="value">{value}</div>}
+      {children}
+      {foot && <div className="foot">{foot}</div>}
+    </div>
+  );
+}
+
+export function Trophy({ size = 13 }: { size?: number }) {
+  return (
+    <span className="trophy-ic" style={{ width: size + 9, height: size + 9 }}>
+      <Icon name="awards" size={size} />
+    </span>
+  );
+}
+
+export function Pos({ p }: { p: string }) {
+  return <span className="pos">{p}</span>;
 }
 
 // ---------------- layout bits ----------------
@@ -93,11 +242,12 @@ export function Card({ title, sub, right, children, flush, className }: { title?
   );
 }
 
-export function PageHead({ title, sub, right, logo }: { title: ReactNode; sub?: ReactNode; right?: ReactNode; logo?: ReactNode }) {
+export function PageHead({ title, sub, right, logo, eyebrow }: { title: ReactNode; sub?: ReactNode; right?: ReactNode; logo?: ReactNode; eyebrow?: ReactNode }) {
   return (
     <div className="page-head">
       {logo}
       <div>
+        {eyebrow && <div className="eyebrow">{eyebrow}</div>}
         <h1>{title}</h1>
         {sub && <div className="sub">{sub}</div>}
       </div>

@@ -4,7 +4,7 @@ import { coach, seasonLabel, team } from "../../engine/core";
 import { acceptJob } from "../../engine/coaches";
 import { grade, prestigeStars, prestigeTier } from "../../engine/ratings";
 import type { Coach } from "../../engine/types";
-import { Card, Logo, Meter, PageHead, Stars, Table, Tabs, TeamLink, type Col } from "../components/common";
+import { Card, Logo, Meter, PageHead, Stars, Table, Tabs, TeamLink, type Col, Trophy } from "../components/common";
 import { Face } from "../components/Face";
 
 export function CoachPage() {
@@ -211,7 +211,7 @@ export function CoachPage() {
                   .reverse()
                   .map((a, i) => (
                     <div key={i} className="row small">
-                      <span className="trophy">🏆</span> {a.name} <span className="spacer" /> <span className="muted">{seasonLabel(a.season)}</span>
+                      <Trophy /> {a.name} <span className="spacer" /> <span className="muted">{seasonLabel(a.season)}</span>
                     </div>
                   ))
               ) : (

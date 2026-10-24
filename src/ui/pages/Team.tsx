@@ -2,11 +2,12 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useLeague } from "../store";
 import { coach, roster, seasonLabel, team } from "../../engine/core";
 import type { League, Player, PlayerSeasonStats, Team, TeamSeason } from "../../engine/types";
-import { classLabel, grade, heightStr, prestigeStars, prestigeTier, CLASS_LABELS } from "../../engine/ratings";
+import { classLabel, heightStr, prestigeStars, prestigeTier, CLASS_LABELS } from "../../engine/ratings";
 import { currentRank, rosterStrength } from "../../engine/rankings";
-import { Card, Empty, Grade, Logo, PlayerLink, SeasonSelect, Stars, Table, Tabs, type Col } from "../components/common";
+import { Card, Empty, Grade, heroStyle, Logo, PlayerLink, Pos, SeasonSelect, Stars, Table, Tabs, Tile, type Col } from "../components/common";
+import { Icon } from "../components/Icons";
 import { ScheduleTable } from "./Schedule";
-import { fetchPlayers, fetchSeason, f1, pct100, useAsync, textOn } from "../util";
+import { fetchPlayers, fetchSeason, f1, pct100, useAsync } from "../util";
 import { TOTAL_STATS, CAREER_EXTRA } from "../../engine/records";
 import { careerLine } from "../../engine/stats";
 
@@ -27,8 +28,8 @@ function SeasonRoster({ L, t, season }: { L: League; t: Team; season: number }) 
   const hist = (p: Player) => (cur ? p : p.hist.find((h) => h.season === season) ?? p);
   const pg = (r: RosterRow, f: (s: PlayerSeasonStats) => number) => (r.s && r.s.g ? f(r.s) / r.s.g : -1);
   const cols: Col<RosterRow>[] = [
-    { key: "name", label: "Player", render: (r) => <PlayerLink L={L} p={r.p} face size={28} colors={t.colors} />, sort: (r) => r.p.last },
-    { key: "pos", label: "Pos", render: (r) => r.p.pos },
+    { key: "name", label: "Player", render: (r) => <PlayerLink L={L} p={r.p} face size={30} colors={t.colors} />, sort: (r) => r.p.last },
+    { key: "pos", label: "Pos", render: (r) => <Pos p={r.p.pos} /> },
     { key: "cls", label: "Class", render: (r) => (cur ? classLabel(r.p) : r.s ? (r.s.rs ? "Redshirt" : CLASS_LABELS[Math.min(5, r.s.year)]) : "-"), sort: (r) => r.s?.year ?? r.p.eligUsed },
     { key: "ht", label: "Ht", render: (r) => heightStr(r.p.hgt), sort: (r) => r.p.hgt, num: true },
     { key: "ovr", label: "OVR", render: (r) => <Grade v={hist(r.p).ovr} />, sort: (r) => hist(r.p).ovr, num: true },
@@ -78,16 +79,9 @@ function TeamTotals({ L, t, season }: { L: League; t: Team; season: number }) {
     ["3PA / game", f1(data.tpa / g)],
   ];
   return (
-    <div className="grid g4">
+    <div className="tiles g4" style={{ display: "grid" }}>
       {items.map(([k, v]) => (
-        <div key={k} className="card card-b">
-          <div className="tiny muted bold" style={{ textTransform: "uppercase" }}>
-            {k}
-          </div>
-          <div style={{ fontSize: 22, fontWeight: 750 }} className="num">
-            {v}
-          </div>
-        </div>
+        <Tile key={k} label={k} value={v} />
       ))}
     </div>
   );
@@ -130,51 +124,24 @@ function History({ L, t }: { L: League; t: Team }) {
   };
   return (
     <div className="col gap-16">
-      <div className="card">
-        <div className="stat-row">
-          <div className="stat">
-            <div className="label">All-time record</div>
-            <div className="value">
-              {wins}-{losses}
-            </div>
-          </div>
-          <div className="stat">
-            <div className="label">National titles</div>
-            <div className="value">{titles.length}</div>
-          </div>
-          <div className="stat">
-            <div className="label">Final Fours</div>
-            <div className="value">{ff.length}</div>
-          </div>
-          <div className="stat">
-            <div className="label">NCAA bids</div>
-            <div className="value">{ncaa.length}</div>
-          </div>
-          <div className="stat">
-            <div className="label">Conf. titles</div>
-            <div className="value">
-              {confReg.length}
-              <small>+{confT.length} tourney</small>
-            </div>
-          </div>
-          <div className="stat">
-            <div className="label">NBA draftees</div>
-            <div className="value">{draftees.length}</div>
-          </div>
-        </div>
+      <div className="tiles g6" style={{ display: "grid" }}>
+        <Tile label="All-time record" icon="history" value={`${wins}-${losses}`} />
+        <Tile label="National titles" icon="awards" value={titles.length} />
+        <Tile label="Final Fours" icon="star" value={ff.length} />
+        <Tile label="NCAA bids" icon="bracket" value={ncaa.length} />
+        <Tile label="Conference titles" icon="crown" value={<>{confReg.length}<small>+{confT.length} tourney</small></>} />
+        <Tile label="NBA draftees" icon="draft" value={draftees.length} />
       </div>
       {(titles.length > 0 || ff.length > 0) && (
-        <div className="row-wrap">
+        <div className="rafters">
           {ff
             .slice()
             .reverse()
             .map((s) => (
-              <div key={s.season} className="card card-b center" style={{ background: t.colors[0], color: textOn(t.colors[0]), minWidth: 120 }}>
-                <div style={{ fontSize: 22 }}>{s.post!.result === "Champion" ? "🏆" : "🏀"}</div>
-                <div className="bold">{s.post!.result === "Champion" ? "National Champions" : s.post!.result === "Runner-up" ? "National Runner-up" : "Final Four"}</div>
-                <div className="small" style={{ opacity: 0.85 }}>
-                  {seasonLabel(s.season)}
-                </div>
+              <div key={s.season} className={`rafter${s.post!.result === "Champion" ? " champ" : ""}`} style={heroStyle(t.colors)}>
+                <Icon name={s.post!.result === "Champion" ? "awards" : "ball"} size={22} />
+                <div className="rafter-t">{s.post!.result === "Champion" ? "National Champions" : s.post!.result === "Runner-up" ? "National Runner-up" : "Final Four"}</div>
+                <div className="rafter-y">{s.season + 1}</div>
               </div>
             ))}
         </div>
@@ -314,59 +281,71 @@ export function TeamPage() {
   const c = coach(L, ts.coachId) ?? coach(L, t.coachId);
   const rank = season === L.season ? currentRank(L, t.id) : ts.apFinal;
   const { data: games } = useAsync(async () => (season === L.season ? L.games : (await fetchSeason(L, season))?.games ?? []), [season, L.season, L.games.length, L.day]);
-  const fg = textOn(t.colors[0]);
   return (
     <div className="col gap-16">
-      <div className="card" style={{ overflow: "hidden" }}>
-        <div style={{ background: t.colors[0], color: fg, padding: "18px 20px", display: "flex", gap: 18, alignItems: "center" }}>
-          <Logo team={t} size={76} />
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-0.02em" }}>
-              {rank ? <span style={{ opacity: 0.8 }}>#{rank} </span> : null}
-              {t.name} {t.mascot}
+      <div className="hero-banner" style={heroStyle(t.colors)}>
+        <div className="hero-inner">
+          <Logo team={t} size={104} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="hero-kicker">
+              {L.conferences[t.cid].name} · {t.city}, {t.state}
             </div>
-            <div style={{ opacity: 0.85 }}>
-              {L.conferences[t.cid].name} · {t.city}, {t.state} · Coach {c ? `${c.first} ${c.last}` : "vacant"}
-              {t.id === L.userTid ? " (you)" : ""}
+            <div className="hero-title" style={{ marginTop: 6 }}>
+              {rank ? <span style={{ opacity: 0.75 }}>#{rank} </span> : null}
+              {t.name}
+              <br />
+              <span style={{ opacity: 0.85 }}>{t.mascot}</span>
+            </div>
+            <div className="row-wrap" style={{ marginTop: 12, gap: 8 }}>
+              <span className="chip-light">
+                <Stars n={prestigeStars(t.prestige)} /> {prestigeTier(t.prestige)}
+              </span>
+              <span className="chip-light">
+                <Icon name="coach" size={13} /> Coach {c ? `${c.first} ${c.last}` : "vacant"}
+                {t.id === L.userTid ? " (you)" : ""}
+              </span>
             </div>
           </div>
           <div className="right">
-            <div style={{ fontSize: 28, fontWeight: 800 }}>
+            <div className="hero-kicker">{seasonLabel(season)}</div>
+            <div className="hero-title" style={{ fontSize: 64 }}>
               {ts.w}-{ts.l}
             </div>
             <div style={{ opacity: 0.85 }}>
-              {ts.cw}-{ts.cl} conf · {seasonLabel(season)}
+              {ts.cw}-{ts.cl} in conference{ts.confRank ? ` · ${ts.confRank}${["th", "st", "nd", "rd"][ts.confRank % 10 > 3 || [11, 12, 13].includes(ts.confRank) ? 0 : ts.confRank % 10]} place` : ""}
             </div>
           </div>
         </div>
-        <div className="stat-row">
-          <div className="stat">
-            <div className="label">Prestige</div>
-            <div className="value" style={{ fontSize: 15, paddingTop: 4 }}>
-              <Stars n={prestigeStars(t.prestige)} /> <span className="small muted">{prestigeTier(t.prestige)}</span>
+        <div className="hero-stats">
+          <div>
+            <div className="label">Roster strength</div>
+            <div className="value" style={{ paddingTop: 2 }}>
+              <Grade v={rosterStrength(L, t.id)} />
             </div>
           </div>
-          <div className="stat">
-            <div className="label">Roster strength</div>
-            <div className="value">{grade(rosterStrength(L, t.id))}</div>
-          </div>
-          <div className="stat">
-            <div className="label">Power</div>
+          <div>
+            <div className="label">Power rating</div>
             <div className="value">{(season === L.season ? L.power[t.id]?.power : ts.power)?.toFixed(1) ?? "-"}</div>
           </div>
-          <div className="stat">
+          <div>
+            <div className="label">Prestige</div>
+            <div className="value">{t.prestige.toFixed(0)}</div>
+          </div>
+          <div>
             <div className="label">Facilities</div>
-            <div className="value">{grade(t.facilities)}</div>
+            <div className="value" style={{ paddingTop: 2 }}>
+              <Grade v={t.facilities} />
+            </div>
           </div>
           {L.settings.nil && (
-            <div className="stat">
+            <div>
               <div className="label">NIL budget</div>
               <div className="value">${(t.nilBudget / 1000).toFixed(1)}M</div>
             </div>
           )}
-          <div className="stat">
+          <div>
             <div className="label">Postseason</div>
-            <div className="value" style={{ fontSize: 14, paddingTop: 6 }}>
+            <div className="value" style={{ fontSize: 15, paddingTop: 5 }}>
               {resultText(ts) || "-"}
             </div>
           </div>

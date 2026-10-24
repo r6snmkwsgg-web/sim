@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useLeague } from "../store";
 import { Logo } from "./common";
+import { Icon } from "./Icons";
 import { team } from "../../engine/core";
 
 interface Hit {
@@ -62,10 +63,14 @@ export function GlobalSearch() {
   };
   return (
     <div ref={ref} style={{ position: "relative" }}>
+      <span className="search-ic">
+        <Icon name="search" size={14} />
+      </span>
+      <kbd className="search-kbd">/</kbd>
       <input
         ref={inputRef}
-        className="input"
-        placeholder="Search teams & players  ( / )"
+        className="input search-glass"
+        placeholder="Search teams & players"
         value={q}
         onChange={(e) => {
           setQ(e.target.value);
@@ -82,10 +87,10 @@ export function GlobalSearch() {
             (e.target as HTMLInputElement).blur();
           }
         }}
-        style={{ width: 260, background: "rgba(255,255,255,0.95)", color: "#111827", border: "none" }}
+
       />
       {open && hits.length > 0 && (
-        <div className="menu" style={{ left: 0, right: "auto", width: 340 }}>
+        <div className="menu" style={{ left: 0, right: "auto", width: 360 }}>
           {hits.map((h, i) => (
             <button key={h.key} className="menu-item row" style={{ background: i === sel ? "var(--panel-3)" : undefined }} onMouseEnter={() => setSel(i)} onClick={() => go(h)}>
               {h.tid !== undefined && h.tid !== null ? <Logo team={team(L, h.tid)} size={22} /> : <span style={{ width: 22 }} />}

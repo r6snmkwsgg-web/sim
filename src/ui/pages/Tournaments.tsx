@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useLeague } from "../store";
+import { Icon } from "../components/Icons";
 import { team } from "../../engine/core";
 import type { Bracket, Game } from "../../engine/types";
-import { Card, Empty, Logo, PageHead, SeasonSelect, Seg, TeamLink } from "../components/common";
+import { Card, Empty, Logo, PageHead, SeasonSelect, Seg, heroStyle } from "../components/common";
 import { BracketView, GameBox } from "../components/Bracket";
 import { fetchSeason, useAsync } from "../util";
 import { REGION_NAMES } from "../../engine/postseason";
@@ -20,8 +21,10 @@ export function Tournaments() {
   const brackets = data?.brackets ?? [];
   const games = useMemo(() => new Map<number, Game>((data?.games ?? []).map((g) => [g.id, g])), [data]);
   const hasNational = brackets.some((b) => b.key === "ncaa");
-  const [kind, setKind] = useState<string>(hasNational ? "ncaa" : "conf");
-  const k = kind === "ncaa" && !hasNational ? "conf" : kind;
+  // follow the national bracket by default once it exists
+  const [kind, setKind] = useState<string | null>(null);
+  const want = kind ?? (hasNational ? "ncaa" : "conf");
+  const k = want !== "conf" && !brackets.some((b) => b.key === want) ? "conf" : want;
   const ut = team(L, L.userTid);
   const [conf, setConf] = useState<number>(ut.cid);
   const [region, setRegion] = useState<number>(-1);
@@ -67,13 +70,19 @@ export function Tournaments() {
       ) : br.key === "ncaa" ? (
         <div className="col gap-16">
           {br.champion !== null && (
-            <div className="card card-b row" style={{ gap: 14 }}>
-              <span style={{ fontSize: 30 }}>🏆</span>
-              <Logo team={team(L, br.champion)} size={44} />
-              <div>
-                <div className="tiny muted bold">NATIONAL CHAMPION</div>
-                <div style={{ fontSize: 20, fontWeight: 800 }}>
-                  <TeamLink L={L} tid={br.champion} logo={false} season={season} />
+            <div className="hero-banner" style={heroStyle(team(L, br.champion).colors)}>
+              <div className="hero-inner" style={{ padding: "18px 24px" }}>
+                <span className="trophy-big" style={{ width: 62, height: 62 }}>
+                  <Icon name="awards" size={32} />
+                </span>
+                <Logo team={team(L, br.champion)} size={64} />
+                <div>
+                  <div className="hero-kicker">National champion</div>
+                  <div className="hero-title" style={{ fontSize: 34, marginTop: 4 }}>
+                    <Link to={`/l/${L.id}/team/${br.champion}?season=${season}`}>
+                      {team(L, br.champion).name} {team(L, br.champion).mascot}
+                    </Link>
+                  </div>
                 </div>
               </div>
             </div>

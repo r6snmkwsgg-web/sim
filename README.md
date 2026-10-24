@@ -28,6 +28,11 @@ Tips: press `/` or `Ctrl+K` to search for any team or player. If you'd rather no
 
 ## What's in it
 
+**Look and feel**
+- Dark theme by default (light theme in Settings), with the whole interface painted in your program's colors
+- Generated badges for all 365 schools, cartoon players, player cards, scoreboards and rafter banners for titles and Final Fours
+- Fonts are bundled, so it looks the same on every computer and works offline
+
 **Your program**
 - All 365 D1 teams in their 2026-27 conferences (including the rebuilt Pac-12), with school colors and monogram badges
 - Rosters of generated players with 15 ratings, archetypes, cartoon faces ([facesjs](https://github.com/zengm-games/facesjs)), hometowns, work ethic and loyalty

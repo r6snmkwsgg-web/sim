@@ -3,7 +3,8 @@ import { Link, useSearchParams } from "react-router-dom";
 import { useLeague } from "../store";
 import { team } from "../../engine/core";
 import type { League, Player, PlayerSeasonStats } from "../../engine/types";
-import { Card, Empty, PageHead, PlayerLink, SeasonSelect, Table, Tabs, TeamLink, type Col } from "../components/common";
+import { Card, Empty, heroStyle, Logo, PageHead, PlayerLink, SeasonSelect, Table, Tabs, TeamLink, type Col } from "../components/common";
+import { Face } from "../components/Face";
 import { f1, pct100, useAsync } from "../util";
 import { getAllArchivedPlayers } from "../db";
 
@@ -45,16 +46,32 @@ function Leaders({ L, rows }: { L: League; rows: Row[] }) {
         const top = elig.sort((a, b) => ld.f(b.s) - ld.f(a.s)).slice(0, 10);
         return (
           <Card key={ld.key} title={ld.label} flush>
+            {top[0] && (
+              <Link to={`/l/${L.id}/player/${top[0].p.id}`} className="leader-top" style={heroStyle(team(L, top[0].s.tid).colors)}>
+                <Face seed={top[0].p.faceSeed} race={top[0].p.race} colors={team(L, top[0].s.tid).colors} size={58} ratio={1.1} frame={false} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="ellipsis" style={{ fontWeight: 750, fontSize: 15 }}>
+                    {top[0].p.first} {top[0].p.last}
+                  </div>
+                  <div className="row small" style={{ gap: 6, opacity: 0.85 }}>
+                    <Logo team={team(L, top[0].s.tid)} size={16} /> {team(L, top[0].s.tid).name}
+                  </div>
+                </div>
+                <div className="leader-top-v">{f1(ld.f(top[0].s))}</div>
+              </Link>
+            )}
             <table className="tbl compact">
               <tbody>
-                {top.map((r, i) => (
+                {top.slice(1).map((r, i) => (
                   <tr key={`${r.p.id}-${r.s.tid}`} className={r.s.tid === L.userTid ? "hl" : ""}>
-                    <td className="muted" style={{ width: 22 }}>
-                      {i + 1}
+                    <td className="rk" style={{ width: 22 }}>
+                      {i + 2}
                     </td>
                     <td>
-                      <PlayerLink L={L} p={r.p} />
-                      <div className="tiny muted">{team(L, r.s.tid).short}</div>
+                      <span className="team-cell">
+                        <Logo team={team(L, r.s.tid)} size={18} />
+                        <PlayerLink L={L} p={r.p} />
+                      </span>
                     </td>
                     <td className="n bold">{f1(ld.f(r.s))}</td>
                   </tr>

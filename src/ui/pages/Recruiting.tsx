@@ -2,8 +2,9 @@ import { useMemo, useState } from "react";
 import { useLeague } from "../store";
 import { team } from "../../engine/core";
 import { regionOf } from "../../engine/data/cities";
-import { OFFICIAL_VISITS, openSpots } from "../../engine/recruiting";
-import { Card, PageHead } from "../components/common";
+import { classRankings, commitsFor, OFFICIAL_VISITS, openSpots } from "../../engine/recruiting";
+import { Card, Meter, PageHead, Seg, Tile } from "../components/common";
+import { Icon } from "../components/Icons";
 import { RecruitTable } from "../components/RecruitTable";
 import type { Player } from "../../engine/types";
 
@@ -11,39 +12,32 @@ export function RecruitingSummary() {
   const L = useLeague();
   const ut = team(L, L.userTid);
   const offers = L.players.filter((p) => p.recruit && p.recruit.offers.includes(L.userTid) && p.recruit.stage !== "signed" && p.recruit.committedTo !== L.userTid).length;
+  const commits = commitsFor(L, ut.id).filter((p) => p.recruit?.kind === "hs");
+  const cr = classRankings(L).find((x) => x.tid === ut.id);
+  const pct = (100 * L.recruitPts) / Math.max(1, L.recruitPtsMax);
   return (
-    <div className="card mb-16">
+    <>
       {L.settings.autoRecruit && (
-        <div className="card-b small" style={{ borderBottom: "1px solid var(--border)", background: "var(--accent-soft)" }}>
-          <b>Auto recruiting is on:</b> your staff spends your points each week. Turn it off in Settings to recruit yourself.
+        <div className="callout mb-16 small">
+          <Icon name="bolt" size={18} />
+          <span>
+            <b>Auto recruiting is on.</b> Your staff spends your points each week. Turn it off in Settings to recruit yourself.
+          </span>
         </div>
       )}
-      <div className="stat-row">
-        <div className="stat">
-          <div className="label">Points this week</div>
-          <div className="value">
-            {L.recruitPts}
-            <small>/ {L.recruitPtsMax}</small>
+      <div className="tiles g5 mb-16" style={{ display: "grid" }}>
+        <Tile label="Points this week" icon="bolt" value={<>{L.recruitPts}<small>/ {L.recruitPtsMax}</small></>}>
+          <div style={{ marginTop: 7 }}>
+            <Meter value={pct} color="var(--accent-ink)" />
           </div>
-        </div>
-        <div className="stat">
-          <div className="label">Open spots next season</div>
-          <div className="value">{openSpots(L, ut.id)}</div>
-        </div>
-        <div className="stat">
-          <div className="label">Outstanding offers</div>
-          <div className="value">{offers}</div>
-        </div>
-        <div className="stat">
-          <div className="label">Official visits left</div>
-          <div className="value">{OFFICIAL_VISITS - ut.officialVisitsUsed}</div>
-        </div>
-        <div className="stat">
-          <div className="label">Recruiting week</div>
-          <div className="value">{L.week}</div>
-        </div>
+          <div className="foot">Resets every Monday</div>
+        </Tile>
+        <Tile label="Open spots" icon="roster" value={openSpots(L, ut.id)} foot="Next season, after departures" />
+        <Tile label="Your class" icon="star" value={<>{cr && cr.n > 0 ? `#${cr.rank}` : "-"}<small>{commits.length} commit{commits.length === 1 ? "" : "s"}</small></>} foot={commits.length ? commits.map((p) => `${p.recruit!.stars}★`).join(" ") : "No commitments yet"} />
+        <Tile label="Offers out" icon="check" value={offers} foot="Uncommitted players you've offered" />
+        <Tile label="Official visits" icon="plane" value={<>{OFFICIAL_VISITS - ut.officialVisitsUsed}<small>left</small></>} foot={`Recruiting week ${L.week}`} />
       </div>
-    </div>
+    </>
   );
 }
 
@@ -71,41 +65,36 @@ export function RecruitingBoard() {
   const cls = all[0]?.recruit?.classSeason;
   return (
     <div>
-      <PageHead title="Recruiting Board" sub={cls ? `Class of ${cls} · ${all.length} prospects` : "No recruiting class right now"} />
+      <PageHead eyebrow="Recruiting" title="Recruiting Board" sub={cls ? `Class of ${cls} · ${all.length} prospects` : "No recruiting class right now"} />
       <RecruitingSummary />
       <Card flush>
-        <div className="card-b row-wrap" style={{ borderBottom: "1px solid var(--border)" }}>
-          <input className="input" placeholder="Search name or hometown…" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 220 }} />
-          <select className="select" value={pos} onChange={(e) => setPos(e.target.value)}>
-            <option value="all">All positions</option>
-            {["PG", "SG", "SF", "PF", "C"].map((x) => (
-              <option key={x}>{x}</option>
-            ))}
-          </select>
-          <select className="select" value={stars} onChange={(e) => setStars(Number(e.target.value))}>
-            <option value={0}>Any stars</option>
-            {[5, 4, 3, 2].map((s) => (
-              <option key={s} value={s}>
-                {s}★{s < 5 ? "+" : ""}
-              </option>
-            ))}
-          </select>
+        <div className="filter-bar">
+          <div className="search-box">
+            <Icon name="search" size={14} />
+            <input className="input" placeholder="Search name or hometown" value={q} onChange={(e) => setQ(e.target.value)} />
+          </div>
+          <Seg options={[{ key: "all", label: "All" }, ...["PG", "SG", "SF", "PF", "C"].map((x) => ({ key: x, label: x }))]} value={pos} onChange={setPos} />
+          <Seg options={[{ key: 0, label: "Any ★" }, { key: 5, label: "5★" }, { key: 4, label: "4★+" }, { key: 3, label: "3★+" }]} value={stars} onChange={setStars} />
           <select className="select" value={region} onChange={(e) => setRegion(e.target.value)}>
             <option value="all">All regions</option>
             {regions.map((r) => (
               <option key={r}>{r}</option>
             ))}
           </select>
-          <select className="select" value={status} onChange={(e) => setStatus(e.target.value)}>
-            <option value="available">Available</option>
-            <option value="committed">Committed / signed</option>
-            <option value="all">Everyone</option>
-          </select>
-          <label className="check">
-            <input type="checkbox" checked={boardOnly} onChange={(e) => setBoardOnly(e.target.checked)} /> My board only
-          </label>
+          <Seg
+            options={[
+              { key: "available", label: "Available" },
+              { key: "committed", label: "Committed" },
+              { key: "all", label: "Everyone" },
+            ]}
+            value={status}
+            onChange={setStatus}
+          />
+          <button className={`chip${boardOnly ? " on" : ""}`} onClick={() => setBoardOnly(!boardOnly)}>
+            <Icon name="star" size={12} /> My board
+          </button>
           <span className="spacer" />
-          <span className="muted small">{rows.length} shown · OVR*/POT* are your scouting estimates</span>
+          <span className="faint small">{rows.length} shown · OVR* and POT* are scouting estimates</span>
         </div>
         <RecruitTable L={L} rows={rows} kind="hs" showActions />
       </Card>

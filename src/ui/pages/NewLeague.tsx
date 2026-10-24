@@ -3,7 +3,9 @@ import { Link, useNavigate } from "react-router-dom";
 import { createLeague, DEFAULT_SETTINGS, teamCatalog } from "../../engine/league";
 import type { Settings } from "../../engine/types";
 import { prestigeTier, prestigeStars } from "../../engine/ratings";
-import { Logo, Stars } from "../components/common";
+import { heroStyle, Logo, Seg, Stars } from "../components/common";
+import { Icon } from "../components/Icons";
+import { expectations } from "../../engine/coaches";
 import { reindex } from "../../engine/core";
 import { save, setLeague } from "../store";
 
@@ -47,29 +49,31 @@ export function NewLeague() {
     const c = cat.teams.filter(filter);
     setSlug(c[Math.floor(Math.random() * c.length)].slug);
   };
+  const exp = expectations(selected.prestige);
+  const difficulty = selected.prestige >= 85 ? ["Defend a dynasty", "Expectations are sky-high"] : selected.prestige >= 65 ? ["Contender", "Win now, recruit elite players"] : selected.prestige >= 45 ? ["Mid-major climb", "Win your league, then move up"] : ["From nowhere to Blue Blood", "The hardest, most rewarding path"];
   return (
-    <div style={{ minHeight: "100vh", background: "var(--bg)" }}>
-      <div style={{ maxWidth: 1280, margin: "0 auto", padding: "28px 24px" }}>
-        <div className="row mb-16">
-          <Link to="/" className="btn btn-ghost">
+    <div className="home-wrap">
+      <div style={{ maxWidth: 1320, margin: "0 auto", padding: "26px 28px 40px", position: "relative" }}>
+        <div className="row mb-16" style={{ gap: 14 }}>
+          <Link to="/" className="ghost-light" style={{ height: 38, padding: "0 14px" }}>
             ‹ Back
           </Link>
-          <h1>New League</h1>
-        </div>
-        <div className="grid" style={{ gridTemplateColumns: "minmax(0, 1.5fr) minmax(0, 1fr)" }}>
-          <div className="card">
-            <div className="card-h">
-              <h2>Choose your program</h2>
-              <div className="spacer" />
-              <button className="btn btn-sm" onClick={() => pick((t) => t.prestige < 30)}>
-                Random low-major
-              </button>
-              <button className="btn btn-sm" onClick={() => pick(() => true)}>
-                Random program
-              </button>
+          <div>
+            <div className="hero-kicker" style={{ color: "#ffb547", opacity: 1 }}>
+              New league
             </div>
-            <div className="card-b row-wrap" style={{ borderBottom: "1px solid var(--border)" }}>
-              <input className="input" placeholder="Search programs…" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 220 }} />
+            <div className="home-title" style={{ fontSize: 40 }}>
+              Choose your program
+            </div>
+          </div>
+        </div>
+        <div className="grid" style={{ gridTemplateColumns: "minmax(0, 1.45fr) minmax(0, 1fr)", alignItems: "start" }}>
+          <div className="card">
+            <div className="filter-bar">
+              <div className="search-box">
+                <Icon name="search" size={14} />
+                <input className="input" placeholder="Search programs…" value={q} onChange={(e) => setQ(e.target.value)} />
+              </div>
               <select className="select" value={conf} onChange={(e) => setConf(e.target.value)}>
                 <option value="all">All conferences</option>
                 {cat.conferences.map((c) => (
@@ -78,17 +82,27 @@ export function NewLeague() {
                   </option>
                 ))}
               </select>
-              <select className="select" value={sort} onChange={(e) => setSort(e.target.value as "prestige" | "name")}>
-                <option value="prestige">Sort by prestige</option>
-                <option value="name">Sort by name</option>
-              </select>
-              <span className="muted small">{list.length} programs</span>
+              <Seg
+                options={[
+                  { key: "prestige", label: "By prestige" },
+                  { key: "name", label: "A-Z" },
+                ]}
+                value={sort}
+                onChange={setSort}
+              />
+              <span className="spacer" />
+              <button className="btn btn-sm" onClick={() => pick((t) => t.prestige < 30)}>
+                <Icon name="bolt" size={13} /> Random low-major
+              </button>
+              <button className="btn btn-sm" onClick={() => pick(() => true)}>
+                Random
+              </button>
             </div>
-            <div style={{ maxHeight: "62vh", overflowY: "auto" }}>
+            <div style={{ maxHeight: "calc(100vh - 210px)", minHeight: 420, overflowY: "auto" }}>
               <table className="tbl">
                 <thead>
                   <tr>
-                    <th>Program</th>
+                    <th>Program ({list.length})</th>
                     <th>Conference</th>
                     <th>Prestige</th>
                     <th>Tier</th>
@@ -99,15 +113,17 @@ export function NewLeague() {
                     <tr key={t.slug} className={`clickable ${t.slug === slug ? "hl" : ""}`} onClick={() => setSlug(t.slug)}>
                       <td>
                         <span className="team-cell">
-                          <Logo team={t} size={24} />
+                          <Logo team={t} size={28} />
                           <b>{t.name}</b> <span className="muted">{t.mascot}</span>
                         </span>
                       </td>
-                      <td>{confName(t.conf)}</td>
+                      <td className="muted">{confName(t.conf)}</td>
                       <td>
                         <Stars n={prestigeStars(t.prestige)} />
                       </td>
-                      <td className="muted">{prestigeTier(t.prestige)}</td>
+                      <td>
+                        <span className="badge">{prestigeTier(t.prestige)}</span>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -115,27 +131,40 @@ export function NewLeague() {
             </div>
           </div>
           <div className="col gap-16">
-            <div className="card" style={{ overflow: "hidden" }}>
-              <div style={{ background: selected.colors[0], padding: 20, display: "flex", gap: 16, alignItems: "center" }}>
-                <Logo team={selected} size={72} />
-                <div style={{ color: luminance(selected.colors[0]) > 0.45 ? "#111" : "#fff" }}>
-                  <div style={{ fontSize: 24, fontWeight: 800, letterSpacing: "-0.02em" }}>{selected.name}</div>
-                  <div style={{ opacity: 0.85 }}>
+            <div className="hero-banner" style={heroStyle(selected.colors)}>
+              <div className="hero-inner" style={{ gap: 18 }}>
+                <Logo team={selected} size={96} />
+                <div style={{ minWidth: 0 }}>
+                  <div className="hero-kicker">{cat.conferences.find((c) => c.slug === selected.conf)?.name}</div>
+                  <div className="hero-title" style={{ fontSize: 38, marginTop: 4 }}>
+                    {selected.name}
+                  </div>
+                  <div className="hero-sub">
                     {selected.mascot} · {selected.city}, {selected.state}
+                  </div>
+                  <div className="row-wrap" style={{ marginTop: 10, gap: 8 }}>
+                    <span className="chip-light">
+                      <Stars n={prestigeStars(selected.prestige)} /> {prestigeTier(selected.prestige)}
+                    </span>
                   </div>
                 </div>
               </div>
-              <div className="card-b">
-                <dl className="kv">
-                  <dt>Conference</dt>
-                  <dd>{cat.conferences.find((c) => c.slug === selected.conf)?.name}</dd>
-                  <dt>Prestige</dt>
-                  <dd>
-                    <Stars n={prestigeStars(selected.prestige)} /> <span className="muted">({prestigeTier(selected.prestige)})</span>
-                  </dd>
-                  <dt>Challenge</dt>
-                  <dd>{selected.prestige >= 85 ? "Defend a dynasty" : selected.prestige >= 65 ? "Contender rebuild" : selected.prestige >= 45 ? "Mid-major climb" : "From no-name to Blue Blood"}</dd>
-                </dl>
+              <div className="hero-stats">
+                <div>
+                  <div className="label">The job</div>
+                  <div className="value" style={{ fontSize: 16 }}>
+                    {difficulty[0]}
+                  </div>
+                  <div className="small" style={{ opacity: 0.75 }}>
+                    {difficulty[1]}
+                  </div>
+                </div>
+                <div>
+                  <div className="label">Year-one goal</div>
+                  <div className="value" style={{ fontSize: 16 }}>
+                    {exp.goal}
+                  </div>
+                </div>
               </div>
             </div>
             <div className="card">
@@ -152,31 +181,32 @@ export function NewLeague() {
                     <label>Last name</label>
                     <input className="input" value={last} onChange={(e) => setLast(e.target.value)} />
                   </div>
+                  <div className="field" style={{ flex: 1.3 }}>
+                    <label>League name</label>
+                    <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
+                  </div>
                 </div>
-                <div className="field">
-                  <label>League name</label>
-                  <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
+                <div className="grid g2" style={{ gap: 10 }}>
+                  <label className="check">
+                    <input type="checkbox" checked={settings.portal} onChange={(e) => set("portal", e.target.checked)} /> Transfer portal
+                  </label>
+                  <label className="check">
+                    <input type="checkbox" checked={settings.nil} onChange={(e) => set("nil", e.target.checked)} /> NIL deals
+                  </label>
+                  <label className="check">
+                    <input type="checkbox" checked={settings.canBeFired} onChange={(e) => set("canBeFired", e.target.checked)} /> You can be fired
+                  </label>
+                  <label className="check">
+                    <input type="checkbox" checked={settings.injuries} onChange={(e) => set("injuries", e.target.checked)} /> Injuries
+                  </label>
                 </div>
-                <div className="divider" />
-                <label className="check">
-                  <input type="checkbox" checked={settings.portal} onChange={(e) => set("portal", e.target.checked)} /> Transfer portal
-                </label>
-                <label className="check">
-                  <input type="checkbox" checked={settings.nil} onChange={(e) => set("nil", e.target.checked)} /> NIL deals in recruiting
-                </label>
-                <label className="check">
-                  <input type="checkbox" checked={settings.canBeFired} onChange={(e) => set("canBeFired", e.target.checked)} /> You can be fired
-                </label>
-                <label className="check">
-                  <input type="checkbox" checked={settings.injuries} onChange={(e) => set("injuries", e.target.checked)} /> Injuries
-                </label>
                 <div className="row">
                   <div className="field" style={{ flex: 1 }}>
                     <label>NCAA field</label>
                     <select className="select" value={settings.bracketSize} onChange={(e) => set("bracketSize", Number(e.target.value) as Settings["bracketSize"])}>
                       <option value={64}>64 teams</option>
-                      <option value={68}>68 teams (First Four)</option>
-                      <option value={76}>76 teams (expanded)</option>
+                      <option value={68}>68 (First Four)</option>
+                      <option value={76}>76 (expanded)</option>
                     </select>
                   </div>
                   <div className="field" style={{ flex: 1 }}>
@@ -195,7 +225,7 @@ export function NewLeague() {
                     </select>
                   </div>
                 </div>
-                <button className="btn btn-dark btn-lg mt-8" disabled={creating} onClick={create}>
+                <button className="cta mt-8" style={{ justifyContent: "center", width: "100%" }} disabled={creating} onClick={create}>
                   {creating ? "Building 365 programs…" : `Take the ${selected.name} job`}
                 </button>
               </div>
@@ -205,9 +235,4 @@ export function NewLeague() {
       </div>
     </div>
   );
-}
-
-function luminance(h: string): number {
-  const x = h.replace("#", "");
-  return (0.2126 * parseInt(x.slice(0, 2), 16) + 0.7152 * parseInt(x.slice(2, 4), 16) + 0.0722 * parseInt(x.slice(4, 6), 16)) / 255;
 }

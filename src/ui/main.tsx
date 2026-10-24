@@ -1,13 +1,13 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
+import "./fonts.css";
 import "./styles.css";
 
 try {
-  const theme = localStorage.getItem("hd-theme");
-  if (theme) document.documentElement.dataset.theme = theme;
+  document.documentElement.dataset.theme = localStorage.getItem("hd-theme") ?? "dark";
 } catch {
-  // storage unavailable
+  document.documentElement.dataset.theme = "dark";
 }
 
 createRoot(document.getElementById("root")!).render(

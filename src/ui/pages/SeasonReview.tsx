@@ -2,12 +2,14 @@ import { Link } from "react-router-dom";
 import { useLeague } from "../store";
 import { seasonLabel, team } from "../../engine/core";
 import { prestigeTier } from "../../engine/ratings";
-import { Card, Empty, Logo, PageHead, TeamLink } from "../components/common";
-import { signed } from "../util";
+import { Card, Empty, heroStyle, Logo, PageHead, TeamLink, Trophy } from "../components/common";
+import { Icon } from "../components/Icons";
+import { fetchSeason, signed, useAsync } from "../util";
 
 export function SeasonReview() {
   const L = useLeague();
   const h = L.history[L.history.length - 1];
+  const { data: archived } = useAsync(async () => (h && h.season !== L.season ? (await fetchSeason(L, h.season))?.polls : undefined), [h?.season, L.season]);
   if (!h) return <Empty>The season review appears after the national championship.</Empty>;
   const ut = team(L, h.userTid);
   const s = ut.seasons.find((x) => x.season === h.season)!;
@@ -15,22 +17,25 @@ export function SeasonReview() {
   const aw = L.awards.find((a) => a.season === h.season);
   const myAwards = aw ? [...aw.national, ...aw.allAmerica.flat(), ...Object.values(aw.conf).flatMap((c) => [...c.awards, ...c.teams.flat()])].filter((a) => a.tid === ut.id) : [];
   const champ = h.champion !== null ? team(L, h.champion) : null;
-  const finalPoll = L.polls.find((p) => p.label === "Final") ?? L.polls[L.polls.length - 1];
+  const polls = archived ?? L.polls;
+  const finalPoll = polls.find((p) => p.label === "Final") ?? polls[polls.length - 1];
   return (
     <div className="col gap-16">
-      <PageHead title={`${seasonLabel(h.season)} Season Review`} />
+      <PageHead eyebrow={seasonLabel(h.season)} title="Season Review" />
       {champ && (
-        <div className="card" style={{ overflow: "hidden" }}>
-          <div style={{ background: champ.colors[0], padding: 24, display: "flex", gap: 20, alignItems: "center", color: "#fff" }}>
-            <span style={{ fontSize: 52 }}>🏆</span>
-            <Logo team={champ} size={84} />
-            <div>
-              <div style={{ fontSize: 13, letterSpacing: "0.1em", fontWeight: 700, opacity: 0.85 }}>NATIONAL CHAMPIONS</div>
-              <div style={{ fontSize: 34, fontWeight: 850, letterSpacing: "-0.02em" }}>
+        <div className="hero-banner champ-banner" style={heroStyle(champ.colors)}>
+          <div className="hero-inner" style={{ padding: "28px 30px" }}>
+            <span className="trophy-big">
+              <Icon name="awards" size={46} />
+            </span>
+            <Logo team={champ} size={96} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="hero-kicker">{seasonLabel(h.season)} national champions</div>
+              <div className="hero-title" style={{ marginTop: 6 }}>
                 {champ.name} {champ.mascot}
               </div>
-              <div style={{ opacity: 0.85 }}>
-                Defeated {h.runnerUp !== null ? team(L, h.runnerUp).name : "?"} in the final{h.mop ? ` · MOP: ${h.mop.playerName}` : ""}
+              <div className="hero-sub">
+                Defeated {h.runnerUp !== null ? team(L, h.runnerUp).name : "?"} in the final{h.mop ? ` · Most Outstanding Player: ${h.mop.playerName}` : ""}
               </div>
             </div>
           </div>
@@ -80,7 +85,7 @@ export function SeasonReview() {
               <div className="bold mb-8">Honors</div>
               {myAwards.map((a, i) => (
                 <div key={i} className="row small">
-                  <span className="trophy">🏆</span>
+                  <Trophy />
                   <Link to={`/l/${L.id}/player/${a.pid}`}>{a.playerName}</Link>
                   <span className="muted">{a.name}</span>
                 </div>

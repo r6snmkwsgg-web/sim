@@ -1,0 +1,30 @@
+/* Bundled fonts (latin subset only) so the game looks the same on every
+   computer and works offline. */
+@font-face {
+  font-family: "Inter Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("../../node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2") format("woff2-variations");
+}
+@font-face {
+  font-family: "Barlow Condensed";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 600;
+  src: url("../../node_modules/@fontsource/barlow-condensed/files/barlow-condensed-latin-600-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Barlow Condensed";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 700;
+  src: url("../../node_modules/@fontsource/barlow-condensed/files/barlow-condensed-latin-700-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Barlow Condensed";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 800;
+  src: url("../../node_modules/@fontsource/barlow-condensed/files/barlow-condensed-latin-800-normal.woff2") format("woff2");
+}

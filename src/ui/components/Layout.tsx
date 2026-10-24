@@ -4,7 +4,7 @@ import { useLeague, useSim, runSim, stopSim, type SimTarget } from "../store";
 import { currentDateLabel, PHASE_LABEL, seasonLabel, team } from "../../engine/core";
 import { currentRank } from "../../engine/rankings";
 import { curSeason } from "../../engine/play";
-import { accentFor, textOn } from "../util";
+import { heroColors, inkOn } from "../util";
 import { Icon } from "./Icons";
 import { Logo } from "./common";
 import { GlobalSearch } from "./Search";
@@ -122,7 +122,9 @@ function PlayMenu() {
   return (
     <div ref={ref} style={{ position: "relative", display: "flex" }}>
       <button className="play-btn" disabled={sim.running} onClick={() => go(main)}>
-        <Icon name="play" />
+        <span className="ic">
+          <Icon name="play" />
+        </span>
         {main.label}
       </button>
       <button className="play-btn play-more" disabled={sim.running} onClick={() => setOpen(!open)} aria-label="More sim options">
@@ -159,8 +161,8 @@ function SimOverlay() {
     <div className="sim-overlay">
       <div className="spinner" />
       <div style={{ flex: 1 }}>
-        <div className="bold">Simulating</div>
-        <div className="small" style={{ opacity: 0.8 }}>
+        <div className="bold">Simulating…</div>
+        <div className="small" style={{ opacity: 0.7 }}>
           {sim.label}
         </div>
       </div>
@@ -171,18 +173,27 @@ function SimOverlay() {
   );
 }
 
+const TOAST_MS = 8000;
+
 function ResultToast() {
   const L = useLeague();
   const sim = useSim();
   const [shown, setShown] = useState<number | null>(null);
   const gid = sim.lastResult?.gid ?? null;
+  const seen = useRef<number | null>(gid);
+  // pop up once per new result, not again on later sims or phase changes
   useEffect(() => {
-    if (gid !== null) {
+    if (sim.running) setShown(null);
+    else if (gid !== null && seen.current !== gid) {
+      seen.current = gid;
       setShown(gid);
-      const t = setTimeout(() => setShown(null), 9000);
-      return () => clearTimeout(t);
     }
   }, [gid, sim.running]);
+  useEffect(() => {
+    if (shown === null) return;
+    const t = setTimeout(() => setShown(null), TOAST_MS);
+    return () => clearTimeout(t);
+  }, [shown]);
   if (shown === null || sim.running) return null;
   const g = L.games.find((x) => x.id === shown);
   if (!g) return null;
@@ -192,29 +203,30 @@ function ResultToast() {
   const opp = team(L, userHome ? g.away : g.home);
   const won = us > them;
   return (
-    <div className="toast">
-      <div className="row">
-        <Logo team={opp} size={30} />
-        <div style={{ flex: 1 }}>
-          <div className={won ? "good bold" : "bad bold"} style={{ fontSize: 16 }}>
-            {won ? "Win" : "Loss"} {us}-{them}
-            {g.ot ? ` (${g.ot > 1 ? g.ot : ""}OT)` : ""}
+    <div className="toast" key={shown} style={{ ["--toast-c" as string]: won ? "var(--ga)" : "var(--gf)", ["--toast-ms" as string]: `${TOAST_MS}ms` }}>
+      <div className="row" style={{ gap: 12 }}>
+        <Logo team={opp} size={34} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div className={`result ${won ? "good" : "bad"}`}>
+            {won ? "W" : "L"} {us}-{them}
+            {g.ot ? <span style={{ fontSize: 15, marginLeft: 4 }}>{g.ot > 1 ? `${g.ot}OT` : "OT"}</span> : null}
           </div>
-          <div className="small muted">
+          <div className="small muted ellipsis">
             {g.neutral ? "vs" : userHome ? "vs" : "at"} {opp.name}
             {g.event ? ` · ${g.event}` : ""}
           </div>
         </div>
         <Link className="btn btn-sm" to={`/l/${L.id}/game/${g.id}?watch=1`} onClick={() => setShown(null)}>
-          ▶ Watch
+          <Icon name="play" size={11} /> Watch
         </Link>
-        <Link className="btn btn-sm" to={`/l/${L.id}/game/${g.id}`} onClick={() => setShown(null)}>
+        <Link className="btn btn-sm btn-primary" to={`/l/${L.id}/game/${g.id}`} onClick={() => setShown(null)}>
           Box Score
         </Link>
-        <button className="btn btn-ghost btn-sm" onClick={() => setShown(null)}>
-          ✕
+        <button className="btn btn-ghost btn-sm" onClick={() => setShown(null)} aria-label="Dismiss">
+          <Icon name="x" size={13} />
         </button>
       </div>
+      <div className="toast-timer" />
     </div>
   );
 }
@@ -269,26 +281,31 @@ export function Layout({ children }: { children: ReactNode }) {
   const L = useLeague();
   const t = team(L, L.userTid);
   const s = curSeason(t);
-  const accent = accentFor(t.colors);
   const rank = currentRank(L, t.id);
   const unread = L.news.filter((n) => n.user && !n.read).length;
   useEffect(() => {
     const root = document.documentElement;
-    root.style.setProperty("--accent", accent);
-    root.style.setProperty("--accent-text", textOn(accent));
-    root.style.setProperty("--accent-soft", `${accent}1f`);
-    root.style.setProperty("--accent-bright", t.colors[0] === accent ? "#ffffff" : t.colors[0]);
+    const h = heroColors(t.colors);
+    root.style.setProperty("--accent", h.h1);
+    root.style.setProperty("--accent-text", "#ffffff");
+    root.style.setProperty("--team1", t.colors[0]);
+    root.style.setProperty("--team2", h.h2);
+    root.style.setProperty("--team-dark", h.hd);
+    root.style.setProperty("--accent-ink-d", inkOn(t.colors[0], "#111723"));
+    root.style.setProperty("--accent-ink-l", inkOn(t.colors[0], "#ffffff", 4));
     document.title = `${t.name} · Hardwood Dynasty`;
-  }, [accent, t]);
+  }, [t]);
   const badges: Record<string, number> = { inbox: unread, coach: L.jobOffers.length };
   return (
     <div className="app">
       <aside className="sidebar">
-        <Link to="/" className="brand" style={{ textDecoration: "none" }}>
-          <Icon name="crown" size={22} />
-          <div>
-            Hardwood Dynasty
-            <small>{L.name}</small>
+        <Link to="/" className="brand">
+          <span className="brand-mark">
+            <Icon name="crown" size={19} />
+          </span>
+          <div style={{ minWidth: 0 }}>
+            <div className="brand-name">Hardwood Dynasty</div>
+            <small className="ellipsis">{L.name}</small>
           </div>
         </Link>
         {NAV.map((sec) => (
@@ -303,34 +320,38 @@ export function Layout({ children }: { children: ReactNode }) {
             ))}
           </div>
         ))}
-        <div className="nav-section">
-          <NavLink to={`/l/${L.id}/guide`} className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
-            <Icon name="ball" />
-            How to Play
-          </NavLink>
-          <NavLink to={`/l/${L.id}/settings`} className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
-            <Icon name="settings" />
-            Settings
-          </NavLink>
-          <Link to="/" className="nav-item">
-            <Icon name="exit" />
-            All Leagues
-          </Link>
-        </div>
         <div className="sidebar-foot">
-          {seasonLabel(L.season)} · {PHASE_LABEL[L.phase]}
+          <NavLink to={`/l/${L.id}/guide`} className={({ isActive }) => `side-icon${isActive ? " active" : ""}`} title="How to play">
+            <Icon name="ball" />
+          </NavLink>
+          <NavLink to={`/l/${L.id}/settings`} className={({ isActive }) => `side-icon${isActive ? " active" : ""}`} title="Settings">
+            <Icon name="settings" />
+          </NavLink>
+          <Link to="/" className="side-icon" title="All leagues">
+            <Icon name="exit" />
+          </Link>
+          <div className="side-phase">
+            {seasonLabel(L.season)}
+            <br />
+            {PHASE_LABEL[L.phase]}
+          </div>
         </div>
       </aside>
       <div className="main">
         <header className="topbar">
-          <Logo team={t} size={42} />
-          <div>
-            <div className="team-name">
-              {rank ? <span style={{ opacity: 0.8, fontWeight: 600 }}>#{rank} </span> : null}
+          <Link to={`/l/${L.id}/team/${t.id}`} style={{ display: "flex" }}>
+            <Logo team={t} size={44} />
+          </Link>
+          <div style={{ minWidth: 0 }}>
+            <div className="team-name ellipsis">
+              {rank ? <span className="rk">#{rank}</span> : null}
               {t.name} {t.mascot}
             </div>
             <div className="sub">
-              {s.w}-{s.l} ({s.cw}-{s.cl} {L.conferences[t.cid].short}) · {PHASE_LABEL[L.phase]}
+              <b>
+                {s.w}-{s.l}
+              </b>{" "}
+              · {s.cw}-{s.cl} {L.conferences[t.cid].short} · {PHASE_LABEL[L.phase]}
             </div>
           </div>
           <div className="spacer" />

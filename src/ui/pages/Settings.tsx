@@ -9,7 +9,7 @@ export function SettingsPage() {
   const L = useLeague();
   const nav = useNavigate();
   const [name, setName] = useState(L.name);
-  const [theme, setTheme] = useState<string>(() => document.documentElement.dataset.theme ?? "light");
+  const [theme, setTheme] = useState<string>(() => document.documentElement.dataset.theme ?? "dark");
   const [busy, setBusy] = useState(false);
   const set = <K extends keyof Settings>(k: K, v: Settings[K]) => mutate((LL) => void (LL.settings[k] = v));
   const applyTheme = (t: string) => {
@@ -39,11 +39,11 @@ export function SettingsPage() {
             <div className="field">
               <label>Theme</label>
               <div className="btn-group">
-                <button className={`btn ${theme === "light" ? "on" : ""}`} onClick={() => applyTheme("light")}>
-                  Light
-                </button>
                 <button className={`btn ${theme === "dark" ? "on" : ""}`} onClick={() => applyTheme("dark")}>
                   Dark
+                </button>
+                <button className={`btn ${theme === "light" ? "on" : ""}`} onClick={() => applyTheme("light")}>
+                  Light
                 </button>
               </div>
             </div>

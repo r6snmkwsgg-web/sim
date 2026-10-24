@@ -58,7 +58,7 @@ function renderSvg(face: FaceConfig, teamColors: [string, string, string]): stri
   return out;
 }
 
-export const Face = memo(function Face({ seed, race, colors, size = 40 }: { seed: number; race: Race; colors?: [string, string]; size?: number }) {
+export const Face = memo(function Face({ seed, race, colors, size = 40, round, frame = true, ratio = 1.05 }: { seed: number; race: Race; colors?: [string, string]; size?: number; round?: boolean; frame?: boolean; ratio?: number }) {
   const c = colors ?? ["#4b5563", "#e5e7eb"];
   const key = `${seed}:${race}:${c[0]}:${c[1]}`;
   let svg = svgCache.get(key);
@@ -67,5 +67,11 @@ export const Face = memo(function Face({ seed, race, colors, size = 40 }: { seed
     if (svgCache.size > 3000) svgCache.clear();
     svgCache.set(key, svg);
   }
-  return <div className="face" style={{ width: size, height: Math.round(size * 1.05) }} dangerouslySetInnerHTML={{ __html: svg }} />;
+  return (
+    <div
+      className={round ? "face round" : "face"}
+      style={{ width: size, height: round ? size : Math.round(size * ratio), ["--face-c" as string]: c[0], ...(frame ? null : { background: "none", border: "none" }) }}
+      dangerouslySetInnerHTML={{ __html: svg }}
+    />
+  );
 });

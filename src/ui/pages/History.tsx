@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { useLeague } from "../store";
 import { seasonLabel, team } from "../../engine/core";
-import { Card, Empty, Logo, PageHead, TeamLink } from "../components/common";
+import { Card, Empty, Logo, PageHead, TeamLink, Trophy } from "../components/common";
 
 export function LeagueHistory() {
   const L = useLeague();
@@ -45,7 +45,7 @@ export function LeagueHistory() {
                       </td>
                       <td>
                         <span className="row" style={{ gap: 6 }}>
-                          <span className="trophy">🏆</span>
+                          <Trophy />
                           <TeamLink L={L} tid={h.champion} size={20} season={h.season} />
                         </span>
                       </td>
@@ -91,7 +91,11 @@ export function LeagueHistory() {
                       <td>
                         <TeamLink L={L} tid={tid} size={20} />
                       </td>
-                      <td className="n bold">{n} 🏆</td>
+                      <td className="n bold">
+                        <span className="row" style={{ gap: 6, justifyContent: "flex-end" }}>
+                          {n} <Trophy size={11} />
+                        </span>
+                      </td>
                       <td className="n muted">{ffs.get(tid) ?? 0} FF</td>
                     </tr>
                   ))}
@@ -103,7 +107,7 @@ export function LeagueHistory() {
                 <div className="col gap-4">
                   {ach.map((a, i) => (
                     <div key={i} className="row">
-                      <span className="trophy">★</span>
+                      <Trophy size={11} />
                       <span style={{ flex: 1 }}>{a.name}</span>
                       <span className="muted small">{seasonLabel(a.season)}</span>
                     </div>

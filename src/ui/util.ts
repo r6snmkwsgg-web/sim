@@ -32,6 +32,31 @@ export function accentFor(colors: [string, string]): string {
   if (luminance(s) < 0.6) return s;
   return mix(p, "#000000", 0.45);
 }
+export function contrast(a: string, b: string): number {
+  const x = luminance(a);
+  const y = luminance(b);
+  return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+}
+/** Step a color toward white (or black) until it reads on the given surface. */
+export function inkOn(color: string, surface: string, min = 3.4): string {
+  const toward = luminance(surface) < 0.3 ? "#ffffff" : "#000000";
+  // a near-gray team color reads as gray text, so keep some saturation by starting from it
+  for (let t = 0; t <= 1; t += 0.05) {
+    const c = mix(color, toward, t);
+    if (contrast(c, surface) >= min) return c;
+  }
+  return toward;
+}
+/** Colors for a team's hero banners: a fill that holds white text and a darker shade. */
+export function heroColors(colors: [string, string]): { h1: string; hd: string; h2: string } {
+  const [p, s] = colors;
+  let h1 = p;
+  if (luminance(h1) > 0.32) h1 = luminance(s) < 0.32 ? s : mix(p, "#000000", 0.5);
+  while (contrast(h1, "#ffffff") < 3.6) h1 = mix(h1, "#000000", 0.12);
+  const hd = mix(h1, "#05070c", 0.62);
+  const h2 = h1 === p ? s : p;
+  return { h1, hd, h2 };
+}
 
 // ---------------- formatting ----------------
 export const f1 = (x: number) => (Number.isFinite(x) ? (Math.round(x * 10) / 10).toFixed(1) : "-");

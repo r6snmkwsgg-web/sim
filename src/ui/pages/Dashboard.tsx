@@ -1,15 +1,31 @@
 import { Link } from "react-router-dom";
 import { useLeague } from "../store";
-import { coach, roster, seasonLabel, shortDayLabel, team } from "../../engine/core";
+import { coach, roster, seasonLabel, shortDayLabel, team, PHASE_LABEL } from "../../engine/core";
 import { curSeason } from "../../engine/play";
 import { expectations } from "../../engine/coaches";
 import { currentPoll, currentRank, powerRanks } from "../../engine/rankings";
 import { prestigeStars, prestigeTier } from "../../engine/ratings";
 import { classRankings, commitsFor, openSpots } from "../../engine/recruiting";
-import { Card, Logo, Meter, PlayerLink, Stars, TeamLink } from "../components/common";
+import { Card, FormStrip, heroStyle, Logo, Meter, Stars, TeamLink } from "../components/common";
+import { Face } from "../components/Face";
+import { Icon } from "../components/Icons";
 import { gameView, KIND_COLORS, lastGames, nextGame, standingsRows, streakStr, teamLeaders } from "../helpers";
 import { f1, ordinal } from "../util";
 import type { League } from "../../engine/types";
+
+const KIND_ICON: Record<string, string> = {
+  game: "ball",
+  recruit: "recruit",
+  injury: "heart",
+  award: "awards",
+  poll: "rankings",
+  job: "coach",
+  portal: "portal",
+  draft: "draft",
+  league: "history",
+  milestone: "crown",
+  team: "team",
+};
 
 function Guide({ L }: { L: League }) {
   const base = `/l/${L.id}`;
@@ -21,7 +37,7 @@ function Guide({ L }: { L: League }) {
       { text: "Spend this week's recruiting points", to: `${base}/recruiting`, link: "Recruiting" },
     ],
     regular: [
-      { text: "Spend recruiting points every week; they reset each Monday", to: `${base}/targets`, link: "My Targets" },
+      { text: "Spend recruiting points every week; they reset each Monday", to: `${base}/targets`, link: "Targets" },
       { text: "Adjust practice focus to develop your players", to: `${base}/practice`, link: "Practice" },
       { text: "Check your NCAA Tournament resume", to: `${base}/rankings`, link: "Rankings" },
     ],
@@ -29,25 +45,25 @@ function Guide({ L }: { L: League }) {
     selection: [{ text: "The brackets are out. See where you landed", to: `${base}/tournaments`, link: "Tournaments" }],
     ncaa: [{ text: "Survive and advance", to: `${base}/tournaments`, link: "Bracket" }],
     seasonEnd: [
-      { text: "Review the season and awards", to: `${base}/season-review`, link: "Season Review" },
+      { text: "Review the season and awards", to: `${base}/season-review`, link: "Review" },
       { text: "Next: the coaching carousel and possible job offers" },
     ],
     carousel: [{ text: "Consider job offers or stay put", to: `${base}/coach`, link: "Coach & Jobs" }],
     draft: [{ text: "See who left for the NBA and who graduated", to: `${base}/draft`, link: "NBA Draft" }],
     portal: [
-      { text: "Recruit transfers to fill open spots", to: `${base}/portal`, link: "Transfer Portal" },
+      { text: "Recruit transfers to fill open spots", to: `${base}/portal`, link: "Portal" },
       { text: "Re-recruit your own players who entered the portal" },
       { text: "Unsigned high school recruits are still available", to: `${base}/recruiting`, link: "Recruiting" },
     ],
     signing: [{ text: "Finalize next season's roster", to: `${base}/signing`, link: "Signing Day" }],
   };
   return (
-    <Card title="What to do now">
-      <div className="col">
+    <Card title="To do">
+      <div className="col gap-12">
         {items[L.phase].map((x, i) => (
-          <div key={i} className="row">
-            <span style={{ width: 6, height: 6, borderRadius: 3, background: "var(--accent)", flex: "none" }} />
-            <span style={{ flex: 1 }}>{x.text}</span>
+          <div key={i} className="row" style={{ gap: 10 }}>
+            <span className="todo-n">{i + 1}</span>
+            <span style={{ flex: 1, lineHeight: 1.35 }}>{x.text}</span>
             {x.to && (
               <Link to={x.to} className="btn btn-sm">
                 {x.link}
@@ -60,11 +76,49 @@ function Guide({ L }: { L: League }) {
   );
 }
 
-function BracketNext({ L }: { L: League }) {
+/** The right side of the hero: the next game, the next bracket game, or the season summary. */
+function NextUp({ L }: { L: League }) {
   const ut = team(L, L.userTid);
+  const g = nextGame(L, L.userTid);
+  if (g) {
+    const v = gameView(g, L.userTid);
+    const opp = team(L, v.opp);
+    const os = curSeason(opp);
+    const or = currentRank(L, opp.id);
+    const where = v.loc === "N" ? "Neutral site" : v.home ? "Home" : "Away";
+    const label = g.event ?? (g.type === "conf" ? "Conference" : g.type === "nc" ? "Non-conference" : "Postseason");
+    return (
+      <div className="next-panel">
+        <div className="hero-kicker">
+          Next game · {shortDayLabel(L.season, g.day)} · {where}
+        </div>
+        <div className="row" style={{ gap: 14, marginTop: 10 }}>
+          <Logo team={opp} size={60} />
+          <div style={{ minWidth: 0 }}>
+            <div className="np-opp ellipsis">
+              <span style={{ opacity: 0.7 }}>{v.loc === "A" ? "at " : "vs "}</span>
+              {or ? <span style={{ opacity: 0.8 }}>#{or} </span> : null}
+              {opp.name}
+            </div>
+            <div className="small" style={{ opacity: 0.85 }}>
+              {os.w}-{os.l} · {L.conferences[opp.cid].short} · {label}
+            </div>
+          </div>
+        </div>
+        <div className="row" style={{ marginTop: 12 }}>
+          <Link to={`/l/${L.id}/team/${opp.id}`} className="btn btn-sm btn-glass">
+            <Icon name="eye" size={13} /> Scout
+          </Link>
+          <Link to={`/l/${L.id}/schedule`} className="btn btn-sm btn-glass">
+            <Icon name="schedule" size={13} /> Schedule
+          </Link>
+        </div>
+      </div>
+    );
+  }
   for (const br of L.brackets) {
     if (br.champion !== null) continue;
-    const bg = br.games.find((g) => g.winner === null && (g.a === L.userTid || g.b === L.userTid));
+    const bg = br.games.find((x) => x.winner === null && (x.a === L.userTid || x.b === L.userTid));
     if (!bg) continue;
     const oppId = bg.a === L.userTid ? bg.b : bg.a;
     const opp = oppId !== null ? team(L, oppId) : null;
@@ -73,98 +127,62 @@ function BracketNext({ L }: { L: League }) {
     const mySeed = bg.a === L.userTid ? bg.sa : bg.sb;
     const oppSeed = bg.a === L.userTid ? bg.sb : bg.sa;
     return (
-      <Card title="Next Game" sub={`${day !== undefined ? shortDayLabel(L.season, day) : ""} · ${br.name} ${round}`} right={<Link to={`/l/${L.id}/tournaments`} className="btn btn-sm">Bracket</Link>}>
-        <div className="row" style={{ justifyContent: "space-around", padding: "6px 0" }}>
-          <div className="col center" style={{ alignItems: "center" }}>
-            <Logo team={ut} size={60} />
-            <div className="bold">
-              {mySeed ? <span className="muted">({mySeed}) </span> : null}
-              {ut.name}
+      <div className="next-panel">
+        <div className="hero-kicker">
+          {br.name} · {round}
+          {day !== undefined ? ` · ${shortDayLabel(L.season, day)}` : ""}
+        </div>
+        <div className="row" style={{ gap: 14, marginTop: 10 }}>
+          <Logo team={opp ?? undefined} size={60} />
+          <div style={{ minWidth: 0 }}>
+            <div className="np-opp ellipsis">
+              {opp ? (
+                <>
+                  <span style={{ opacity: 0.7 }}>vs </span>
+                  {oppSeed ? <span style={{ opacity: 0.8 }}>({oppSeed}) </span> : null}
+                  {opp.name}
+                </>
+              ) : (
+                "Opponent TBD"
+              )}
             </div>
-          </div>
-          <div className="center" style={{ fontSize: 22, fontWeight: 800 }}>
-            vs
-          </div>
-          <div className="col center" style={{ alignItems: "center" }}>
-            {opp ? <Logo team={opp} size={60} /> : <div className="logo" style={{ width: 60, height: 60, background: "var(--panel-3)", color: "var(--faint)" }}>?</div>}
-            <div className="bold">
-              {opp && oppSeed ? <span className="muted">({oppSeed}) </span> : null}
-              {opp ? <Link to={`/l/${L.id}/team/${opp.id}`}>{opp.name}</Link> : "Winner of the previous round"}
-            </div>
+            <div className="small" style={{ opacity: 0.85 }}>{mySeed ? `You're the ${mySeed} seed` : "Win and advance"}</div>
           </div>
         </div>
-      </Card>
-    );
-  }
-  return null;
-}
-
-function NextGameCard({ L }: { L: League }) {
-  const g = nextGame(L, L.userTid);
-  const ut = team(L, L.userTid);
-  if (!g && (L.phase === "confTourney" || L.phase === "ncaa" || L.phase === "selection")) {
-    const bn = BracketNext({ L });
-    if (bn) return bn;
-  }
-  if (!g) {
-    const s = curSeason(ut);
-    return (
-      <Card title="Season">
-        <div className="row gap-16">
-          <Logo team={ut} size={56} />
-          <div>
-            <div className="bold" style={{ fontSize: 18 }}>
-              {s.w}-{s.l} ({s.cw}-{s.cl} conf)
-            </div>
-            <div className="muted">
-              {s.post
-                ? `${s.post.event.toUpperCase()}: ${s.post.result}${s.post.event === "ncaa" ? ` (${s.post.seed} seed)` : ""}`
-                : L.phase === "preseason"
-                  ? "The season hasn't started."
-                  : s.confTourney && s.confTourney !== "Champion"
-                    ? `Conference tournament: ${s.confTourney === "Did not qualify" ? "did not qualify" : `out in the ${s.confTourney.toLowerCase()}`}. Waiting on Selection Sunday.`
-                    : "No games scheduled."}
-            </div>
-          </div>
-        </div>
-      </Card>
-    );
-  }
-  const v = gameView(g, L.userTid);
-  const opp = team(L, v.opp);
-  const os = curSeason(opp);
-  const us = curSeason(ut);
-  const or = currentRank(L, opp.id);
-  const ur = currentRank(L, ut.id);
-  return (
-    <Card title="Next Game" sub={`${shortDayLabel(L.season, g.day)} · ${g.event ?? (g.type === "conf" ? "Conference game" : g.type === "nc" ? "Non-conference" : "Postseason")}`} right={<Link to={`/l/${L.id}/team/${opp.id}`} className="btn btn-sm">Scout opponent</Link>}>
-      <div className="row" style={{ justifyContent: "space-around", padding: "6px 0" }}>
-        <div className="col center" style={{ alignItems: "center" }}>
-          <Logo team={ut} size={60} />
-          <div className="bold">
-            {ur ? <span className="muted">#{ur} </span> : null}
-            {ut.name}
-          </div>
-          <div className="muted small">
-            {us.w}-{us.l}
-          </div>
-        </div>
-        <div className="center">
-          <div style={{ fontSize: 22, fontWeight: 800 }}>{v.loc === "N" ? "vs" : v.home ? "vs" : "@"}</div>
-          <div className="muted small">{v.loc === "N" ? "Neutral site" : v.home ? "Home" : "Away"}</div>
-        </div>
-        <div className="col center" style={{ alignItems: "center" }}>
-          <Logo team={opp} size={60} />
-          <div className="bold">
-            {or ? <span className="muted">#{or} </span> : null}
-            <Link to={`/l/${L.id}/team/${opp.id}`}>{opp.name}</Link>
-          </div>
-          <div className="muted small">
-            {os.w}-{os.l} · Power {L.power[opp.id]?.power.toFixed(1)}
-          </div>
+        <div className="row" style={{ marginTop: 12 }}>
+          <Link to={`/l/${L.id}/tournaments`} className="btn btn-sm btn-glass">
+            <Icon name="bracket" size={13} /> Bracket
+          </Link>
+          {opp && (
+            <Link to={`/l/${L.id}/team/${opp.id}`} className="btn btn-sm btn-glass">
+              <Icon name="eye" size={13} /> Scout
+            </Link>
+          )}
         </div>
       </div>
-    </Card>
+    );
+  }
+  const s = curSeason(ut);
+  const line = s.post
+    ? `${s.post.event.toUpperCase()}: ${s.post.result}${s.post.event === "ncaa" ? ` (${s.post.seed} seed)` : ""}`
+    : L.phase === "preseason"
+      ? "Tip-off is coming. Set your rotation and start recruiting."
+      : s.confTourney && s.confTourney !== "Champion"
+        ? `Conference tournament: ${s.confTourney === "Did not qualify" ? "did not qualify" : `out in the ${s.confTourney.toLowerCase()}`}. Waiting on Selection Sunday.`
+        : PHASE_LABEL[L.phase];
+  return (
+    <div className="next-panel">
+      <div className="hero-kicker">{L.phase === "preseason" ? "Preseason" : "Season"}</div>
+      <div className="np-opp" style={{ marginTop: 8 }}>
+        {s.w}-{s.l}
+        <span style={{ opacity: 0.7, fontSize: 18, marginLeft: 8 }}>
+          {s.cw}-{s.cl} conf
+        </span>
+      </div>
+      <div className="small" style={{ opacity: 0.88, marginTop: 4, maxWidth: 300 }}>
+        {line}
+      </div>
+    </div>
   );
 }
 
@@ -180,141 +198,245 @@ export function Dashboard() {
   const recent = lastGames(L, ut.id, 6);
   const cr = classRankings(L).find((x) => x.tid === ut.id);
   const commits = commitsFor(L, ut.id).filter((p) => p.recruit?.kind === "hs");
-  const news = L.news.filter((n) => n.user).slice(0, 7);
+  const news = L.news.filter((n) => n.user).slice(0, 6);
   const spots = openSpots(L, ut.id);
-  const secColor = ch.security >= 60 ? "var(--good)" : ch.security >= 30 ? "var(--warn)" : "var(--bad)";
+  const rank = currentRank(L, ut.id);
+  const exp = expectations(s.prestigeStart ?? ut.prestige);
+  const secColor = ch.security >= 60 ? "var(--ga)" : ch.security >= 30 ? "var(--gc)" : "var(--gf)";
+  const secLabel = ch.security >= 70 ? "Safe" : ch.security >= 45 ? "Stable" : ch.security >= 25 ? "Warm seat" : "Hot seat";
+  const yr = L.season - ch.hired + 1;
+  const leaderCards = [
+    ["Points", leaders.pts, (x: NonNullable<typeof leaders.pts>) => x.s.pts / x.s.g],
+    ["Rebounds", leaders.reb, (x: NonNullable<typeof leaders.pts>) => (x.s.orb + x.s.drb) / x.s.g],
+    ["Assists", leaders.ast, (x: NonNullable<typeof leaders.pts>) => x.s.ast / x.s.g],
+    ["Steals", leaders.stl, (x: NonNullable<typeof leaders.pts>) => x.s.stl / x.s.g],
+    ["Blocks", leaders.blk, (x: NonNullable<typeof leaders.pts>) => x.s.blk / x.s.g],
+  ] as const;
   return (
     <div className="col gap-16">
-      <div className="card">
-        <div className="stat-row">
-          <div className="stat">
+      <div className="hero-banner" style={heroStyle(ut.colors)}>
+        <div className="hero-inner">
+          <Logo team={ut} size={108} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="hero-kicker">
+              {seasonLabel(L.season)} · {L.conferences[ut.cid].name} · {PHASE_LABEL[L.phase]}
+            </div>
+            <div className="hero-title" style={{ marginTop: 6 }}>
+              {ut.name}
+              <br />
+              <span style={{ opacity: 0.85 }}>{ut.mascot}</span>
+            </div>
+            <div className="row-wrap" style={{ marginTop: 12, gap: 8 }}>
+              <span className="chip-light">
+                <Stars n={prestigeStars(ut.prestige)} /> {prestigeTier(ut.prestige)}
+              </span>
+              <span className="chip-light">
+                <Icon name="coach" size={13} /> Coach {ch.last} · {ordinal(yr)} season
+              </span>
+              <span className="chip-light">
+                <Icon name="pin" size={13} /> {ut.city}, {ut.state}
+              </span>
+            </div>
+          </div>
+          <NextUp L={L} />
+        </div>
+        <div className="hero-stats">
+          <div>
             <div className="label">Record</div>
             <div className="value">
               {s.w}-{s.l}
               <small>{s.cw}-{s.cl} conf</small>
             </div>
           </div>
-          <div className="stat">
+          <div>
             <div className="label">AP Poll</div>
-            <div className="value">{currentRank(L, ut.id) ? `#${currentRank(L, ut.id)}` : "NR"}</div>
+            <div className="value">{rank ? `#${rank}` : "NR"}</div>
           </div>
-          <div className="stat">
-            <div className="label">Power Rank</div>
+          <div>
+            <div className="label">Power</div>
             <div className="value">
-              {pr.get(ut.id)}
+              {ordinal(pr.get(ut.id) ?? 0)}
               <small>of {L.teams.length}</small>
             </div>
           </div>
-          <div className="stat">
-            <div className="label">Prestige</div>
-            <div className="value" style={{ fontSize: 16, paddingTop: 4 }}>
-              <Stars n={prestigeStars(ut.prestige)} />
-              <div className="small muted" style={{ fontWeight: 500 }}>
-                {prestigeTier(ut.prestige)} ({ut.prestige.toFixed(0)})
-              </div>
+          <div>
+            <div className="label">Last 5</div>
+            <div className="value" style={{ paddingTop: 3 }}>
+              <FormStrip results={recent.map((g) => gameView(g, ut.id).won)} />
             </div>
           </div>
-          <div className="stat">
-            <div className="label">Recruiting Class</div>
+          <div>
+            <div className="label">Streak</div>
+            <div className="value">{streakStr(s.streak)}</div>
+          </div>
+          <div>
+            <div className="label">Recruiting class</div>
             <div className="value">
               {cr && cr.n > 0 ? `#${cr.rank}` : "-"}
-              <small>{commits.length} commits</small>
-            </div>
-          </div>
-          <div className="stat" style={{ minWidth: 170 }}>
-            <div className="label">Job Security</div>
-            <div className="value" style={{ fontSize: 16, paddingTop: 6 }}>
-              <Meter value={ch.security} color={secColor} />
-              <div className="small muted" style={{ fontWeight: 500, marginTop: 4 }}>
-                {ch.security >= 70 ? "Safe" : ch.security >= 45 ? "Stable" : ch.security >= 25 ? "Warm seat" : "Hot seat"}
-              </div>
+              <small>
+                {commits.length} commit{commits.length === 1 ? "" : "s"}
+              </small>
             </div>
           </div>
         </div>
       </div>
+
       <div className="grid g-main">
         <div className="col gap-16">
-          <NextGameCard L={L} />
+          <Card title="Team Leaders" right={<Link to={`/l/${L.id}/roster`} className="btn btn-sm btn-ghost">Roster</Link>}>
+            {leaders.pts ? (
+              <div className="grid g5" style={{ gap: 10 }}>
+                {leaderCards.map(([label, x, f]) =>
+                  x ? (
+                    <Link key={label} to={`/l/${L.id}/player/${x.p.id}`} className="leader">
+                      <Face seed={x.p.faceSeed} race={x.p.race} colors={ut.colors} size={60} ratio={1.3} />
+                      <div className="leader-v">{f1(f(x))}</div>
+                      <div className="leader-l">{label}</div>
+                      <div className="leader-n ellipsis">
+                        {x.p.first[0]}. {x.p.last}
+                      </div>
+                    </Link>
+                  ) : (
+                    <div key={label} />
+                  ),
+                )}
+              </div>
+            ) : (
+              <div className="empty" style={{ padding: 14 }}>
+                Stats appear once games are played.
+              </div>
+            )}
+          </Card>
           <div className="grid g2">
             <Card title="Recent Results" flush right={<Link to={`/l/${L.id}/schedule`} className="btn btn-sm btn-ghost">Schedule</Link>}>
               {recent.length ? (
-                <table className="tbl compact">
-                  <tbody>
-                    {recent.map((g) => {
-                      const v = gameView(g, ut.id);
-                      return (
-                        <tr key={g.id}>
-                          <td className="muted small">{shortDayLabel(L.season, g.day)}</td>
-                          <td className="small muted">{v.loc === "N" ? "vs" : v.home ? "vs" : "@"}</td>
-                          <td>
-                            <TeamLink L={L} tid={v.opp} size={18} rank={null} />
-                          </td>
-                          <td className="n">
-                            <Link to={`/l/${L.id}/game/${g.id}`} className={v.won ? "good bold" : "bad bold"}>
-                              {v.won ? "W" : "L"} {v.us}-{v.them}
-                              {g.ot ? " OT" : ""}
-                            </Link>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                <div>
+                  {recent.map((g) => {
+                    const v = gameView(g, ut.id);
+                    const opp = team(L, v.opp);
+                    return (
+                      <Link key={g.id} to={`/l/${L.id}/game/${g.id}`} className="res-row">
+                        <span className={`res-wl ${v.won ? "w" : "l"}`}>{v.won ? "W" : "L"}</span>
+                        <Logo team={opp} size={24} />
+                        <span className="ellipsis" style={{ flex: 1 }}>
+                          <span className="faint small">{v.loc === "N" ? "vs " : v.home ? "vs " : "@ "}</span>
+                          <b>{opp.name}</b>
+                        </span>
+                        <span className="res-score">
+                          {v.us}-{v.them}
+                          {g.ot ? <span className="faint small"> OT</span> : null}
+                        </span>
+                        <span className="faint small" style={{ width: 48, textAlign: "right" }}>
+                          {shortDayLabel(L.season, g.day)}
+                        </span>
+                      </Link>
+                    );
+                  })}
+                </div>
               ) : (
                 <div className="empty">No games played yet.</div>
               )}
             </Card>
-            <Card title="Team Leaders" flush>
-              {leaders.pts ? (
-                <table className="tbl compact">
-                  <tbody>
-                    {(
-                      [
-                        ["Points", leaders.pts, (x: typeof leaders.pts) => x.s.pts / x.s.g],
-                        ["Rebounds", leaders.reb, (x: typeof leaders.pts) => (x.s.orb + x.s.drb) / x.s.g],
-                        ["Assists", leaders.ast, (x: typeof leaders.pts) => x.s.ast / x.s.g],
-                        ["Steals", leaders.stl, (x: typeof leaders.pts) => x.s.stl / x.s.g],
-                        ["Blocks", leaders.blk, (x: typeof leaders.pts) => x.s.blk / x.s.g],
-                      ] as const
-                    ).map(([label, x, f]) =>
-                      x ? (
-                        <tr key={label}>
-                          <td className="muted">{label}</td>
-                          <td>
-                            <PlayerLink L={L} p={x.p} face size={24} colors={ut.colors} />
-                          </td>
-                          <td className="n bold">{f1(f(x))}</td>
-                        </tr>
-                      ) : null,
-                    )}
-                  </tbody>
-                </table>
+            <Card title="Inbox" flush right={<Link to={`/l/${L.id}/inbox`} className="btn btn-sm btn-ghost">All news</Link>}>
+              {news.length ? (
+                news.map((n) => (
+                  <div key={n.id} className={`news-item ${n.read ? "" : "unread"}`}>
+                    <span className="news-ic" style={{ background: `${KIND_COLORS[n.kind]}22`, color: KIND_COLORS[n.kind] }}>
+                      <Icon name={KIND_ICON[n.kind] ?? "ball"} />
+                    </span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="news-text" style={{ lineHeight: 1.35 }}>
+                        {n.gid ? <Link to={`/l/${L.id}/game/${n.gid}`}>{n.text}</Link> : n.pid ? <Link to={`/l/${L.id}/player/${n.pid}`}>{n.text}</Link> : n.text}
+                      </div>
+                      <div className="tiny faint" style={{ marginTop: 2 }}>
+                        {n.dateLabel}
+                      </div>
+                    </div>
+                  </div>
+                ))
               ) : (
-                <div className="empty">Stats appear once games are played.</div>
+                <div className="empty">No news yet.</div>
               )}
             </Card>
           </div>
-          <Card title="Inbox" flush right={<Link to={`/l/${L.id}/inbox`} className="btn btn-sm btn-ghost">All news</Link>}>
-            {news.length ? (
-              news.map((n) => (
-                <div key={n.id} className={`news-item ${n.read ? "" : "unread"}`}>
-                  <span className="news-kind" style={{ background: KIND_COLORS[n.kind] }} />
-                  <div style={{ flex: 1 }}>
-                    {n.gid ? <Link to={`/l/${L.id}/game/${n.gid}`}>{n.text}</Link> : n.pid ? <Link to={`/l/${L.id}/player/${n.pid}`}>{n.text}</Link> : n.text}
-                    <div className="tiny faint">{n.dateLabel}</div>
-                  </div>
-                </div>
-              ))
+          <Card title={poll ? `AP Top 25` : "AP Top 25"} sub={poll?.label} flush right={<Link to={`/l/${L.id}/rankings`} className="btn btn-sm btn-ghost">Rankings</Link>}>
+            {poll ? (
+              <div className="poll-grid">
+                {poll.ranks.slice(0, 25).map((r) => (
+                  <Link key={r.tid} to={`/l/${L.id}/team/${r.tid}`} className={`poll-row${r.tid === ut.id ? " me" : ""}`}>
+                    <span className="poll-rk">{r.rank}</span>
+                    <Logo team={team(L, r.tid)} size={22} />
+                    <span className="ellipsis" style={{ flex: 1, fontWeight: 600 }}>
+                      {team(L, r.tid).name}
+                    </span>
+                    <span className="faint small num">
+                      {r.w}-{r.l}
+                    </span>
+                  </Link>
+                ))}
+              </div>
             ) : (
-              <div className="empty">No news yet.</div>
+              <div className="empty">The first poll comes out in the preseason.</div>
             )}
           </Card>
         </div>
+
         <div className="col gap-16">
-          <Card title="Expectations" sub="Set by your athletic director from the program's prestige">
-            <div className="bold">{expectations(s.prestigeStart ?? ut.prestige).goal}</div>
-            <div className="small muted">
-              Around {expectations(s.prestigeStart ?? ut.prestige).wins} wins keeps everyone happy. Beating expectations raises job security and prestige.
+          <Card title="Your Program">
+            <div className="col gap-12">
+              <div>
+                <div className="row">
+                  <span className="muted small bold" style={{ textTransform: "uppercase", letterSpacing: "0.08em", fontSize: 10.5 }}>
+                    Job security
+                  </span>
+                  <span className="spacer" />
+                  <span className="bold" style={{ color: secColor }}>
+                    {secLabel}
+                  </span>
+                </div>
+                <div style={{ marginTop: 6 }}>
+                  <Meter value={ch.security} color={secColor} />
+                </div>
+              </div>
+              <div className="exp-box">
+                <div className="muted small bold" style={{ textTransform: "uppercase", letterSpacing: "0.08em", fontSize: 10.5 }}>
+                  This season's goal
+                </div>
+                <div className="bold" style={{ fontSize: 14.5, marginTop: 3 }}>
+                  {exp.goal}
+                </div>
+                <div className="small muted" style={{ marginTop: 2 }}>
+                  Around {exp.wins} wins keeps the athletic director happy.
+                </div>
+              </div>
+              <div className="grid g3" style={{ gap: 8 }}>
+                <div className="mini-stat">
+                  <span>Roster</span>
+                  <b>
+                    {roster(L, ut.id).length}/{L.settings.rosterMax}
+                  </b>
+                </div>
+                <div className="mini-stat">
+                  <span>Open spots</span>
+                  <b>{spots}</b>
+                </div>
+                <div className="mini-stat">
+                  <span>Rec. points</span>
+                  <b>
+                    {L.recruitPts}/{L.recruitPtsMax}
+                  </b>
+                </div>
+              </div>
+              {commits.length > 0 && (
+                <div className="row-wrap small">
+                  <span className="muted">Commits:</span>
+                  {commits.map((p) => (
+                    <Link key={p.id} to={`/l/${L.id}/player/${p.id}`} className="pill">
+                      {p.recruit!.stars}★ {p.last}
+                    </Link>
+                  ))}
+                </div>
+              )}
             </div>
           </Card>
           <Guide L={L} />
@@ -332,80 +454,24 @@ export function Dashboard() {
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.t.id} className={r.t.id === ut.id ? "hl" : ""}>
-                    <td className="muted">{r.pos}</td>
+                    <td className="rk">{r.pos}</td>
                     <td>
-                      <TeamLink L={L} tid={r.t.id} size={18} short rank={currentRank(L, r.t.id)} />
+                      <TeamLink L={L} tid={r.t.id} size={20} rank={currentRank(L, r.t.id)} />
                     </td>
-                    <td className="n">
+                    <td className="n bold">
                       {r.s.cw}-{r.s.cl}
                     </td>
-                    <td className="n">
+                    <td className="n muted">
                       {r.s.w}-{r.s.l}
                     </td>
-                    <td className="n muted">{streakStr(r.s.streak)}</td>
+                    <td className={`n small ${r.s.streak > 0 ? "good" : r.s.streak < 0 ? "bad" : "faint"}`}>{streakStr(r.s.streak)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </Card>
-          <Card title={poll ? `AP Top 25 · ${poll.label}` : "AP Top 25"} flush right={<Link to={`/l/${L.id}/rankings`} className="btn btn-sm btn-ghost">More</Link>}>
-            {poll ? (
-              <table className="tbl compact">
-                <tbody>
-                  {poll.ranks.slice(0, 12).map((r) => (
-                    <tr key={r.tid} className={r.tid === ut.id ? "hl" : ""}>
-                      <td className="muted" style={{ width: 24 }}>
-                        {r.rank}
-                      </td>
-                      <td>
-                        <TeamLink L={L} tid={r.tid} size={18} short />
-                      </td>
-                      <td className="n muted">
-                        {r.w}-{r.l}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <div className="empty">No poll yet.</div>
-            )}
-          </Card>
-          <Card title="Recruiting" right={<Link to={`/l/${L.id}/targets`} className="btn btn-sm btn-ghost">Targets</Link>}>
-            <dl className="kv">
-              <dt>Points this week</dt>
-              <dd>
-                {L.recruitPts} / {L.recruitPtsMax}
-              </dd>
-              <dt>Open spots</dt>
-              <dd>{spots}</dd>
-              <dt>Commits</dt>
-              <dd>{commits.length ? commits.map((p) => `${p.recruit!.stars}★`).join(" ") : "None yet"}</dd>
-              <dt>Roster</dt>
-              <dd>
-                {roster(L, ut.id).length} / {L.settings.rosterMax}
-              </dd>
-            </dl>
-          </Card>
-          <Card title="Coach">
-            <div className="row">
-              <div style={{ flex: 1 }}>
-                <div className="bold">
-                  {ch.first} {ch.last}
-                </div>
-                <div className="small muted">
-                  {L.season - ch.hired + 1}
-                  {ordinal(L.season - ch.hired + 1).slice(-2)} season at {ut.name} · Rep {Math.round(ch.rep)}
-                </div>
-              </div>
-              <Link to={`/l/${L.id}/coach`} className="btn btn-sm">
-                Career
-              </Link>
-            </div>
-          </Card>
         </div>
       </div>
-      <div className="faint small">{seasonLabel(L.season)}</div>
     </div>
   );
 }

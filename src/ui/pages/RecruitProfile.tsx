@@ -9,12 +9,13 @@ import {
 } from "../../engine/recruiting";
 import type { League, Player, PrefKey, RatingKey } from "../../engine/types";
 import { PREF_KEYS } from "../../engine/types";
-import { Bar, Card, Grade, Logo, Stars, Tabs } from "../components/common";
+import { Bar, Card, Grade, heroStyle, Logo, Stars, Tabs } from "../components/common";
 import { Face } from "../components/Face";
 import { Icon } from "../components/Icons";
 import { money } from "../util";
 
 const IMPORTANCE = ["", "Not important", "Minor", "Somewhat important", "Important", "Very important"];
+const ACTION_ICONS: Record<ActionKey, string> = { scout: "eye", call: "phone", assistant: "whistle", coach: "coach", visit: "plane", offer: "draft" };
 
 export function stageText(L: League, p: Player): string {
   const r = p.recruit!;
@@ -51,27 +52,63 @@ function InterestedTeams({ L, p }: { L: League; p: Player }) {
         const committed = r.committedTo === x.tid;
         const out = (r.stage === "top5" || r.stage === "committed") && !r.top5.includes(x.tid);
         return (
-          <div key={x.tid} className="row" style={{ gap: 12, padding: "6px 4px", borderRadius: 6, background: x.tid === L.userTid ? "var(--accent-soft)" : undefined, opacity: out ? 0.45 : 1 }}>
-            <span className="muted bold" style={{ width: 20, textAlign: "right" }}>
+          <div key={x.tid} className={`int-row${x.tid === L.userTid ? " me" : ""}`} style={{ opacity: out ? 0.42 : 1 }}>
+            <span className="faint bold" style={{ width: 20, textAlign: "right" }}>
               {i + 1}
             </span>
-            <div style={{ flex: 1 }}>
-              <Bar value={x.v} max={max} />
-            </div>
             <Logo team={t} size={30} />
-            <Link to={`/l/${L.id}/team/${t.id}`} style={{ width: 150 }} className="bold">
-              {t.short}
+            <Link to={`/l/${L.id}/team/${t.id}`} style={{ width: 160 }} className="bold ellipsis">
+              {t.name}
             </Link>
-            <span style={{ width: 70 }} className="row gap-4">
-              {committed && <span title="Committed" className="good"><Icon name="check" size={18} /></span>}
-              {offered && <span title="Scholarship offered">🎓</span>}
-              {visited && <span title="Official visit">✈️</span>}
-              {L.settings.nil && (r.nil[x.tid] ?? 0) > 0 && <span title={`NIL offer ${money(r.nil[x.tid])}`}>💵</span>}
+            <div style={{ flex: 1 }}>
+              <Bar value={x.v} max={max} color={x.tid === L.userTid ? "var(--accent-ink)" : "color-mix(in srgb, var(--text) 35%, transparent)"} />
+            </div>
+            <span style={{ width: 96 }} className="row gap-4">
+              {committed && (
+                <span title="Committed" className="mark good">
+                  <Icon name="check" size={12} />
+                </span>
+              )}
+              {offered && (
+                <span title="Scholarship offered" className="mark">
+                  <Icon name="draft" size={12} />
+                </span>
+              )}
+              {visited && (
+                <span title="Official visit" className="mark">
+                  <Icon name="plane" size={12} />
+                </span>
+              )}
+              {L.settings.nil && (r.nil[x.tid] ?? 0) > 0 && (
+                <span title={`NIL offer ${money(r.nil[x.tid])}`} className="mark gold">
+                  <Icon name="money" size={12} />
+                </span>
+              )}
             </span>
           </div>
         );
       })}
-      <div className="tiny muted mt-8">🎓 offered · ✈️ official visit · 💵 NIL offer · faded = eliminated from his list</div>
+      <div className="row-wrap tiny muted mt-8" style={{ gap: 12 }}>
+        <span className="row gap-4">
+          <span className="mark">
+            <Icon name="draft" size={11} />
+          </span>
+          Offered
+        </span>
+        <span className="row gap-4">
+          <span className="mark">
+            <Icon name="plane" size={11} />
+          </span>
+          Official visit
+        </span>
+        <span className="row gap-4">
+          <span className="mark gold">
+            <Icon name="money" size={11} />
+          </span>
+          NIL offer
+        </span>
+        <span>Faded = eliminated from his list</span>
+      </div>
     </div>
   );
 }
@@ -85,7 +122,7 @@ function Preferences({ L, p }: { L: League; p: Player }) {
   const ratingKeys: RatingKey[] = ["ins", "mid", "three", "ft", "hnd", "pas", "iq", "perD", "intD", "stl", "blk", "reb", "ath", "str", "end"];
   const sd = [9, 5.5, 3, 1][r.scout];
   return (
-    <div className="grid g2">
+    <div className="col gap-16">
       <Card title="What matters to him" sub={`Overall fit with ${ut.name}: ${fitWord(overall).t}`}>
         <table className="tbl compact">
           <thead>
@@ -184,8 +221,8 @@ function Actions({ L, p }: { L: League; p: Player }) {
   const nilLeft = ut.nilBudget - nilCommitted(L, ut.id) + (r.nil[L.userTid] ?? 0);
   const keys: ActionKey[] = ["call", "assistant", "coach", "visit", "offer"];
   return (
-    <div className="grid g2">
-      <Card title="Recruiting Actions" sub={`${L.recruitPts} of ${L.recruitPtsMax} points left this week · ${spots} open spot(s) · ${OFFICIAL_VISITS - ut.officialVisitsUsed} official visits left`}>
+    <div className="col gap-16">
+      <Card title="Recruit Him" sub={`${L.recruitPts}/${L.recruitPtsMax} points left · ${spots} open spot${spots === 1 ? "" : "s"} · ${OFFICIAL_VISITS - ut.officialVisitsUsed} official visits left`}>
         {r.stage === "signed" ? (
           <div className="muted">He has signed. Recruiting is over.</div>
         ) : (
@@ -194,13 +231,17 @@ function Actions({ L, p }: { L: League; p: Player }) {
               const chk = canAct(L, L.userTid, p, a);
               const def = ACTIONS[a];
               return (
-                <div key={a} className="row" style={{ gap: 12, padding: "6px 0", borderBottom: "1px solid var(--border)" }}>
-                  <div style={{ flex: 1 }}>
-                    <div className="bold">{def.label}</div>
+                <div key={a} className="act-row">
+                  <span className="act-ic">
+                    <Icon name={ACTION_ICONS[a]} size={16} />
+                  </span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="bold">
+                      {def.label} <span className="faint small">· {def.cost} pts</span>
+                    </div>
                     <div className="tiny muted">{def.desc}</div>
                   </div>
-                  <span className="pill">{def.cost} pts</span>
-                  <button className="btn btn-sm btn-primary" style={{ width: 92 }} disabled={!chk.ok} title={chk.why} onClick={() => act(a)}>
+                  <button className={`btn btn-sm ${chk.ok ? "btn-primary" : ""}`} style={{ width: 96 }} disabled={!chk.ok} title={chk.why} onClick={() => act(a)}>
                     {chk.ok ? "Do it" : chk.why && chk.why.length < 14 ? chk.why : "Unavailable"}
                   </button>
                 </div>
@@ -215,167 +256,183 @@ function Actions({ L, p }: { L: League; p: Player }) {
           </div>
         )}
       </Card>
-      <div className="col gap-16">
-        {L.settings.nil && r.stage !== "signed" && (
-          <Card title="NIL Offer" sub={`Budget left: ${money(Math.max(0, nilLeft))} · typical for a ${r.stars}★: ${money(NIL_VALUE[r.stars])}`}>
-            <div className="row">
-              <input type="range" min={0} max={Math.max(50, Math.round(NIL_VALUE[r.stars] * 2))} step={5} value={nil} onChange={(e) => setNil(Number(e.target.value))} style={{ flex: 1 }} />
-              <span className="bold num" style={{ width: 64, textAlign: "right" }}>
-                {money(nil)}
-              </span>
-              <button className="btn btn-sm" onClick={() => mutate((LL) => setMsg(setNilOffer(LL, LL.userTid, p, nil).msg))}>
-                Offer
-              </button>
-            </div>
-            <div className="tiny muted mt-8">Current offer: {r.nil[L.userTid] ? money(r.nil[L.userTid]) + "/yr" : "none"}. NIL matters more to higher-rated recruits.</div>
-          </Card>
-        )}
-        <Card title="Recruiting Timeline">
-          {r.history.length ? (
-            <div className="col gap-4">
-              {r.history.slice(0, 14).map((h, i) => (
-                <div key={i} className="row small">
-                  <span className="faint" style={{ width: 54 }}>
-                    Wk {h.week}
-                  </span>
-                  <span>{h.text}</span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="muted small">Nothing yet.</div>
-          )}
+      {L.settings.nil && r.stage !== "signed" && (
+        <Card title="NIL Offer" sub={`Budget left: ${money(Math.max(0, nilLeft))} · typical for a ${r.stars}★: ${money(NIL_VALUE[r.stars])}`}>
+          <div className="row">
+            <input type="range" min={0} max={Math.max(50, Math.round(NIL_VALUE[r.stars] * 2))} step={5} value={nil} onChange={(e) => setNil(Number(e.target.value))} style={{ flex: 1 }} />
+            <span className="bold num" style={{ width: 64, textAlign: "right" }}>
+              {money(nil)}
+            </span>
+            <button className="btn btn-sm" onClick={() => mutate((LL) => setMsg(setNilOffer(LL, LL.userTid, p, nil).msg))}>
+              Offer
+            </button>
+          </div>
+          <div className="tiny muted mt-8">Current offer: {r.nil[L.userTid] ? money(r.nil[L.userTid]) + "/yr" : "none"}. NIL matters more to higher-rated recruits.</div>
         </Card>
-      </div>
+      )}
     </div>
+  );
+}
+
+function Timeline({ p }: { p: Player }) {
+  const r = p.recruit!;
+  return r.history.length ? (
+    <div className="timeline">
+      {r.history.slice(0, 24).map((h, i) => (
+        <div key={i} className="tl-row">
+          <span className="tl-wk">Wk {h.week}</span>
+          <span className="tl-dot" />
+          <span>{h.text}</span>
+        </div>
+      ))}
+    </div>
+  ) : (
+    <div className="muted">Nothing yet.</div>
   );
 }
 
 export function RecruitProfile({ p }: { p: Player }) {
   const L = useLeague();
   const r = p.recruit!;
-  const [tab, setTab] = useState<"teams" | "prefs" | "actions">("teams");
+  const [tab, setTab] = useState<"teams" | "prefs" | "timeline">("teams");
   const from = r.fromTid !== undefined ? teamMaybe(L, r.fromTid) : undefined;
   const committed = r.committedTo !== null ? team(L, r.committedTo) : undefined;
-  const colors = (committed ?? from)?.colors ?? ["#334155", "#e2e8f0"];
+  const colors = (committed ?? from)?.colors ?? ["#273449", "#f2b631"];
   const onBoard = L.board.includes(p.id);
   const last = p.stats[p.stats.length - 1];
+  const ir = (() => {
+    const sorted = Object.entries(r.interest).sort((a, b) => b[1] - a[1]);
+    const i = sorted.findIndex(([k]) => Number(k) === L.userTid);
+    return i >= 0 ? i + 1 : null;
+  })();
   return (
     <div className="col gap-16">
-      <div className="card" style={{ overflow: "hidden" }}>
-        <div style={{ display: "flex" }}>
-          <div style={{ background: colors[0], padding: "16px 18px 0", display: "flex", alignItems: "flex-end" }}>
-            <Face seed={p.faceSeed} race={p.race} colors={colors as [string, string]} size={120} />
+      <div className="hero-banner" style={heroStyle(colors as [string, string])}>
+        <div className="hero-inner" style={{ paddingBottom: 0, alignItems: "stretch" }}>
+          <div className="player-portrait">
+            <Face seed={p.faceSeed} race={p.race} colors={colors as [string, string]} size={150} ratio={1.06} frame={false} />
           </div>
-          <div style={{ padding: 18, flex: 1 }}>
-            <div className="row">
-              <div>
-                <div className="muted small">
-                  {r.kind === "portal" ? `Transfer portal · from ${from?.name ?? "?"}` : `Class of ${r.classSeason}`} · {p.pos}
-                </div>
-                <div className="hero-name">
-                  {p.first} <span style={{ textTransform: "uppercase" }}>{p.last}</span>
-                </div>
-                <div className="mt-8" style={{ fontSize: 22 }}>
-                  <Stars n={r.stars} />
-                </div>
-              </div>
-              <div className="spacer" />
-              <div className="col" style={{ alignItems: "flex-end" }}>
-                <span className={`badge ${r.stage === "signed" || r.stage === "committed" ? "good" : r.stage === "top5" ? "warn" : ""}`} style={{ fontSize: 12, height: 24 }}>
-                  {stageText(L, p)}
+          <div style={{ flex: 1, minWidth: 0, paddingBottom: 22, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+            <div className="hero-kicker">
+              {r.kind === "portal" ? `Transfer portal · from ${from?.name ?? "?"}` : `Class of ${r.classSeason}`} · {p.pos} · {p.archetype}
+            </div>
+            <div className="hero-title" style={{ marginTop: 6 }}>
+              <span style={{ fontSize: "0.62em", fontWeight: 700, opacity: 0.9 }}>{p.first}</span>
+              <br />
+              {p.last}
+            </div>
+            <div className="row" style={{ marginTop: 10, gap: 12 }}>
+              <Stars n={r.stars} lg />
+              <span className="bold">
+                #{r.rank} overall · #{r.posRank} {p.pos}
+              </span>
+            </div>
+            <div className="row-wrap" style={{ marginTop: 10, gap: 8 }}>
+              <span className="chip-light">
+                <b>{heightStr(p.hgt)}</b> · {p.wgt} lbs · {heightStr(p.wing)} wing
+              </span>
+              <span className="chip-light">
+                <Icon name="pin" size={13} /> {p.city}, {p.state} · {regionOf(p.state)}
+              </span>
+              {r.kind === "portal" && (
+                <span className="chip-light">
+                  {classLabel(p)} · {4 - p.eligUsed} yr{4 - p.eligUsed === 1 ? "" : "s"} left
                 </span>
-                <div className="muted small">
-                  #{r.rank} overall · #{r.posRank} {p.pos}
-                </div>
-                <button
-                  className="btn btn-sm"
-                  onClick={() =>
-                    mutate((LL) => {
-                      LL.board = onBoard ? LL.board.filter((x) => x !== p.id) : [...LL.board, p.id];
-                    })
-                  }
-                >
-                  {onBoard ? "★ On your board" : "☆ Add to board"}
-                </button>
-              </div>
+              )}
             </div>
-            <div className="row-wrap mt-8" style={{ gap: 18 }}>
-              <span>
-                <b>{heightStr(p.hgt)}</b> <span className="muted">· {p.wgt} lbs · {heightStr(p.wing)} wingspan</span>
-              </span>
-              <span className="muted">
-                {p.city}, {p.state} · {regionOf(p.state)}
-              </span>
-              <span className="muted">{p.archetype}</span>
-              {r.kind === "portal" && <span className="muted">{classLabel(p)} · eligibility left: {4 - p.eligUsed}</span>}
-            </div>
+          </div>
+          <div className="col" style={{ alignItems: "flex-end", justifyContent: "center", paddingBottom: 22, gap: 10 }}>
+            <span className={`stage-pill ${r.stage}`}>
+              {committed && <Logo team={committed} size={20} />}
+              {stageText(L, p)}
+            </span>
+            <button
+              className="btn btn-glass"
+              onClick={() =>
+                mutate((LL) => {
+                  LL.board = onBoard ? LL.board.filter((x) => x !== p.id) : [...LL.board, p.id];
+                })
+              }
+            >
+              <Icon name="star" size={14} /> {onBoard ? "On your board" : "Add to board"}
+            </button>
           </div>
         </div>
-        <div className="stat-row" style={{ borderTop: "1px solid var(--border)", background: "var(--panel-2)" }}>
+        <div className="hero-stats">
           {r.kind === "hs" && r.hs ? (
             <>
-              <div className="stat">
-                <div className="label">PTS (HS)</div>
+              <div>
+                <div className="label">HS points</div>
                 <div className="value">{r.hs.pts.toFixed(1)}</div>
               </div>
-              <div className="stat">
-                <div className="label">REB (HS)</div>
+              <div>
+                <div className="label">HS rebounds</div>
                 <div className="value">{r.hs.reb.toFixed(1)}</div>
               </div>
-              <div className="stat">
-                <div className="label">AST (HS)</div>
+              <div>
+                <div className="label">HS assists</div>
                 <div className="value">{r.hs.ast.toFixed(1)}</div>
               </div>
             </>
           ) : last ? (
             <>
-              <div className="stat">
-                <div className="label">PTS ({seasonLabel(last.season)})</div>
+              <div>
+                <div className="label">{seasonLabel(last.season)} PTS</div>
                 <div className="value">{last.g ? (last.pts / last.g).toFixed(1) : "-"}</div>
               </div>
-              <div className="stat">
+              <div>
                 <div className="label">REB</div>
                 <div className="value">{last.g ? ((last.orb + last.drb) / last.g).toFixed(1) : "-"}</div>
               </div>
-              <div className="stat">
+              <div>
                 <div className="label">AST</div>
                 <div className="value">{last.g ? (last.ast / last.g).toFixed(1) : "-"}</div>
               </div>
-              <div className="stat">
-                <div className="label">MIN</div>
-                <div className="value">{last.g ? (last.min / last.g).toFixed(1) : "-"}</div>
-              </div>
             </>
           ) : null}
-          <div className="stat">
-            <div className="label">Your interest rank</div>
-            <div className="value">
-              {(() => {
-                const sorted = Object.entries(r.interest).sort((a, b) => b[1] - a[1]);
-                const i = sorted.findIndex(([k]) => Number(k) === L.userTid);
-                return i >= 0 ? `#${i + 1}` : "-";
-              })()}
+          <div>
+            <div className="label">Est. overall</div>
+            <div className="value" style={{ paddingTop: 2 }}>
+              <Grade v={r.kind === "portal" ? p.ovr : scoutedOvr(p)} />
             </div>
+          </div>
+          <div>
+            <div className="label">Est. potential</div>
+            <div className="value" style={{ paddingTop: 2 }}>
+              <Grade v={r.kind === "portal" ? p.pot + p.potErr : scoutedPot(p)} />
+            </div>
+          </div>
+          <div>
+            <div className="label">Your interest rank</div>
+            <div className="value">{ir ? `#${ir}` : "-"}</div>
           </div>
         </div>
       </div>
-      <Tabs
-        tabs={[
-          { key: "teams", label: "Interested Teams" },
-          { key: "prefs", label: "Preferences & Scouting" },
-          { key: "actions", label: "Actions" },
-        ]}
-        value={tab}
-        onChange={setTab}
-      />
-      {tab === "teams" && (
-        <div className="card card-b">
-          <InterestedTeams L={L} p={p} />
+      <div className="grid g-main">
+        <div>
+          <Tabs
+            tabs={[
+              { key: "teams", label: "Interested Teams" },
+              { key: "prefs", label: "Preferences & Scouting" },
+              { key: "timeline", label: "Timeline" },
+            ]}
+            value={tab}
+            onChange={setTab}
+          />
+          {tab === "teams" && (
+            <div className="card card-b">
+              <InterestedTeams L={L} p={p} />
+            </div>
+          )}
+          {tab === "prefs" && <Preferences L={L} p={p} />}
+          {tab === "timeline" && (
+            <div className="card card-b">
+              <Timeline p={p} />
+            </div>
+          )}
         </div>
-      )}
-      {tab === "prefs" && <Preferences L={L} p={p} />}
-      {tab === "actions" && <Actions L={L} p={p} />}
+        <Actions L={L} p={p} />
+      </div>
     </div>
   );
 }

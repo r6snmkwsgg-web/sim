@@ -6,8 +6,8 @@ import { classLabel, grade, heightStr, RATING_LABELS, CLASS_LABELS } from "../..
 import type { BoxLine, Game, League, Player, PlayerSeasonStats, RatingKey, Tendencies } from "../../engine/types";
 import { careerLine } from "../../engine/stats";
 import { FOCUS_LABELS } from "../../engine/development";
-import { regionOf } from "../../engine/data/cities";
-import { Card, Empty, Grade, Logo, Rating, Stars, Tabs, TeamLink } from "../components/common";
+import { Card, Empty, Gauge, Grade, heroStyle, Logo, Rating, RatingBar, Stars, Tabs, TeamLink } from "../components/common";
+import { Icon } from "../components/Icons";
 import { Face } from "../components/Face";
 import { StatusBadges } from "./Roster";
 import { RecruitProfile } from "./RecruitProfile";
@@ -19,27 +19,6 @@ const GROUPS: { name: string; keys: RatingKey[] }[] = [
   { name: "Defense", keys: ["perD", "intD", "stl", "blk", "reb"] },
   { name: "Physical", keys: ["ath", "str", "end"] },
 ];
-
-function RatingRow({ k, v }: { k: RatingKey; v: number }) {
-  const g = grade(v);
-  const color = v >= 71 ? "var(--ga)" : v >= 59 ? "var(--gb)" : v >= 47 ? "var(--gc)" : v >= 35 ? "var(--gd)" : "var(--gf)";
-  return (
-    <div className="row" style={{ gap: 10 }}>
-      <span style={{ width: 96 }} className="muted">
-        {RATING_LABELS[k]}
-      </span>
-      <div className="meter" style={{ flex: 1 }}>
-        <span style={{ width: `${v}%`, background: color }} />
-      </div>
-      <span style={{ width: 26 }} className="right bold num">
-        {Math.round(v)}
-      </span>
-      <span style={{ width: 22 }} className="faint small">
-        {g}
-      </span>
-    </div>
-  );
-}
 
 function StatsTable({ L, p, mode }: { L: League; p: Player; mode: "pg" | "tot" }) {
   const rows = p.stats.filter((s) => s.g > 0 || s.rs);
@@ -288,91 +267,117 @@ export function PlayerPage() {
   const isUser = p.tid === L.userTid && p.status === "active";
   const cur = p.stats.find((s) => s.season === L.season && s.tid === p.tid);
   const lastTid = p.stats[p.stats.length - 1]?.tid;
+  const pot = p.pot + p.potErr;
+  const statusLine =
+    p.status === "drafted" && p.draft
+      ? `Drafted ${p.draft.season} · Round ${p.draft.round}, pick ${p.draft.pick} (${p.draft.team})`
+      : p.status === "graduated"
+        ? `Graduated ${p.leftSeason !== undefined ? p.leftSeason + 1 : ""}`
+        : p.retiredReason ?? "Left college";
   return (
     <div className="col gap-16">
-      <div className="card" style={{ overflow: "hidden" }}>
-        <div style={{ display: "flex", gap: 0 }}>
-          <div style={{ background: colors[0], padding: "16px 18px 0", display: "flex", alignItems: "flex-end" }}>
-            <Face seed={p.faceSeed} race={p.race} colors={colors} size={120} />
+      <div className="hero-banner" style={heroStyle(colors)}>
+        <div className="hero-inner" style={{ paddingBottom: 0, alignItems: "stretch" }}>
+          <div className="player-portrait">
+            {p.status === "active" && <span className="portrait-num">{p.jersey}</span>}
+            <Face seed={p.faceSeed} race={p.race} colors={colors} size={150} ratio={1.06} frame={false} />
           </div>
-          <div style={{ padding: 18, flex: 1 }}>
-            <div className="row">
-              <div>
-                <div className="muted small">
-                  {p.status === "active" && t ? `#${p.jersey} · ` : ""}
-                  {p.pos} · {p.archetype}
-                </div>
-                <div className="hero-name">
-                  {p.first} {p.last}
-                </div>
-              </div>
-              <div className="spacer" />
-              <div className="row gap-16">
-                <div className="center">
-                  <div className="tiny muted bold">OVR</div>
-                  <div style={{ fontSize: 22 }}>
-                    <Grade v={p.ovr} />
-                  </div>
-                </div>
-                <div className="center">
-                  <div className="tiny muted bold">POT</div>
-                  <div style={{ fontSize: 22 }}>
-                    <Grade v={p.pot + p.potErr} />
-                  </div>
-                </div>
-              </div>
+          <div style={{ flex: 1, minWidth: 0, paddingBottom: 22, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+            <div className="hero-kicker">
+              {p.status === "active" && t ? `#${p.jersey} · ` : ""}
+              {p.pos} · {p.archetype}
+              {p.status === "active" ? ` · ${classLabel(p)}` : ""}
             </div>
-            <div className="row-wrap mt-8" style={{ gap: 18 }}>
-              <span>
-                <b>{heightStr(p.hgt)}</b> <span className="muted">· {p.wgt} lbs · {heightStr(p.wing)} wingspan</span>
+            <div className="hero-title" style={{ marginTop: 6 }}>
+              <span style={{ fontSize: "0.62em", fontWeight: 700, opacity: 0.9 }}>{p.first}</span>
+              <br />
+              {p.last}
+            </div>
+            <div className="row-wrap" style={{ marginTop: 12, gap: 8 }}>
+              <span className="chip-light">
+                <b>{heightStr(p.hgt)}</b> · {p.wgt} lbs · {heightStr(p.wing)} wing
               </span>
-              <span className="muted">
-                {p.city}, {p.state} ({regionOf(p.state)})
+              <span className="chip-light">
+                <Icon name="pin" size={13} /> {p.city}, {p.state}
               </span>
-              {p.status === "active" ? (
-                <span>
-                  {classLabel(p)} at <TeamLink L={L} tid={p.tid} size={18} />
-                </span>
+              {p.status === "active" && t ? (
+                <Link to={`/l/${L.id}/team/${t.id}`} className="chip-light">
+                  <Logo team={t} size={16} /> {t.name}
+                </Link>
               ) : (
-                <span className="badge dark">
-                  {p.status === "drafted" && p.draft
-                    ? `Drafted ${p.draft.season} · Rd ${p.draft.round}, Pick ${p.draft.pick} (${p.draft.team})`
-                    : p.status === "graduated"
-                      ? `Graduated ${p.leftSeason !== undefined ? p.leftSeason + 1 : ""}`
-                      : p.retiredReason ?? "Left college"}
-                </span>
+                <span className="chip-light">{statusLine}</span>
               )}
-              {p.status !== "active" && lastTid !== undefined && (
-                <span className="muted">
-                  Last team: <TeamLink L={L} tid={lastTid} size={16} />
-                </span>
+              {p.status !== "active" && lastTid !== undefined && teamMaybe(L, lastTid) && (
+                <Link to={`/l/${L.id}/team/${lastTid}`} className="chip-light">
+                  <Logo team={teamMaybe(L, lastTid)} size={16} /> Last: {teamMaybe(L, lastTid)!.name}
+                </Link>
               )}
-              {p.status === "active" && <StatusBadges L={L} p={p} />}
-              {p.injury && <span className="bad small">{p.injury.name}</span>}
-            </div>
-            <div className="row-wrap mt-8 small" style={{ gap: 18 }}>
               {p.recruitedBy && (
-                <span className="muted">
-                  {p.recruitedBy.kind === "portal" ? "Transferred" : "Recruited"} {p.recruitedBy.season}:{" "}
+                <span className="chip-light">
+                  {p.recruitedBy.kind === "portal" ? "Transfer" : `Class of ${p.recruitedBy.season}`}
                   {p.recruitedBy.stars ? (
                     <>
-                      <Stars n={p.recruitedBy.stars} /> {p.recruitedBy.rank ? `#${p.recruitedBy.rank}` : ""}
+                      {" "}
+                      <Stars n={p.recruitedBy.stars} />
+                      {p.recruitedBy.rank ? ` #${p.recruitedBy.rank}` : ""}
                     </>
                   ) : (
-                    "walk-on / unranked"
+                    " · walk-on"
                   )}
                 </span>
               )}
-              {p.transfers.map((tr) => (
-                <span key={tr.season} className="muted">
-                  Transfer {tr.season}: {teamMaybe(L, tr.from)?.name} → {teamMaybe(L, tr.to)?.name}
-                </span>
-              ))}
-              <span className="muted">
-                Career highs: {p.gameHigh.pts} pts · {p.gameHigh.reb} reb · {p.gameHigh.ast} ast
-              </span>
             </div>
+            {(p.status === "active" || p.injury) && (
+              <div className="row-wrap" style={{ marginTop: 8, gap: 6 }}>
+                {p.status === "active" && <StatusBadges L={L} p={p} />}
+                {p.injury && <span className="badge bad">{p.injury.name}</span>}
+              </div>
+            )}
           </div>
+          <div className="row" style={{ gap: 14, paddingBottom: 22 }}>
+            <Gauge v={p.ovr} size={92} label="Overall" text={grade(p.ovr)} track="rgba(255,255,255,0.18)" />
+            <Gauge v={pot} size={92} label="Potential" text={grade(pot)} track="rgba(255,255,255,0.18)" />
+          </div>
+        </div>
+        <div className="hero-stats">
+          {cur && cur.g > 0 ? (
+            (
+              [
+                ["Points", f1(cur.pts / cur.g)],
+                ["Rebounds", f1((cur.orb + cur.drb) / cur.g)],
+                ["Assists", f1(cur.ast / cur.g)],
+                ["Minutes", f1(cur.min / cur.g)],
+                ["FG%", pct100(cur.fgm, cur.fga)],
+                ["3P%", pct100(cur.tpm, cur.tpa)],
+              ] as const
+            ).map(([k, v]) => (
+              <div key={k}>
+                <div className="label">
+                  {seasonLabel(L.season)} {k}
+                </div>
+                <div className="value">{v}</div>
+              </div>
+            ))
+          ) : (
+            <>
+              <div>
+                <div className="label">Career high pts</div>
+                <div className="value">{p.gameHigh.pts}</div>
+              </div>
+              <div>
+                <div className="label">Career high reb</div>
+                <div className="value">{p.gameHigh.reb}</div>
+              </div>
+              <div>
+                <div className="label">Career high ast</div>
+                <div className="value">{p.gameHigh.ast}</div>
+              </div>
+              <div>
+                <div className="label">Seasons played</div>
+                <div className="value">{p.stats.filter((x) => x.g > 0).length}</div>
+              </div>
+            </>
+          )}
         </div>
       </div>
       <Tabs
@@ -389,15 +394,13 @@ export function PlayerPage() {
       {tab === "overview" && (
         <div className="grid g-main">
           <div className="col gap-16">
-            <Card title="Ratings" sub={`Overall ${p.ovr} (${grade(p.ovr)}) · Potential ${grade(p.pot + p.potErr)}`}>
-              <div className="grid g3" style={{ gap: 24 }}>
+            <Card title="Ratings" sub={`Overall ${p.ovr} · Potential ${grade(pot)}`}>
+              <div className="grid g3" style={{ gap: 28 }}>
                 {GROUPS.map((g) => (
-                  <div key={g.name} className="col">
-                    <div className="bold small muted" style={{ textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                      {g.name}
-                    </div>
+                  <div key={g.name}>
+                    <div className="section-title">{g.name}</div>
                     {g.keys.map((k) => (
-                      <RatingRow key={k} k={k} v={p.r[k]} />
+                      <RatingBar key={k} name={RATING_LABELS[k]} v={p.r[k]} />
                     ))}
                   </div>
                 ))}
@@ -408,25 +411,6 @@ export function PlayerPage() {
             </Card>
           </div>
           <div className="col gap-16">
-            {cur && cur.g > 0 && (
-              <Card title={`${seasonLabel(L.season)} Season`}>
-                <div className="stat-row" style={{ margin: "-14px" }}>
-                  {(
-                    [
-                      ["PTS", cur.pts],
-                      ["REB", cur.orb + cur.drb],
-                      ["AST", cur.ast],
-                      ["MIN", cur.min],
-                    ] as const
-                  ).map(([k, v]) => (
-                    <div key={k} className="stat">
-                      <div className="label">{k}</div>
-                      <div className="value">{f1(v / cur.g)}</div>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-            )}
             <Card title="Awards & Honors">
               {p.awards.length ? (
                 <div className="col gap-4">
@@ -434,9 +418,11 @@ export function PlayerPage() {
                     .slice()
                     .reverse()
                     .map((a, i) => (
-                      <div key={i} className="row">
-                        <span className="trophy">🏆</span>
-                        <span>{a.name}</span>
+                      <div key={i} className="row award-row">
+                        <span className="award-ic">
+                          <Icon name="awards" size={14} />
+                        </span>
+                        <span className="bold">{a.name}</span>
                         <span className="spacer" />
                         <span className="muted small">{seasonLabel(a.season)}</span>
                       </div>

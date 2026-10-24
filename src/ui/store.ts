@@ -170,6 +170,7 @@ export async function runSim(target: SimTarget): Promise<{ userGameId: number | 
       }
     } else {
       let last = Date.now();
+      let lastFull = last;
       let days = 0;
       const startWeek = L.week;
       for (;;) {
@@ -192,7 +193,11 @@ export async function runSim(target: SimTarget): Promise<{ userGameId: number | 
         if (Date.now() - last > 60) {
           sim.label = currentDateLabel(L);
           simEmit();
-          emit();
+          // re-rendering the whole page is the expensive part, so do it less often
+          if (Date.now() - lastFull > 700) {
+            emit();
+            lastFull = Date.now();
+          }
           await tick();
           last = Date.now();
         }
