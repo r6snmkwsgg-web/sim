@@ -164,7 +164,7 @@ function LineupCard({ L, p, colors }: { L: League; p: Player; colors: [string, s
       <div className="lu-top">
         <span className="lu-num">{p.jersey}</span>
         <span className="lu-pos">{p.pos}</span>
-        <Face seed={p.faceSeed} race={p.race} colors={colors} size={112} ratio={1.32} frame={false} />
+        <Face seed={p.faceSeed} race={p.race} colors={colors} size={124} frame={false} />
       </div>
       <div className="lu-body">
         <div className="lu-first">{p.first}</div>

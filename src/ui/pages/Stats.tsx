@@ -48,7 +48,7 @@ function Leaders({ L, rows }: { L: League; rows: Row[] }) {
           <Card key={ld.key} title={ld.label} flush>
             {top[0] && (
               <Link to={`/l/${L.id}/player/${top[0].p.id}`} className="leader-top" style={heroStyle(team(L, top[0].s.tid).colors)}>
-                <Face seed={top[0].p.faceSeed} race={top[0].p.race} colors={team(L, top[0].s.tid).colors} size={58} ratio={1.1} frame={false} />
+                <Face seed={top[0].p.faceSeed} race={top[0].p.race} colors={team(L, top[0].s.tid).colors} size={60} crop="bust" frame={false} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div className="ellipsis" style={{ fontWeight: 750, fontSize: 15 }}>
                     {top[0].p.first} {top[0].p.last}

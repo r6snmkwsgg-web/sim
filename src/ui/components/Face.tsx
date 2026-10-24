@@ -44,8 +44,19 @@ export function faceFor(seed: number, race: Race): FaceConfig {
 
 let stage: HTMLDivElement | null = null;
 
+/**
+ * facesjs draws on a 400x600 canvas: empty space above the hair (y < ~60),
+ * the head from ~60 to ~510, and the shoulders/jersey below that.
+ * "bust" frames head and shoulders; "head" is a square crop around the whole head.
+ */
+const CROPS = {
+  bust: { viewBox: "0 48 400 552", ratio: 552 / 400 },
+  head: { viewBox: "-25 58 450 450", ratio: 1 },
+} as const;
+export type FaceCrop = keyof typeof CROPS;
+
 /** facesjs needs a live DOM node (it measures paths), so render offscreen and keep the markup. */
-function renderSvg(face: FaceConfig, teamColors: [string, string, string]): string {
+function renderSvg(face: FaceConfig, teamColors: [string, string, string], crop: FaceCrop): string {
   if (!stage) {
     stage = document.createElement("div");
     stage.style.cssText = "position:absolute;left:-10000px;top:0;width:200px;height:300px;visibility:hidden;pointer-events:none";
@@ -53,31 +64,47 @@ function renderSvg(face: FaceConfig, teamColors: [string, string, string]): stri
   }
   stage.innerHTML = "";
   display(stage, face, { teamColors });
+  const svg = stage.querySelector("svg");
+  if (svg) {
+    svg.setAttribute("viewBox", CROPS[crop].viewBox);
+    svg.setAttribute("preserveAspectRatio", "xMidYMax slice");
+  }
   const out = stage.innerHTML;
   stage.innerHTML = "";
   return out;
 }
 
-export const Face = memo(function Face({ seed, race, colors, size = 40, round, frame = true, ratio }: { seed: number; race: Race; colors?: [string, string]; size?: number; round?: boolean; frame?: boolean; ratio?: number }) {
+export const Face = memo(function Face({
+  seed,
+  race,
+  colors,
+  size = 40,
+  crop,
+  round,
+  frame = true,
+}: {
+  seed: number;
+  race: Race;
+  colors?: [string, string];
+  size?: number;
+  /** defaults to a headshot for small avatars and head-and-shoulders for larger ones */
+  crop?: FaceCrop;
+  round?: boolean;
+  frame?: boolean;
+}) {
   const c = colors ?? ["#4b5563", "#e5e7eb"];
-  const key = `${seed}:${race}:${c[0]}:${c[1]}`;
+  const mode: FaceCrop = crop ?? (size < 56 || round ? "head" : "bust");
+  const key = `${seed}:${race}:${c[0]}:${c[1]}:${mode}`;
   let svg = svgCache.get(key);
   if (!svg) {
-    svg = renderSvg(faceFor(seed, race), [c[0], c[1], "#111111"]);
+    svg = renderSvg(faceFor(seed, race), [c[0], c[1], "#111111"], mode);
     if (svgCache.size > 3000) svgCache.clear();
     svgCache.set(key, svg);
   }
   return (
     <div
-      // without an explicit ratio, crop to a headshot centered on the face
-      className={`face${round ? " round" : ""}${ratio === undefined ? " crop" : ""}`}
-      style={{
-        width: size,
-        height: round ? size : Math.round(size * (ratio ?? 1.02)),
-        ["--face-c" as string]: c[0],
-        ["--crop" as string]: `${Math.round(-size * 0.17)}px`,
-        ...(frame ? null : { background: "none", border: "none" }),
-      }}
+      className={`face ${mode}${round ? " round" : ""}${frame ? "" : " bare"}`}
+      style={{ width: size, height: Math.round(size * CROPS[mode].ratio), ["--face-c" as string]: c[0] }}
       dangerouslySetInnerHTML={{ __html: svg }}
     />
   );

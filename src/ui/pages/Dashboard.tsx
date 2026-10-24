@@ -289,7 +289,7 @@ export function Dashboard() {
                 {leaderCards.map(([label, x, f]) =>
                   x ? (
                     <Link key={label} to={`/l/${L.id}/player/${x.p.id}`} className="leader">
-                      <Face seed={x.p.faceSeed} race={x.p.race} colors={ut.colors} size={60} ratio={1.3} />
+                      <Face seed={x.p.faceSeed} race={x.p.race} colors={ut.colors} size={66} />
                       <div className="leader-v">{f1(f(x))}</div>
                       <div className="leader-l">{label}</div>
                       <div className="leader-n ellipsis">

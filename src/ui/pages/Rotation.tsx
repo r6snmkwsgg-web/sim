@@ -107,7 +107,7 @@ export function RotationPage() {
                 return (
                   <tr key={p.id} className={unavailable ? "dim" : starters.includes(p.id) ? "hl" : ""}>
                     <td className="c">
-                      <input type="checkbox" disabled={unavailable} checked={starters.includes(p.id)} onChange={() => toggleStarter(p.id)} style={{ width: 16, height: 16, accentColor: "var(--accent)" }} />
+                      <input type="checkbox" disabled={unavailable} checked={starters.includes(p.id)} onChange={() => toggleStarter(p.id)} style={{ width: 16, height: 16 }} />
                     </td>
                     <td>
                       <PlayerLink L={L} p={p} face size={26} colors={t.colors} />
