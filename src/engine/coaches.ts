@@ -34,6 +34,16 @@ export function seasonScore(L: League, t: Team): number {
   return clamp(score, 0, 100);
 }
 
+/** What the athletic director expects this season, from program prestige. */
+export function expectations(prestige: number): { goal: string; wins: number } {
+  if (prestige >= 88) return { goal: "Contend for the national title (Final Four)", wins: 27 };
+  if (prestige >= 78) return { goal: "Reach the second weekend (Sweet 16)", wins: 24 };
+  if (prestige >= 66) return { goal: "Make the NCAA Tournament", wins: 21 };
+  if (prestige >= 52) return { goal: "Earn a postseason bid", wins: 18 };
+  if (prestige >= 38) return { goal: "Finish with a winning record", wins: 16 };
+  return { goal: "Show progress and build the program", wins: 12 };
+}
+
 export function nilBudgetFor(L: League, t: Team): number {
   const tier = conference(L, t.cid).tier;
   const mult = [0, 1, 0.45, 0.2, 0.08][tier] ?? 0.08;

@@ -37,7 +37,7 @@ export function Home() {
           <input
             ref={fileRef}
             type="file"
-            accept=".json,.gz,application/json,application/gzip"
+            accept=".hdsave,.gz,.json,application/gzip,application/json"
             style={{ display: "none" }}
             onChange={async (e) => {
               const f = e.target.files?.[0];

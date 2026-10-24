@@ -112,7 +112,7 @@ export function SettingsPage() {
                 const a = document.createElement("a");
                 a.href = URL.createObjectURL(blob);
                 const safe = L.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
-                a.download = `hardwood-${safe}-${L.season}.json${blob.type === "application/json" ? "" : ".gz"}`;
+                a.download = `hardwood-${safe}-${L.season}.hdsave${blob.type === "application/x-ndjson" ? "" : ".gz"}`;
                 a.click();
                 setTimeout(() => URL.revokeObjectURL(a.href), 2000);
               } finally {

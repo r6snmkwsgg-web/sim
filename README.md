@@ -16,7 +16,15 @@ npm run build
 npm run preview    # serves dist/ at http://localhost:4173
 ```
 
-Saves live in your browser (IndexedDB) and autosave after every sim and edit. Use **Settings → Export** to back up a league to a file, and **Import Save** on the start screen to restore it on any computer.
+Or build one self-contained file you can double-click to play, no server needed:
+
+```bash
+npm run build:single   # writes release/hardwood-dynasty.html
+```
+
+Saves live in your browser (IndexedDB) and autosave after every sim and edit. Use **Settings → Export** to back up a league to a compressed `.hdsave.gz` file (every season, player, box score and record), and **Import Save** on the start screen to restore it on any computer. Saves belong to the browser and the address you play from, so keep using the same one (or export and import when you switch).
+
+Tips: press `/` or `Ctrl+K` to search for any team or player. If you'd rather not manage recruiting week to week, turn on auto recruiting in **Settings** and your staff will handle it.
 
 ## What's in it
 
@@ -25,6 +33,7 @@ Saves live in your browser (IndexedDB) and autosave after every sim and edit. Us
 - Rosters of generated players with 15 ratings, archetypes, cartoon faces ([facesjs](https://github.com/zengm-games/facesjs)), hometowns, work ethic and loyalty
 - Tactics: tempo, offensive focus, man/zone/press, rebounding, plus per-player shot tendencies (Shoot 3 / Mid-Range / Inside / Drive)
 - Rotation: auto, or your own starters and minute targets
+- Expectations and job security that scale with your program's prestige
 - Practice: team focus, intensity, individual focus; weekly in-season growth and offseason jumps
 - Redshirts, releasing players, walk-ons, NIL budgets
 
@@ -50,11 +59,13 @@ Saves live in your browser (IndexedDB) and autosave after every sim and edit. Us
 - Program history: season-by-season table, Final Four banners, career and single-season leaders, NBA draftees
 - Player pages with career stats across transfers, game logs, ratings history, awards and draft slot, even years after they've left
 - League history, record book (single game, season, career, team), awards archive, draft history, transfer log
+- Milestones for your coaching career (first NCAA bid, Final Fours, No. 1 rankings, win totals and more)
 
 ## Developer scripts
 
 ```bash
 npm run typecheck
+npm test                              # engine tests (full seasons, offseason, data integrity)
 npx tsx scripts/calibrate.ts 4000     # game engine vs. D1 averages
 npx tsx scripts/seasons.ts 10 7       # multi-season stability check (talent, prestige, recruiting, upsets)
 ```

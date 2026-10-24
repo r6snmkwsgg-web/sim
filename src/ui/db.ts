@@ -140,13 +140,14 @@ export async function getSeasonArchive(lid: string, season: number): Promise<Sea
 }
 
 // ---------------- export / import ----------------
-interface ExportFile {
+// Saves are newline-delimited JSON: a header line with the live league, then
+// one line per archived player, box score and season. Written and read as
+// streams so even very long dynasties back up without hitting string limits.
+
+interface Header {
   format: "hardwood-dynasty";
-  version: 1;
+  version: 2;
   league: League;
-  players: Player[];
-  boxes: BoxScore[];
-  seasons: SeasonArchive[];
 }
 
 export async function exportLeague(L: League): Promise<Blob> {
@@ -156,41 +157,83 @@ export async function exportLeague(L: League): Promise<Blob> {
     d.getAll("boxes", range(L.id)),
     d.getAll("seasons", range(L.id)),
   ]);
-  const strip = <T extends { lid?: string }>(x: T) => {
+  const parts: string[] = [];
+  const header: Header = { format: "hardwood-dynasty", version: 2, league: L };
+  parts.push(JSON.stringify(header), "\n");
+  const line = (t: string, x: { lid?: string }) => {
     const { lid: _lid, ...rest } = x;
-    return rest;
+    parts.push(JSON.stringify({ t, d: rest }), "\n");
   };
-  const data: ExportFile = {
-    format: "hardwood-dynasty",
-    version: 1,
-    league: L,
-    players: players.map(strip) as Player[],
-    boxes: boxes.map(strip) as BoxScore[],
-    seasons: seasons.map(strip) as SeasonArchive[],
-  };
-  const json = new Blob([JSON.stringify(data)], { type: "application/json" });
+  for (const p of players) line("p", p);
+  for (const b of boxes) line("b", b);
+  for (const a of seasons) line("s", a);
+  const blob = new Blob(parts, { type: "application/x-ndjson" });
   if (typeof CompressionStream !== "undefined") {
-    const stream = json.stream().pipeThrough(new CompressionStream("gzip"));
+    const stream = blob.stream().pipeThrough(new CompressionStream("gzip"));
     return await new Response(stream).blob();
   }
-  return json;
+  return blob;
+}
+
+async function* lines(file: File): AsyncGenerator<string> {
+  const head = new Uint8Array(await file.slice(0, 2).arrayBuffer());
+  // the DOM lib's stream generics don't line up across TS versions; the
+  // runtime types are fine
+  let stream: ReadableStream<any> = file.stream();
+  if (head[0] === 0x1f && head[1] === 0x8b) {
+    if (typeof DecompressionStream === "undefined") throw new Error("This browser can't read compressed saves");
+    stream = stream.pipeThrough(new DecompressionStream("gzip"));
+  }
+  const reader = (stream.pipeThrough(new TextDecoderStream()) as ReadableStream<string>).getReader();
+  let buf = "";
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buf += value;
+    let i: number;
+    while ((i = buf.indexOf("\n")) >= 0) {
+      const ln = buf.slice(0, i);
+      buf = buf.slice(i + 1);
+      if (ln.trim()) yield ln;
+    }
+  }
+  if (buf.trim()) yield buf;
 }
 
 export async function importLeague(file: File): Promise<string> {
-  let text: string;
-  const head = new Uint8Array(await file.slice(0, 2).arrayBuffer());
-  if (head[0] === 0x1f && head[1] === 0x8b && typeof DecompressionStream !== "undefined") {
-    const stream = file.stream().pipeThrough(new DecompressionStream("gzip"));
-    text = await new Response(stream).text();
-  } else {
-    text = await file.text();
+  const it = lines(file);
+  const first = await it.next();
+  if (first.done) throw new Error("Empty file");
+  const parsed = JSON.parse(first.value);
+  // older single-document saves
+  if (parsed.format === "hardwood-dynasty" && parsed.version === 1) {
+    const L = parsed.league as League;
+    if (await loadLeague(L.id)) L.id = `${L.id}-${Date.now().toString(36)}`;
+    await saveLeague(L, { boxes: parsed.boxes ?? [], players: parsed.players ?? [], seasons: parsed.seasons ?? [] });
+    return L.id;
   }
-  const data = JSON.parse(text) as ExportFile;
-  if (data.format !== "hardwood-dynasty") throw new Error("Not a Hardwood Dynasty save file");
-  const L = data.league;
-  // avoid clobbering an existing league with the same id
-  const existing = await loadLeague(L.id);
-  if (existing) L.id = `${L.id}-${Date.now().toString(36)}`;
-  await saveLeague(L, { boxes: data.boxes, players: data.players, seasons: data.seasons });
+  const header = parsed as Header;
+  if (header.format !== "hardwood-dynasty") throw new Error("Not a Hardwood Dynasty save file");
+  const L = header.league;
+  if (await loadLeague(L.id)) L.id = `${L.id}-${Date.now().toString(36)}`;
+  const batch: Pending = { boxes: [], players: [], seasons: [] };
+  const flush = async () => {
+    if (!batch.boxes.length && !batch.players.length && !batch.seasons.length) return;
+    const d = await db();
+    const tx = d.transaction(["players", "boxes", "seasons"], "readwrite");
+    for (const b of batch.boxes.splice(0)) tx.objectStore("boxes").put({ ...b, lid: L.id });
+    for (const p of batch.players.splice(0)) tx.objectStore("players").put({ ...p, lid: L.id });
+    for (const a of batch.seasons.splice(0)) tx.objectStore("seasons").put({ ...a, lid: L.id });
+    await tx.done;
+  };
+  for await (const ln of it) {
+    const rec = JSON.parse(ln) as { t: string; d: never };
+    if (rec.t === "p") batch.players.push(rec.d);
+    else if (rec.t === "b") batch.boxes.push(rec.d);
+    else if (rec.t === "s") batch.seasons.push(rec.d);
+    if (batch.boxes.length + batch.players.length >= 2000) await flush();
+  }
+  await flush();
+  await saveLeague(L, { boxes: [], players: [], seasons: [] });
   return L.id;
 }

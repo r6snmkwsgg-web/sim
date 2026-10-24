@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { useLeague } from "../store";
 import { coach, roster, seasonLabel, shortDayLabel, team } from "../../engine/core";
 import { curSeason } from "../../engine/play";
+import { expectations } from "../../engine/coaches";
 import { currentPoll, currentRank, powerRanks } from "../../engine/rankings";
 import { prestigeStars, prestigeTier } from "../../engine/ratings";
 import { classRankings, commitsFor, openSpots } from "../../engine/recruiting";
@@ -310,6 +311,12 @@ export function Dashboard() {
           </Card>
         </div>
         <div className="col gap-16">
+          <Card title="Expectations" sub="Set by your athletic director from the program's prestige">
+            <div className="bold">{expectations(s.prestigeStart ?? ut.prestige).goal}</div>
+            <div className="small muted">
+              Around {expectations(s.prestigeStart ?? ut.prestige).wins} wins keeps everyone happy. Beating expectations raises job security and prestige.
+            </div>
+          </Card>
           <Guide L={L} />
           <Card title={`${L.conferences[ut.cid].short} Standings`} flush right={<Link to={`/l/${L.id}/standings`} className="btn btn-sm btn-ghost">Full</Link>}>
             <table className="tbl compact">

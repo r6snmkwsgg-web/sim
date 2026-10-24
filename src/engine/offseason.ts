@@ -80,6 +80,7 @@ export function endSeason(L: League) {
   L.history.push(sum);
   if (sum.champion === L.userTid) L.achievements.push({ season: L.season, name: `National Champions (${userTeam(L).name})` });
   else if (ff.includes(L.userTid)) L.achievements.push({ season: L.season, name: `Final Four (${userTeam(L).name})` });
+  userMilestones(L);
   // archive the season
   const archive: SeasonArchive = {
     season: L.season,
@@ -409,4 +410,29 @@ export function rollover(L: League) {
   const ut = userTeam(L);
   const r = L.polls[0].ranks.find((x) => x.tid === ut.id);
   addNews(L, "league", `The ${L.season}-${String((L.season + 1) % 100).padStart(2, "0")} season is here. ${ut.name} is ${r ? `ranked No. ${r.rank} in the preseason poll` : "unranked in the preseason poll"}.`, { tid: ut.id, user: true });
+}
+
+/** Career milestones for the user's coach (each awarded once). */
+function userMilestones(L: League) {
+  const uc = coach(L, L.userCid);
+  if (!uc) return;
+  const ut = userTeam(L);
+  const s = curSeason(ut);
+  const have = new Set(L.achievements.map((a) => a.name.replace(/ \(.*\)$/, "")));
+  const award = (name: string) => {
+    if (have.has(name)) return;
+    have.add(name);
+    L.achievements.push({ season: L.season, name: `${name} (${ut.name})` });
+    addNews(L, "milestone", `Milestone: ${name}!`, { tid: ut.id, user: true });
+  };
+  if (s.post?.event === "ncaa") award("First NCAA Tournament bid");
+  if (s.post?.event === "ncaa" && ["Champion", "Runner-up", "Final Four", "Elite Eight", "Sweet 16"].includes(s.post.result)) award("First Sweet 16");
+  if (s.confChamp) award("First conference regular-season title");
+  if (s.confTourney === "Champion") award("First conference tournament title");
+  if (s.apBest === 1) award("Ranked No. 1 in the country");
+  if (s.recruitRank === 1) award("No. 1 recruiting class");
+  if (s.w >= 30) award("30-win season");
+  if (uc.awards.some((a) => a.name === "Coach of the Year" && a.season === L.season)) award("National Coach of the Year");
+  const wins = uc.seasons.reduce((a, x) => a + x.w, 0);
+  for (const m of [100, 250, 500, 750]) if (wins >= m) award(`${m} career wins`);
 }

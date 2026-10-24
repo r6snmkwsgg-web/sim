@@ -7,6 +7,7 @@ import { curSeason } from "../../engine/play";
 import { accentFor, textOn } from "../util";
 import { Icon } from "./Icons";
 import { Logo } from "./common";
+import { GlobalSearch } from "./Search";
 import { PORTAL_ROUNDS, advanceBlocker } from "../../engine/advance";
 import type { League } from "../../engine/types";
 
@@ -333,6 +334,7 @@ export function Layout({ children }: { children: ReactNode }) {
             </div>
           </div>
           <div className="spacer" />
+          <GlobalSearch />
           <div className="date">
             <b>{currentDateLabel(L)}</b>
             {seasonLabel(L.season)} season

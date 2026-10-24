@@ -55,7 +55,7 @@ export function QuickActions({ L, p, keys = ["call", "assistant", "coach", "visi
         return (
           <button
             key={k}
-            className={`btn btn-sm ${done ? "" : "btn-primary"}`}
+            className={`btn btn-sm ${k === "offer" && !done ? "btn-primary" : ""}`}
             style={{ minWidth: 44, padding: "0 7px", opacity: done ? 0.55 : undefined }}
             disabled={!c.ok}
             title={`${ACTIONS[k].label} · ${ACTIONS[k].cost} pts${c.ok ? "" : ` · ${c.why}`}`}
