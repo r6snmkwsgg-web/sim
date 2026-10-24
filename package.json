@@ -1,23 +1,32 @@
 {
-  "name": "opencivilization",
+  "name": "hardwood-dynasty",
   "version": "0.1.0",
-  "description": "An artificial civilization laboratory. Milestone 0: the vertical slice.",
+  "description": "A college basketball coaching and program-building simulation for the desktop browser.",
   "type": "module",
   "private": true,
   "scripts": {
-    "build": "tsc",
-    "sim": "npm run -s build && node dist/cli/run.js",
-    "demo": "npm run -s build && node dist/cli/run.js --seed 11 --stream 1 --out runs/demo && node dist/cli/run.js --seed 11 --stream 1 --ablate-social --out runs/demo-ablated",
-    "sweep": "npm run -s build && node dist/cli/sweep.js",
-    "trace": "npm run -s build && node dist/cli/trace.js",
-    "verify": "npm run -s build && node dist/cli/verify.js",
-    "m1": "npm run -s build && node --max-old-space-size=6144 dist/cli/m1.js",
-    "m1:sweep": "npm run -s build && node dist/cli/m1-sweep.js",
-    "view": "npm run -s build && node dist/cli/serve.js",
-    "test": "npm run -s build && node --test dist/test/*.test.js"
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "calibrate": "tsx scripts/calibrate.ts"
+  },
+  "dependencies": {
+    "facesjs": "^5.0.3",
+    "idb": "^8.0.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.30.6"
   },
   "devDependencies": {
-    "@types/node": "^26.2.0",
-    "typescript": "^5.9.3"
+    "@types/node": "^26.6.5",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^6.1.2",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5"
   }
 }
