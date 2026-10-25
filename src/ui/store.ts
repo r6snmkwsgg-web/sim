@@ -148,6 +148,8 @@ export interface WatchGuard {
   gid: number;
   won: boolean;
   conf: boolean;
+  /** AP rank before the game (a new poll can come out the same day) */
+  rank: number | null;
 }
 let watchGuard: WatchGuard | null = null;
 let watchVersion = 0;

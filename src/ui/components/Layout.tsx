@@ -84,12 +84,13 @@ export function useWatchNext(): () => Promise<void> {
   const L = useLeague();
   const nav = useNavigate();
   return async () => {
+    const rank = currentRank(L, L.userTid);
     const { userGameId } = await runSim("nextGame", { quiet: true });
     if (userGameId === null) return;
     const g = L.games.find((x) => x.id === userGameId);
     if (!g) return;
     const won = g.home === L.userTid ? g.hs > g.as : g.as > g.hs;
-    setWatchGuard({ gid: g.id, won, conf: g.type === "conf" });
+    setWatchGuard({ gid: g.id, won, conf: g.type === "conf", rank });
     nav(`/l/${L.id}/game/${g.id}?watch=1`);
   };
 }
@@ -326,7 +327,7 @@ export function Layout({ children }: { children: ReactNode }) {
   const L = useLeague();
   const t = team(L, L.userTid);
   const s = curSeason(t);
-  const rank = currentRank(L, t.id);
+  const liveRank = currentRank(L, t.id);
   const unread = L.news.filter((n) => n.user && !n.read).length;
   // hide the result of a game that's being watched
   const guard = useWatchGuard();
@@ -339,6 +340,7 @@ export function Layout({ children }: { children: ReactNode }) {
   const rec = guard
     ? { w: s.w - (guard.won ? 1 : 0), l: s.l - (guard.won ? 0 : 1), cw: s.cw - (guard.conf && guard.won ? 1 : 0), cl: s.cl - (guard.conf && !guard.won ? 1 : 0) }
     : { w: s.w, l: s.l, cw: s.cw, cl: s.cl };
+  const rank = guard ? guard.rank : liveRank;
   useEffect(() => {
     const root = document.documentElement;
     const h = heroColors(t.colors);
