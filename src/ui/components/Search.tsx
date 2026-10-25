@@ -4,6 +4,7 @@ import { useLeague } from "../store";
 import { Logo } from "./common";
 import { Icon } from "./Icons";
 import { team } from "../../engine/core";
+import { HUBS, hubPages } from "../nav";
 
 interface Hit {
   key: string;
@@ -11,6 +12,7 @@ interface Hit {
   sub: string;
   to: string;
   tid?: number;
+  icon?: string;
 }
 
 export function GlobalSearch() {
@@ -19,11 +21,16 @@ export function GlobalSearch() {
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const [sel, setSel] = useState(0);
+  // phones show a search button that opens the box over the top bar
+  const [expanded, setExpanded] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     const h = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+        setExpanded(false);
+      }
     };
     const k = (e: KeyboardEvent) => {
       if ((e.key === "/" || (e.key === "k" && (e.metaKey || e.ctrlKey))) && document.activeElement?.tagName !== "INPUT") {
@@ -43,9 +50,17 @@ export function GlobalSearch() {
     const s = q.trim().toLowerCase();
     if (s.length < 2) return [];
     const out: Hit[] = [];
+    // pages first: "standings", "bracket", "draft"...
+    for (const h of HUBS) {
+      for (const p of hubPages(L, h)) {
+        if (out.length >= 3) break;
+        const words = `${p.label} ${p.alias ?? ""}`.toLowerCase();
+        if (words.split(/\s+/).some((w) => w.startsWith(s)) || words.includes(s)) out.push({ key: `pg${h.key}${p.to}`, label: p.label, sub: `Go to page · ${h.label}`, to: `/l/${L.id}/${p.to}`, icon: h.icon });
+      }
+    }
     for (const t of L.teams) {
       if (`${t.name} ${t.mascot} ${t.abbrev}`.toLowerCase().includes(s)) out.push({ key: `t${t.id}`, label: `${t.name} ${t.mascot}`, sub: L.conferences[t.cid].short, to: `/l/${L.id}/team/${t.id}`, tid: t.id });
-      if (out.length >= 5) break;
+      if (out.length >= 8) break;
     }
     for (const p of L.players) {
       if (out.length >= 12) break;
@@ -58,11 +73,24 @@ export function GlobalSearch() {
   }, [q, L]);
   const go = (h: Hit) => {
     setOpen(false);
+    setExpanded(false);
     setQ("");
+    inputRef.current?.blur();
     nav(h.to);
   };
   return (
-    <div ref={ref} style={{ position: "relative" }}>
+    <div ref={ref} className={`search-wrap${expanded ? " open" : ""}`} style={{ position: "relative" }}>
+      <button
+        className="search-btn"
+        aria-label="Search"
+        onClick={() => {
+          setExpanded(true);
+          setOpen(true);
+          setTimeout(() => inputRef.current?.focus(), 0);
+        }}
+      >
+        <Icon name="search" size={17} />
+      </button>
       <span className="search-ic">
         <Icon name="search" size={14} />
       </span>
@@ -70,7 +98,7 @@ export function GlobalSearch() {
       <input
         ref={inputRef}
         className="input search-glass"
-        placeholder="Search teams & players"
+        placeholder="Search teams, players, pages"
         value={q}
         onChange={(e) => {
           setQ(e.target.value);
@@ -84,6 +112,7 @@ export function GlobalSearch() {
           else if (e.key === "Enter" && hits[sel]) go(hits[sel]);
           else if (e.key === "Escape") {
             setOpen(false);
+            setExpanded(false);
             (e.target as HTMLInputElement).blur();
           }
         }}
@@ -93,7 +122,15 @@ export function GlobalSearch() {
         <div className="menu" style={{ left: 0, right: "auto", width: 360 }}>
           {hits.map((h, i) => (
             <button key={h.key} className="menu-item row" style={{ background: i === sel ? "var(--panel-3)" : undefined }} onMouseEnter={() => setSel(i)} onClick={() => go(h)}>
-              {h.tid !== undefined && h.tid !== null ? <Logo team={team(L, h.tid)} size={22} /> : <span style={{ width: 22 }} />}
+              {h.tid !== undefined && h.tid !== null ? (
+                <Logo team={team(L, h.tid)} size={22} />
+              ) : h.icon ? (
+                <span className="search-page-ic">
+                  <Icon name={h.icon} size={14} />
+                </span>
+              ) : (
+                <span style={{ width: 22 }} />
+              )}
               <span style={{ flex: 1 }}>
                 {h.label}
                 <small>{h.sub}</small>

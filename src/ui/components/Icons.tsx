@@ -47,6 +47,9 @@ const P: Record<string, string> = {
   check: "M5 12l5 5 9-10",
   search: "M11 4a7 7 0 100 14 7 7 0 000-14zM20 20l-4-4",
   x: "M6 6l12 12M18 6L6 18",
+  back: "M15 5l-7 7 7 7",
+  menu: "M4 6h16M4 12h16M4 18h16",
+  league: "M12 3a9 9 0 100 18 9 9 0 000-18zM12 3v18M3.5 9h17M3.5 15h17",
 };
 
 export function Icon({ name, size = 16, className }: { name: keyof typeof P | string; size?: number; className?: string }) {

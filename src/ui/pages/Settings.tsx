@@ -23,7 +23,14 @@ export function SettingsPage() {
   };
   return (
     <div>
-      <PageHead title="Settings" />
+      <PageHead
+        title="Settings"
+        right={
+          <button className="btn" onClick={() => nav("/")}>
+            Switch league
+          </button>
+        }
+      />
       <div className="grid g2">
         <Card title="League">
           <div className="col gap-12">

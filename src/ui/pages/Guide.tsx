@@ -8,6 +8,18 @@ export function Guide() {
   return (
     <div>
       <PageHead title="How to Play" sub="Build a program that wins for decades. Everything that happens is kept forever." />
+      <Card title="Getting around" className="mb-16">
+        <ul className="small" style={{ margin: 0, paddingLeft: 18, lineHeight: 1.7 }}>
+          <li>
+            Five sections live on the left (along the bottom on a phone): <b>Home</b>, <b>My Team</b>, <b>Recruiting</b>, <b>League</b> and <b>History</b>. Each one opens where you left it.
+          </li>
+          <li>The tabs under the top bar are the pages in that section. On a team, player or game page, the Back button takes you where you came from.</li>
+          <li>
+            Press <kbd>/</kbd> (or tap the search button) and type a team, a player or a page name, like "standings", "bracket" or "draft".
+          </li>
+          <li>The big button in the top right always does the next thing: play your next game, start the tournament, open the portal. The arrow beside it has more sim options.</li>
+        </ul>
+      </Card>
       <div className="grid g2">
         <Card title="The season">
           <ol className="small" style={{ margin: 0, paddingLeft: 18, lineHeight: 1.7 }}>

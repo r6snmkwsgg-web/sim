@@ -75,7 +75,7 @@ export function Home() {
         {leagues === null ? (
           <div style={{ color: "#8d99ae" }}>Loading…</div>
         ) : leagues.length === 0 ? (
-          <div className="home-card" style={{ padding: 30, display: "flex", alignItems: "center", gap: 22 }}>
+          <div className="home-card home-empty" style={{ padding: 30, display: "flex", alignItems: "center", gap: 22 }}>
             <span className="feature">
               <span className="fi" style={{ width: 52, height: 52, borderRadius: 14 }}>
                 <Icon name="ball" size={26} />

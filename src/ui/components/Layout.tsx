@@ -11,20 +11,23 @@ import { GlobalSearch } from "./Search";
 import { PORTAL_ROUNDS, advanceBlocker, isDayPhase } from "../../engine/advance";
 import { nextGame } from "../helpers";
 import type { League } from "../../engine/types";
+import { HUBS, hubPages, hubTarget, locate, rememberPage, type NavHub } from "../nav";
 
 interface Action {
   target: SimTarget;
   label: string;
   sub?: string;
+  /** label for narrow screens */
+  short?: string;
 }
 
 function actionsFor(L: League): { main: Action; more: Action[] } {
   switch (L.phase) {
     case "preseason":
-      return { main: { target: "advance", label: "Start Season" }, more: [{ target: "advance", label: "Start the regular season", sub: "Lock in redshirts and tip off" }] };
+      return { main: { target: "advance", label: "Start Season", short: "Start" }, more: [{ target: "advance", label: "Start the regular season", sub: "Lock in redshirts and tip off" }] };
     case "regular":
       return {
-        main: { target: "nextGame", label: "Play Next Game" },
+        main: { target: "nextGame", label: "Play Next Game", short: "Play" },
         more: [
           { target: "nextGame", label: "Play next game", sub: "Sim until your next game is final" },
           { target: "day", label: "Sim one day" },
@@ -35,7 +38,7 @@ function actionsFor(L: League): { main: Action; more: Action[] } {
       };
     case "confTourney":
       return {
-        main: { target: "day", label: "Sim Day" },
+        main: { target: "day", label: "Sim Day", short: "Sim Day" },
         more: [
           { target: "day", label: "Sim one day" },
           { target: "nextGame", label: "Play next game" },
@@ -43,10 +46,10 @@ function actionsFor(L: League): { main: Action; more: Action[] } {
         ],
       };
     case "selection":
-      return { main: { target: "advance", label: "Start Tournaments" }, more: [{ target: "advance", label: "Begin the NCAA Tournament, NIT and CBI" }] };
+      return { main: { target: "advance", label: "Start Tournaments", short: "Start" }, more: [{ target: "advance", label: "Begin the NCAA Tournament, NIT and CBI" }] };
     case "ncaa":
       return {
-        main: { target: "day", label: "Sim Day" },
+        main: { target: "day", label: "Sim Day", short: "Sim Day" },
         more: [
           { target: "day", label: "Sim one day" },
           { target: "nextGame", label: "Play next game" },
@@ -54,21 +57,21 @@ function actionsFor(L: League): { main: Action; more: Action[] } {
         ],
       };
     case "seasonEnd":
-      return { main: { target: "advance", label: "Coaching Carousel" }, more: [{ target: "advance", label: "Proceed to the coaching carousel", sub: "Firings, hirings and job offers" }] };
+      return { main: { target: "advance", label: "Coaching Carousel", short: "Next" }, more: [{ target: "advance", label: "Proceed to the coaching carousel", sub: "Firings, hirings and job offers" }] };
     case "carousel":
-      return { main: { target: "advance", label: "Draft & Departures" }, more: [{ target: "advance", label: "Proceed to the NBA Draft", sub: "Seniors graduate, early entries leave" }] };
+      return { main: { target: "advance", label: "Draft & Departures", short: "Next" }, more: [{ target: "advance", label: "Proceed to the NBA Draft", sub: "Seniors graduate, early entries leave" }] };
     case "draft":
-      return { main: { target: "advance", label: "Open Transfer Portal" }, more: [{ target: "advance", label: "Open the transfer portal" }] };
+      return { main: { target: "advance", label: "Open Transfer Portal", short: "Next" }, more: [{ target: "advance", label: "Open the transfer portal" }] };
     case "portal":
       return {
-        main: { target: "advance", label: `Next Portal Window (${L.portalRound}/${PORTAL_ROUNDS})` },
+        main: { target: "advance", label: `Next Portal Window (${L.portalRound}/${PORTAL_ROUNDS})`, short: `Window ${L.portalRound}/${PORTAL_ROUNDS}` },
         more: [
           { target: "advance", label: "Advance one portal window", sub: "AI programs make their moves; commitments happen" },
           { target: "endPortal", label: "Sim to Signing Day" },
         ],
       };
     case "signing":
-      return { main: { target: "advance", label: `Start ${seasonLabel(L.season + 1)}` }, more: [{ target: "advance", label: "Begin the new season", sub: "Players develop, recruits enroll, new schedule" }] };
+      return { main: { target: "advance", label: `Start ${seasonLabel(L.season + 1)}`, short: "Start" }, more: [{ target: "advance", label: "Begin the new season", sub: "Players develop, recruits enroll, new schedule" }] };
   }
 }
 
@@ -149,14 +152,15 @@ function PlayMenu() {
     <div ref={ref} style={{ position: "relative", display: "flex", gap: 6 }}>
       {canWatch && (
         <button className="watch-btn" disabled={sim.running} onClick={() => void watchNext()} title="Play your next game and watch it live">
-          <Icon name="tv" size={15} /> Watch
+          <Icon name="tv" size={15} /> <span className="lbl-long">Watch</span>
         </button>
       )}
       <button className="play-btn" disabled={sim.running} onClick={() => go(main)}>
         <span className="ic">
           <Icon name="play" />
         </span>
-        {main.label}
+        <span className="lbl-long">{main.label}</span>
+        <span className="lbl-short">{main.short ?? main.label}</span>
       </button>
       <button className="play-btn play-more" disabled={sim.running} onClick={() => setOpen(!open)} aria-label="More sim options">
         <Icon name="chevron" />
@@ -277,51 +281,59 @@ function ResultToast() {
   );
 }
 
-const NAV: { head: string; items: { to: string; label: string; icon: string; phases?: League["phase"][] }[] }[] = [
-  {
-    head: "Program",
-    items: [
-      { to: "", label: "Dashboard", icon: "home" },
-      { to: "inbox", label: "Inbox", icon: "inbox" },
-      { to: "roster", label: "Roster", icon: "roster" },
-      { to: "tactics", label: "Tactics", icon: "tactics" },
-      { to: "rotation", label: "Rotation", icon: "rotation" },
-      { to: "practice", label: "Practice", icon: "practice" },
-      { to: "schedule", label: "Schedule", icon: "schedule" },
-      { to: "coach", label: "Coach & Jobs", icon: "coach" },
-    ],
-  },
-  {
-    head: "Recruiting",
-    items: [
-      { to: "recruiting", label: "Recruiting Board", icon: "recruit" },
-      { to: "targets", label: "My Targets", icon: "star" },
-      { to: "classes", label: "Class Rankings", icon: "rankings" },
-      { to: "portal", label: "Transfer Portal", icon: "portal" },
-    ],
-  },
-  {
-    head: "League",
-    items: [
-      { to: "scores", label: "Scores", icon: "scores" },
-      { to: "standings", label: "Standings", icon: "standings" },
-      { to: "rankings", label: "Rankings", icon: "rankings" },
-      { to: "tournaments", label: "Tournaments", icon: "bracket" },
-      { to: "stats", label: "Stats", icon: "stats" },
-      { to: "awards", label: "Awards", icon: "awards" },
-    ],
-  },
-  {
-    head: "History",
-    items: [
-      { to: "history", label: "League History", icon: "history" },
-      { to: "program", label: "Program History", icon: "team" },
-      { to: "records", label: "Record Book", icon: "records" },
-      { to: "draft", label: "NBA Draft", icon: "draft" },
-      { to: "transfers", label: "Transfers", icon: "portal" },
-    ],
-  },
-];
+/** The five sections: a slim rail on desktop, a tab bar on phones. */
+function HubLinks({ L, active, badges, className }: { L: League; active: NavHub | null; badges: Record<string, number>; className: string }) {
+  return (
+    <nav className={className}>
+      {HUBS.map((h) => (
+        <Link key={h.key} to={`/l/${L.id}/${hubTarget(L, h)}`} className={`hub-item${active?.key === h.key ? " active" : ""}`}>
+          <span className="hub-ic">
+            <Icon name={h.icon} size={20} />
+            {badges[h.key] ? <span className="hub-badge">{badges[h.key]}</span> : null}
+          </span>
+          <span className="hub-label">{h.short}</span>
+        </Link>
+      ))}
+    </nav>
+  );
+}
+
+/** The current section's pages as tabs, with a way back from detail screens. */
+function SubNav({ L, rest, search }: { L: League; rest: string; search: string }) {
+  const nav = useNavigate();
+  const spot = locate(L, rest, search);
+  const hub = spot.hub;
+  useEffect(() => {
+    if (hub && spot.page) rememberPage(hub.key, spot.page.to);
+  }, [hub, spot.page]);
+  if (!hub) return null;
+  const pages = hubPages(L, hub);
+  const unread = L.news.filter((n) => n.user && !n.read).length;
+  const count: Record<string, number> = { inbox: unread, coach: L.jobOffers.length };
+  const back = () => {
+    const idx = (window.history.state as { idx?: number } | null)?.idx ?? 0;
+    if (idx > 0) nav(-1);
+    else nav(`/l/${L.id}/${hubTarget(L, hub)}`);
+  };
+  return (
+    <div className="subnav">
+      {spot.detail && (
+        <button className="subnav-back" onClick={back} title="Back">
+          <Icon name="back" size={15} /> Back
+        </button>
+      )}
+      <span className="subnav-hub">{hub.label}</span>
+      <div className="subnav-tabs">
+        {pages.map((p) => (
+          <Link key={p.to} to={`/l/${L.id}/${p.to}`} className={`subnav-tab${spot.page === p ? " active" : ""}`}>
+            {p.label}
+            {count[p.to] ? <span className="nav-badge">{count[p.to]}</span> : null}
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export function Layout({ children }: { children: ReactNode }) {
   const L = useLeague();
@@ -337,6 +349,11 @@ export function Layout({ children }: { children: ReactNode }) {
     const g = getWatchGuard();
     if (g && !(loc.pathname.endsWith(`/game/${g.gid}`) && loc.search.includes("watch=1"))) setWatchGuard(null);
   }, [loc]);
+  // each new screen starts at the top
+  const contentRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    contentRef.current?.scrollTo(0, 0);
+  }, [loc.pathname]);
   const rec = guard
     ? { w: s.w - (guard.won ? 1 : 0), l: s.l - (guard.won ? 0 : 1), cw: s.cw - (guard.conf && guard.won ? 1 : 0), cl: s.cl - (guard.conf && !guard.won ? 1 : 0) }
     : { w: s.w, l: s.l, cw: s.cw, cl: s.cl };
@@ -353,32 +370,17 @@ export function Layout({ children }: { children: ReactNode }) {
     root.style.setProperty("--accent-ink-l", inkOn(t.colors[0], "#ffffff", 4));
     document.title = `${t.name} · Hardwood Dynasty`;
   }, [t]);
-  const badges: Record<string, number> = { inbox: unread, coach: L.jobOffers.length };
+  const rest = loc.pathname.replace(/^\/l\/[^/]+\/?/, "");
+  const spot = locate(L, rest, loc.search);
+  const badges: Record<string, number> = { home: unread, team: L.jobOffers.length };
   return (
     <div className="app">
-      <aside className="sidebar">
-        <Link to="/" className="brand">
-          <span className="brand-mark">
-            <Icon name="crown" size={19} />
-          </span>
-          <div style={{ minWidth: 0 }}>
-            <div className="brand-name">Hardwood Dynasty</div>
-            <small className="ellipsis">{L.name}</small>
-          </div>
+      <aside className="rail">
+        <Link to="/" className="rail-brand" title={`Hardwood Dynasty · ${L.name} (all leagues)`}>
+          <Icon name="crown" size={19} />
         </Link>
-        {NAV.map((sec) => (
-          <div className="nav-section" key={sec.head}>
-            <div className="nav-head">{sec.head}</div>
-            {sec.items.map((it) => (
-              <NavLink key={it.to} end={it.to === ""} to={`/l/${L.id}/${it.to}`} className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
-                <Icon name={it.icon} />
-                {it.label}
-                {badges[it.to] ? <span className="nav-badge">{badges[it.to]}</span> : null}
-              </NavLink>
-            ))}
-          </div>
-        ))}
-        <div className="sidebar-foot">
+        <HubLinks L={L} active={spot.hub} badges={badges} className="rail-hubs" />
+        <div className="rail-foot">
           <NavLink to={`/l/${L.id}/guide`} className={({ isActive }) => `side-icon${isActive ? " active" : ""}`} title="How to play">
             <Icon name="ball" />
           </NavLink>
@@ -388,28 +390,27 @@ export function Layout({ children }: { children: ReactNode }) {
           <Link to="/" className="side-icon" title="All leagues">
             <Icon name="exit" />
           </Link>
-          <div className="side-phase">
-            {seasonLabel(L.season)}
-            <br />
-            {PHASE_LABEL[L.phase]}
-          </div>
         </div>
       </aside>
       <div className="main">
         <header className="topbar">
-          <Link to={`/l/${L.id}/team/${t.id}`} style={{ display: "flex" }}>
+          <Link to={`/l/${L.id}/team/${t.id}`} className="topbar-logo" title="Team page">
             <Logo team={t} size={44} />
           </Link>
           <div style={{ minWidth: 0 }}>
             <div className="team-name ellipsis">
               {rank ? <span className="rk">#{rank}</span> : null}
-              {t.name} {t.mascot}
+              <span className="lbl-long">
+                {t.name} {t.mascot}
+              </span>
+              <span className="lbl-short">{t.short}</span>
             </div>
-            <div className="sub">
+            <div className="sub ellipsis">
               <b>
                 {rec.w}-{rec.l}
               </b>{" "}
-              · {rec.cw}-{rec.cl} {L.conferences[t.cid].short} · {PHASE_LABEL[L.phase]}
+              · {rec.cw}-{rec.cl} {L.conferences[t.cid].short}
+              <span className="lbl-long"> · {PHASE_LABEL[L.phase]}</span>
             </div>
           </div>
           <div className="spacer" />
@@ -420,10 +421,12 @@ export function Layout({ children }: { children: ReactNode }) {
           </div>
           <PlayMenu />
         </header>
-        <main className="content">
+        <SubNav L={L} rest={rest} search={loc.search} />
+        <main className="content" ref={contentRef}>
           <div className="page">{children}</div>
         </main>
       </div>
+      <HubLinks L={L} active={spot.hub} badges={badges} className="tabbar" />
       <SimOverlay />
       <ResultToast />
     </div>

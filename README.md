@@ -1,6 +1,6 @@
 # Hardwood Dynasty
 
-A college basketball program-building game for the desktop browser, inspired by *Blue Bloods Basketball*. Take any of the 365 Division I programs and turn it from a no-name into a Blue Blood. Recruit, develop players, set tactics, survive March, and build a legacy that's **kept forever**: every season, roster, box score, bracket, award and record stays browsable.
+A college basketball program-building game for the browser (desktop or phone), inspired by *Blue Bloods Basketball*. Take any of the 365 Division I programs and turn it from a no-name into a Blue Blood. Recruit, develop players, set tactics, survive March, and build a legacy that's **kept forever**: every season, roster, box score, bracket, award and record stays browsable.
 
 ## Play
 
@@ -24,7 +24,7 @@ npm run build:single   # writes release/hardwood-dynasty.html
 
 Saves live in your browser (IndexedDB) and autosave after every sim and edit. Use **Settings → Export** to back up a league to a compressed `.hdsave.gz` file (every season, player, box score and record), and **Import Save** on the start screen to restore it on any computer. Saves belong to the browser and the address you play from, so keep using the same one (or export and import when you switch).
 
-Tips: press `/` or `Ctrl+K` to search for any team or player. If you'd rather not manage recruiting week to week, turn on auto recruiting in **Settings** and your staff will handle it.
+Getting around: five sections (Home, My Team, Recruiting, League, History) sit on the left, or along the bottom on a phone, and each section's pages are tabs under the top bar. Team, player and game pages have a Back button. Press `/` or `Ctrl+K` to search for any team, player or page ("standings", "bracket", "draft"). If you'd rather not manage recruiting week to week, turn on auto recruiting in **Settings** and your staff will handle it.
 
 ## What's in it
 

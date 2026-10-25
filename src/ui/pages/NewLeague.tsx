@@ -67,7 +67,7 @@ export function NewLeague() {
             </div>
           </div>
         </div>
-        <div className="grid" style={{ gridTemplateColumns: "minmax(0, 1.45fr) minmax(0, 1fr)", alignItems: "start" }}>
+        <div className="grid newleague-grid" style={{ alignItems: "start" }}>
           <div className="card">
             <div className="filter-bar">
               <div className="search-box">
