@@ -34,6 +34,7 @@ import { SettingsPage } from "./pages/Settings";
 import { SeasonReview } from "./pages/SeasonReview";
 import { Signing } from "./pages/Signing";
 import { Guide } from "./pages/Guide";
+import { Prep } from "./pages/Prep";
 
 function LeagueRoot() {
   const { lid } = useParams();
@@ -85,6 +86,7 @@ export function App() {
           <Route path="rotation" element={<RotationPage />} />
           <Route path="practice" element={<Practice />} />
           <Route path="schedule" element={<Schedule />} />
+          <Route path="prep" element={<Prep />} />
           <Route path="game/:gid" element={<GamePage />} />
           <Route path="scores" element={<Scores />} />
           <Route path="standings" element={<Standings />} />

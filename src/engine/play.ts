@@ -99,6 +99,15 @@ export function playGame(L: League, g: Game) {
   const as = buildSimTeam(L, away);
   const isUser = g.home === L.userTid || g.away === L.userTid;
   const bigGame = g.type === "ncaa" && (g.tourney?.round ?? 0) >= 3;
+  // the user's game prep applies to this game if it was for this opponent; either way it's used up
+  if (isUser && L.prep) {
+    const opp = g.home === L.userTid ? g.away : g.home;
+    if (L.prep.opp === opp && L.prep.level > 0) {
+      (g.home === L.userTid ? hs : as).prep = L.prep.level;
+      g.prep = L.prep.level;
+    }
+    L.prep = undefined;
+  }
   const res = simGame(hs, as, rng, {
     neutral: g.neutral,
     homeAdv: L.settings.homeCourt,

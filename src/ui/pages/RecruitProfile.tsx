@@ -222,7 +222,7 @@ function Actions({ L, p }: { L: League; p: Player }) {
   const keys: ActionKey[] = ["call", "assistant", "coach", "visit", "offer"];
   return (
     <div className="col gap-16">
-      <Card title="Recruit Him" sub={`${L.recruitPts}/${L.recruitPtsMax} points left · ${spots} open spot${spots === 1 ? "" : "s"} · ${OFFICIAL_VISITS - ut.officialVisitsUsed} official visits left`}>
+      <Card title="Recruit Him" sub={`${L.recruitPts}/${L.recruitPtsMax} coaching points left · ${spots} open spot${spots === 1 ? "" : "s"} · ${OFFICIAL_VISITS - ut.officialVisitsUsed} official visits left`}>
         {r.stage === "signed" ? (
           <div className="muted">He has signed. Recruiting is over.</div>
         ) : (

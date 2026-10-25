@@ -45,6 +45,7 @@ export const HUBS: NavHub[] = [
     pages: [
       { to: "roster", label: "Roster", alias: "players lineup" },
       { to: "schedule", label: "Schedule", alias: "games results" },
+      { to: "prep", label: "Game Prep", alias: "scout scouting opponent game plan next game" },
       { to: "tactics", label: "Tactics", alias: "strategy offense defense tempo" },
       { to: "rotation", label: "Rotation", alias: "minutes starters" },
       { to: "practice", label: "Practice", alias: "development training" },

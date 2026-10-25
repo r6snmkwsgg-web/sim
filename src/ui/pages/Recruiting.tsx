@@ -26,11 +26,11 @@ export function RecruitingSummary() {
         </div>
       )}
       <div className="tiles g5 mb-16" style={{ display: "grid" }}>
-        <Tile label="Points this week" icon="bolt" value={<>{L.recruitPts}<small>/ {L.recruitPtsMax}</small></>}>
+        <Tile label="Coaching points" icon="bolt" value={<>{L.recruitPts}<small>/ {L.recruitPtsMax}</small></>}>
           <div style={{ marginTop: 7 }}>
             <Meter value={pct} color="var(--accent-ink)" />
           </div>
-          <div className="foot">Resets every Monday</div>
+          <div className="foot">Reset Mondays · also buy game prep</div>
         </Tile>
         <Tile label="Open spots" icon="roster" value={openSpots(L, ut.id)} foot="Next season, after departures" />
         <Tile label="Your class" icon="star" value={<>{cr && cr.n > 0 ? `#${cr.rank}` : "-"}<small>{commits.length} commit{commits.length === 1 ? "" : "s"}</small></>} foot={commits.length ? commits.map((p) => `${p.recruit!.stars}★`).join(" ") : "No commitments yet"} />

@@ -5,6 +5,7 @@
 // Players carry composite skills derived from ratings, energy that drains on
 // the floor, and a minutes target from the coach's rotation.
 
+import { PREP_SHOT } from "../prep";
 import type { BoxLine, PbpEvent, Player, Pos, ShotType, Strategy, Tendencies } from "../types";
 import { Rng, clamp } from "../rng";
 
@@ -16,6 +17,8 @@ export interface SimTeam {
   minutes: Record<number, number>;
   strategy: Strategy;
   tactics: number; // coach tactics 0-100
+  /** game prep level 0-3 (the user's scouting) */
+  prep?: number;
 }
 
 export interface SimOptions {
@@ -138,6 +141,7 @@ interface TS {
   onSorted: GP[];
   strat: Strategy;
   tactics: number;
+  prep: number;
   pts: number;
   halves: number[];
   teamFouls: number; // current half
@@ -290,6 +294,7 @@ export class GameSim {
       onSorted: [],
       strat: st.strategy,
       tactics: st.tactics,
+      prep: st.prep ?? 0,
       pts: 0,
       halves: [],
       teamFouls: 0,
@@ -844,6 +849,8 @@ export class GameSim {
     }
     // game planning on both ends: a great tactician is worth about two points a night per standout
     p = p * ef + off.shootAdj + off.form + (off.tactics - 50) * 0.0006 - (def.tactics - 50) * 0.0004;
+    // scouting: a prepared offense gets better looks, a prepared defense knows the sets
+    p += PREP_SHOT[off.prep] - PREP_SHOT[def.prep];
     // score effects: teams with a lead relax and trailing teams press, more so as the game goes on
     const lead = Math.max(-20, Math.min(20, off.pts - def.pts));
     p -= lead * SCORE_EFFECT * (0.4 + this.gameElapsed() / 2400);

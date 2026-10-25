@@ -296,6 +296,8 @@ export interface Game {
   ot: number;
   tourney?: { key: string; round: number; slot: number };
   event?: string; // e.g. holiday tournament name
+  /** the user's game prep level for this game (shown on the box score) */
+  prep?: number;
   hasBox?: boolean;
   hasPbp?: boolean;
 }
@@ -572,9 +574,11 @@ export interface League {
   vacancies: number[];
   realign: { tid: number; toCid: number; accepted: boolean | null }[];
   fired: boolean;
-  /** user's recruiting points left this week */
+  /** user's coaching points left this week (recruiting and game prep share them) */
   recruitPts: number;
   recruitPtsMax: number;
+  /** game prep bought for the user's next game; `weekPaid` is the part paid this week (refundable) */
+  prep?: { opp: number; level: number; paid: number; week: number; weekPaid: number };
   /** player ids the user has on the recruiting board */
   board: number[];
   achievements: { season: number; name: string }[];

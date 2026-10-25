@@ -9,6 +9,7 @@ import { fetchSeason, pct100, useAsync, cls, f1, heroColors } from "../util";
 import { Icon } from "../components/Icons";
 import { GameViewer } from "../components/GameViewer";
 import { curSeason } from "../../engine/play";
+import { PREP_LEVELS } from "../../engine/prep";
 import { currentRank, rosterStrength } from "../../engine/rankings";
 import { teamLeaders } from "../helpers";
 import { grade } from "../../engine/ratings";
@@ -312,6 +313,7 @@ export function GamePage() {
       <div className="scoreboard" style={{ ["--ca" as string]: heroColors(at.colors).h1, ["--ch" as string]: heroColors(ht.colors).h1, ...(watching && box?.pbp ? { display: "none" } : null) }}>
         <div className="sb-kicker">
           {dayLabel(g.season, g.day)} · {g.event ?? (g.type === "conf" ? "Conference game" : g.type === "nc" ? "Non-conference" : g.type.toUpperCase())} · {g.neutral ? "Neutral site" : `at ${ht.name}`}
+          {g.prep ? ` · Your prep: ${PREP_LEVELS[g.prep].name}` : ""}
         </div>
         <div className="sb-main">
           <Link to={`/l/${L.id}/team/${at.id}?season=${g.season}`} className="sb-team">

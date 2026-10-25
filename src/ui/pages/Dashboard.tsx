@@ -3,6 +3,7 @@ import { useLeague, useSim } from "../store";
 import { canWatchNext, useWatchNext } from "../components/Layout";
 import { coach, roster, seasonLabel, shortDayLabel, team, PHASE_LABEL } from "../../engine/core";
 import { curSeason } from "../../engine/play";
+import { PREP_LEVELS, currentPrep } from "../../engine/prep";
 import { expectations } from "../../engine/coaches";
 import { currentPoll, currentRank, powerRanks } from "../../engine/rankings";
 import { prestigeStars, prestigeTier } from "../../engine/ratings";
@@ -35,16 +36,23 @@ function Guide({ L }: { L: League }) {
       { text: "Set your rotation and starters", to: `${base}/rotation`, link: "Rotation" },
       { text: "Choose a team strategy and player tendencies", to: `${base}/tactics`, link: "Tactics" },
       { text: "Redshirt freshmen who won't play", to: `${base}/roster`, link: "Roster" },
-      { text: "Spend this week's recruiting points", to: `${base}/recruiting`, link: "Recruiting" },
+      { text: "Spend this week's coaching points on recruits", to: `${base}/recruiting`, link: "Recruiting" },
     ],
     regular: [
-      { text: "Spend recruiting points every week; they reset each Monday", to: `${base}/targets`, link: "Targets" },
+      { text: "Spend coaching points every week (they reset each Monday) on recruits", to: `${base}/targets`, link: "Targets" },
+      { text: "Or scout your next opponent with them for an edge in the game", to: `${base}/prep`, link: "Game Prep" },
       { text: "Adjust practice focus to develop your players", to: `${base}/practice`, link: "Practice" },
       { text: "Check your NCAA Tournament resume", to: `${base}/rankings`, link: "Rankings" },
     ],
-    confTourney: [{ text: "Win your conference tournament to clinch an automatic bid", to: `${base}/tournaments`, link: "Brackets" }],
+    confTourney: [
+      { text: "Win your conference tournament to clinch an automatic bid", to: `${base}/tournaments`, link: "Brackets" },
+      { text: "Scout each opponent with your coaching points", to: `${base}/prep`, link: "Game Prep" },
+    ],
     selection: [{ text: "The brackets are out. See where you landed", to: `${base}/tournaments`, link: "Tournaments" }],
-    ncaa: [{ text: "Survive and advance", to: `${base}/tournaments`, link: "Bracket" }],
+    ncaa: [
+      { text: "Survive and advance", to: `${base}/tournaments`, link: "Bracket" },
+      { text: "Big game? Spend coaching points on a full game plan", to: `${base}/prep`, link: "Game Prep" },
+    ],
     seasonEnd: [
       { text: "Review the season and awards", to: `${base}/season-review`, link: "Review" },
       { text: "Next: the coaching carousel and possible job offers" },
@@ -74,6 +82,16 @@ function Guide({ L }: { L: League }) {
         ))}
       </div>
     </Card>
+  );
+}
+
+/** Opens Game Prep; shows what's been bought for the next game. */
+function PrepButton({ L }: { L: League }) {
+  const lvl = currentPrep(L);
+  return (
+    <Link to={`/l/${L.id}/prep`} className="btn btn-sm btn-glass" title="Spend coaching points scouting this opponent">
+      <Icon name={lvl ? "check" : "eye"} size={13} /> {lvl ? PREP_LEVELS[lvl].name : "Game prep"}
+    </Link>
   );
 }
 
@@ -115,9 +133,7 @@ function NextUp({ L }: { L: League }) {
         </div>
         <div className="row" style={{ marginTop: 12 }}>
           {watchBtn}
-          <Link to={`/l/${L.id}/team/${opp.id}`} className="btn btn-sm btn-glass">
-            <Icon name="eye" size={13} /> Scout
-          </Link>
+          <PrepButton L={L} />
           <Link to={`/l/${L.id}/schedule`} className="btn btn-sm btn-glass">
             <Icon name="schedule" size={13} /> Schedule
           </Link>
@@ -163,11 +179,7 @@ function NextUp({ L }: { L: League }) {
           <Link to={`/l/${L.id}/tournaments`} className="btn btn-sm btn-glass">
             <Icon name="bracket" size={13} /> Bracket
           </Link>
-          {opp && (
-            <Link to={`/l/${L.id}/team/${opp.id}`} className="btn btn-sm btn-glass">
-              <Icon name="eye" size={13} /> Scout
-            </Link>
-          )}
+          {opp && <PrepButton L={L} />}
         </div>
       </div>
     );
@@ -431,7 +443,7 @@ export function Dashboard() {
                   <b>{spots}</b>
                 </div>
                 <div className="mini-stat">
-                  <span>Rec. points</span>
+                  <span>Coach pts</span>
                   <b>
                     {L.recruitPts}/{L.recruitPtsMax}
                   </b>

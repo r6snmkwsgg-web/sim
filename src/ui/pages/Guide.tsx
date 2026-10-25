@@ -45,7 +45,7 @@ export function Guide() {
         </Card>
         <Card title="Recruiting">
           <ul className="small" style={{ margin: 0, paddingLeft: 18, lineHeight: 1.7 }}>
-            <li>You get recruiting points every week. They reset on Mondays and don't carry over, so spend them.</li>
+            <li>You get coaching points every week. They reset on Mondays and don't carry over, so spend them: on recruits, or on <Link to={`${b}/prep`}>Game Prep</Link> to scout your next opponent (about +1 to +2.5 points in that game).</li>
             <li>Every recruit weighs playing time, prestige, distance from home, contender status, the head coach, facilities and NIL. Your fit multiplies every action.</li>
             <li>
               <b>Scout</b> to see true ratings. Star ratings are noisy, so there are hidden gems (and busts).
