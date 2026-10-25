@@ -142,9 +142,40 @@ export function stopSim() {
   simEmit();
 }
 
+// ---------------- watching a game without spoilers ----------------
+/** While a just-played game is being watched, the top bar shows the record from before it. */
+export interface WatchGuard {
+  gid: number;
+  won: boolean;
+  conf: boolean;
+}
+let watchGuard: WatchGuard | null = null;
+let watchVersion = 0;
+const watchListeners = new Set<() => void>();
+export function setWatchGuard(g: WatchGuard | null) {
+  if (watchGuard === g || (!watchGuard && !g)) return;
+  watchGuard = g;
+  watchVersion++;
+  for (const l of watchListeners) l();
+}
+export function getWatchGuard(): WatchGuard | null {
+  return watchGuard;
+}
+export function useWatchGuard(): WatchGuard | null {
+  useSyncExternalStore(
+    (fn) => {
+      watchListeners.add(fn);
+      return () => watchListeners.delete(fn);
+    },
+    () => watchVersion,
+  );
+  return watchGuard;
+}
+
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
-export async function runSim(target: SimTarget): Promise<{ userGameId: number | null }> {
+/** quiet: don't pop up the result (the game is about to be watched). */
+export async function runSim(target: SimTarget, opts: { quiet?: boolean } = {}): Promise<{ userGameId: number | null }> {
   const L = league;
   if (!L || sim.running) return { userGameId: null };
   if (saveTimer) {
@@ -213,7 +244,7 @@ export async function runSim(target: SimTarget): Promise<{ userGameId: number | 
   } finally {
     sim.running = false;
     sim.label = "";
-    sim.lastResult = userGameId !== null ? { gid: userGameId } : null;
+    sim.lastResult = userGameId !== null && !opts.quiet ? { gid: userGameId } : null;
     simEmit();
     emit();
   }

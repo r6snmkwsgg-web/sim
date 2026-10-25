@@ -44,8 +44,9 @@ Tips: press `/` or `Ctrl+K` to search for any team or player. If you'd rather no
 
 **The season**
 - About 31-game schedules with home, away and neutral-site games, including Thanksgiving events
-- A possession-by-possession game engine calibrated to real D1 averages (pace, shooting splits, free throws, turnovers, rebounding, blocks, steals, assists, fouls, home-court edge), with fatigue, foul trouble, substitutions and end-of-game fouling
-- Box scores, play-by-play, and a live replay viewer for your games
+- A possession-by-possession game engine calibrated to real D1 averages (pace, shooting splits, free throws, turnovers, rebounding, blocks, steals, assists, fouls, home-court edge, overtime rate, game-to-game variance), with fatigue, foul trouble, substitutions, score effects and real end-of-game decisions (holding for the last shot, fouling when the shot clock is off, needing a three)
+- Watch your games live: a scoreboard, a shot chart on a full court, a live box score, a game-flow chart you can click to rewind, and the play-by-play, at 1x to 8x speed. The result stays hidden until the final buzzer
+- Box scores and play-by-play for your games
 - Weekly AP-style Top 25, opponent-adjusted power ratings, bracketology
 - Conference tournaments, Selection Sunday, NCAA Tournament (64, 68 with First Four, or 76), NIT and CBI
 - Awards: national and conference Player of the Year, Defensive POY, Freshman, Sixth Man, Most Improved, Coach of the Year, All-America and All-Conference teams, Final Four MOP

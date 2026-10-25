@@ -311,7 +311,14 @@ export interface TeamBox {
   lines: BoxLine[];
 }
 
-/** A compact play-by-play event. t = seconds elapsed in game. */
+export type PbpKind = "fg" | "ft" | "orb" | "drb" | "to" | "stl" | "blk" | "foul" | "ofoul" | "sub" | "lu" | "inj" | "info";
+export type ShotType = "three" | "mid" | "post" | "drive" | "putback";
+
+/**
+ * A compact play-by-play event. t = seconds elapsed in game. The optional
+ * fields (newer saves only) let a viewer rebuild the box score and shot
+ * chart as the game unfolds.
+ */
 export interface PbpEvent {
   t: number;
   per: number; // 1,2 halves; 3+ overtimes
@@ -319,6 +326,18 @@ export interface PbpEvent {
   text: string;
   hs: number;
   as: number;
+  k?: PbpKind;
+  /** main player: shooter, rebounder, fouler, blocker, stealer, player subbed in */
+  p?: number;
+  /** other player: assister, player who lost the ball, blocked shooter, player subbed out */
+  q?: number;
+  st?: ShotType;
+  m?: 0 | 1; // shot or free throw made
+  /** shot location in feet on a half court: x across (0-50), y out from the baseline (basket at 25, 5.25) */
+  x?: number;
+  y?: number;
+  /** player ids on the floor for this side after a lineup change */
+  lu?: number[];
 }
 
 export interface BoxScore {

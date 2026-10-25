@@ -5,7 +5,7 @@
 // Players carry composite skills derived from ratings, energy that drains on
 // the floor, and a minutes target from the coach's rotation.
 
-import type { BoxLine, PbpEvent, Player, Pos, Strategy, Tendencies } from "../types";
+import type { BoxLine, PbpEvent, Player, Pos, ShotType, Strategy, Tendencies } from "../types";
 import { Rng, clamp } from "../rng";
 
 export interface SimTeam {
@@ -42,7 +42,37 @@ export interface SimResult {
 const POS_IDX: Record<Pos, number> = { PG: 0, SG: 1, SF: 2, PF: 3, C: 4 };
 const TEMPO_POSS = [0, 62, 66, 69.7, 73.7, 77.7];
 
-type ShotType = "three" | "mid" | "post" | "drive" | "putback";
+/** Deterministic pseudo-random [0,1) pair from two integers; keeps shot locations off the game RNG. */
+function hash2(a: number, b: number): [number, number] {
+  let h = Math.imul(a ^ 0x9e3779b9, 0x85ebca6b) ^ Math.imul(b + 0x632be5ab, 0xc2b2ae35);
+  h ^= h >>> 15;
+  h = Math.imul(h, 0x2c1b3c6d);
+  h ^= h >>> 12;
+  const u = (h >>> 0) / 4294967296;
+  let g = Math.imul(h ^ 0x27d4eb2d, 0x165667b1);
+  g ^= g >>> 15;
+  return [u, (g >>> 0) / 4294967296];
+}
+
+/** Where on a half court a shot of this type came from (feet; basket at 25, 5.25). */
+function shotSpot(type: ShotType, a: number, b: number): [number, number] {
+  const [u, v] = hash2(a, b);
+  const at = (r: number, deg: number): [number, number] => {
+    const th = (deg * Math.PI) / 180;
+    return [Math.round((25 + r * Math.sin(th)) * 10) / 10, Math.round((5.25 + r * Math.cos(th)) * 10) / 10];
+  };
+  switch (type) {
+    case "three":
+      if (u < 0.28) return [v < 0.5 ? 3 + v * 0.8 : 47 - (1 - v) * 0.8, Math.round((1.5 + ((u * 1000) % 1) * 11) * 10) / 10];
+      return at(23.9 + v * 2.6, -68 + ((u - 0.28) / 0.72) * 136);
+    case "mid":
+      return at(9 + v * 10, -85 + u * 170);
+    case "post":
+      return at(3 + v * 6, -75 + u * 150);
+    default:
+      return at(0.6 + v * 3.6, -100 + u * 200);
+  }
+}
 
 interface GP {
   p: Player;
@@ -278,10 +308,16 @@ export class GameSim {
   }
 
   // ---------- play-by-play ----------
-  log(side: 0 | 1, text: string) {
+  log(side: 0 | 1, text: string, extra?: Partial<PbpEvent>) {
     if (!this.opts.pbp) return;
     const t = this.per <= 2 ? (this.per - 1) * 1200 + this.elapsed : 2400 + (this.per - 3) * 300 + this.elapsed;
-    this.pbp.push({ t: Math.round(t), per: this.per, side, text, hs: this.t[0].pts, as: this.t[1].pts });
+    this.pbp.push({ t: Math.round(t), per: this.per, side, text, hs: this.t[0].pts, as: this.t[1].pts, ...extra });
+  }
+  shotLog(side: 0 | 1, text: string, k: "fg" | "blk", p: number, q: number | undefined, st: ShotType, m: 0 | 1) {
+    if (!this.opts.pbp) return;
+    const shooter = k === "blk" ? q! : p;
+    const [x, y] = shotSpot(st, this.pbp.length, shooter);
+    this.log(side, text, { k, p, q, st, m, x, y });
   }
 
   // ---------- lineups ----------
@@ -431,12 +467,14 @@ export class GameSim {
       const ins = final.filter((g) => !ts.on.includes(g));
       const outs = ts.on.filter((g) => !final.includes(g));
       for (let i = 0; i < ins.length; i++) {
-        this.log(ts.side, `Substitution: ${ins[i].name} in${outs[i] ? ` for ${outs[i].name}` : ""}.`);
+        this.log(ts.side, `Substitution: ${ins[i].name} in${outs[i] ? ` for ${outs[i].name}` : ""}.`, { k: "sub", p: ins[i].pid, q: outs[i]?.pid });
       }
     }
+    const changed = start || final.length !== ts.on.length || final.some((g) => !ts.on.includes(g));
     for (const g of roster) g.on = false;
     for (const g of final) g.on = true;
     ts.on = final;
+    if (this.opts.pbp && changed) this.log(ts.side, "", { k: "lu", lu: final.map((g) => g.pid) });
     ts.onSorted = final.slice().sort((a, b) => a.posIdx - b.posIdx);
     this.aggregates(ts);
   }
@@ -493,7 +531,7 @@ export class GameSim {
         g.out = true;
         this.needSub = true;
         this.injuries.push({ pid: g.pid, tid: ts.tid });
-        this.log(ts.side, `${g.name} is injured and leaves the game.`);
+        this.log(ts.side, `${g.name} is injured and leaves the game.`, { k: "inj", p: g.pid });
       }
     }
     this.elapsed += dt;
@@ -530,10 +568,10 @@ export class GameSim {
     fouler.pf++;
     fouler.fouls++;
     def.teamFouls++;
-    this.log(def.side, `${shooting ? "Shooting foul" : "Foul"} on ${fouler.name}.`);
+    this.log(def.side, `${shooting ? "Shooting foul" : "Foul"} on ${fouler.name}.`, { k: "foul", p: fouler.pid });
     if (fouler.fouls >= 5) {
       fouler.out = true;
-      this.log(def.side, `${fouler.name} has fouled out.`);
+      this.log(def.side, `${fouler.name} has fouled out.`, { k: "info", p: fouler.pid });
       this.setLineup(def, off, false);
     }
   }
@@ -547,11 +585,11 @@ export class GameSim {
       if (this.rng.next() < p) {
         shooter.ftm++;
         this.score(off, def, shooter, 1);
-        this.log(off.side, `${shooter.name} makes free throw ${i + 1} of ${oneAndOne ? "1-and-1" : n}.`);
+        this.log(off.side, `${shooter.name} makes free throw ${i + 1} of ${oneAndOne ? "1-and-1" : n}.`, { k: "ft", p: shooter.pid, m: 1 });
         lastMissed = false;
         if (oneAndOne && i === 0) n = 2;
       } else {
-        this.log(off.side, `${shooter.name} misses free throw ${i + 1} of ${oneAndOne ? "1-and-1" : n}.`);
+        this.log(off.side, `${shooter.name} misses free throw ${i + 1} of ${oneAndOne ? "1-and-1" : n}.`, { k: "ft", p: shooter.pid, m: 0 });
         lastMissed = true;
         if (oneAndOne && i === 0) break;
       }
@@ -577,12 +615,12 @@ export class GameSim {
     if (this.rng.next() < p) {
       const g = this.pickWeighted(off.on, (x) => Math.pow(x.raw.reb, 1.6) * (0.7 + 0.6 * x.hf));
       g.orb++;
-      this.log(off.side, `Offensive rebound by ${g.name}.`);
+      this.log(off.side, `Offensive rebound by ${g.name}.`, { k: "orb", p: g.pid });
       return true;
     }
     const g = this.pickWeighted(def.on, (x) => Math.pow(x.raw.reb, 1.6) * (0.75 + 0.6 * x.hf));
     g.drb++;
-    this.log(def.side, `Defensive rebound by ${g.name}.`);
+    this.log(def.side, `Defensive rebound by ${g.name}.`, { k: "drb", p: g.pid });
     return false;
   }
 
@@ -643,20 +681,20 @@ export class GameSim {
       if (this.rng.next() < stealP) {
         const s = this.pickWeighted(def.on, (x) => Math.pow(x.raw.stl, 1.7) * (x.posIdx <= 2 ? 1.15 : 0.9));
         s.stl_++;
-        this.log(def.side, `${s.name} steals the ball from ${g.name}.`);
+        this.log(def.side, `${s.name} steals the ball from ${g.name}.`, { k: "stl", p: s.pid, q: g.pid });
         this.deadBall = false;
       } else if (this.rng.next() < 0.18) {
         g.pf++;
         g.fouls++;
-        this.log(off.side, `Offensive foul on ${g.name}.`);
+        this.log(off.side, `Offensive foul on ${g.name}.`, { k: "ofoul", p: g.pid });
         if (g.fouls >= 5) {
           g.out = true;
-          this.log(off.side, `${g.name} has fouled out.`);
+          this.log(off.side, `${g.name} has fouled out.`, { k: "info", p: g.pid });
           this.setLineup(off, def, false);
         }
         this.deadBall = true;
       } else {
-        this.log(off.side, `Turnover by ${g.name}.`);
+        this.log(off.side, `Turnover by ${g.name}.`, { k: "to", p: g.pid });
         this.deadBall = true;
       }
       this.runClock(dt * 0.4);
@@ -823,7 +861,7 @@ export class GameSim {
         g.fgm++;
         if (isThree) g.tpm++;
         this.score(off, def, g, isThree ? 3 : 2);
-        this.log(off.side, `${g.name} scores and draws the foul! ${this.shotText(type, true)}`);
+        this.shotLog(off.side, `${g.name} scores and draws the foul! ${this.shotText(type, true)}`, "fg", g.pid, undefined, type, 1);
         const missed = this.freeThrows(off, def, g, 1);
         return missed ? "ft-miss" : "ft-made";
       }
@@ -845,17 +883,17 @@ export class GameSim {
         if (assister === g) assister = null;
         else assister.ast++;
       }
-      this.log(off.side, `${g.name} ${this.shotText(type, true)}${assister ? ` (assist: ${assister.name})` : ""}`);
+      this.shotLog(off.side, `${g.name} ${this.shotText(type, true)}${assister ? ` (assist: ${assister.name})` : ""}`, "fg", g.pid, assister?.pid, type, 1);
       return "made";
     }
     // miss: blocked?
     if (this.rng.next() < Math.min(0.6, blockP / (1 - p))) {
       const b = this.pickWeighted(def.on, (x) => Math.pow(x.raw.blk, 5) * (0.4 + x.hf) * (x === md ? 1.4 : 1));
       b.blk_++;
-      this.log(def.side, `${b.name} blocks ${g.name}'s shot!`);
+      this.shotLog(def.side, `${b.name} blocks ${g.name}'s shot!`, "blk", b.pid, g.pid, type, 0);
       return "blocked";
     }
-    this.log(off.side, `${g.name} ${this.shotText(type, false)}`);
+    this.shotLog(off.side, `${g.name} ${this.shotText(type, false)}`, "fg", g.pid, undefined, type, 0);
     return "miss";
   }
 
@@ -910,7 +948,7 @@ export class GameSim {
     const [h, a] = this.t;
     this.setLineup(h, a, true);
     this.setLineup(a, h, true);
-    this.log(0, `Tip-off: ${h.name} vs ${a.name}.`);
+    this.log(0, `Tip-off: ${h.name} vs ${a.name}.`, { k: "info" });
     const firstPoss: 0 | 1 = this.rng.next() < 0.5 ? 0 : 1;
     // 1st half
     this.per = 1;
@@ -918,10 +956,11 @@ export class GameSim {
     this.playPeriod(firstPoss);
     h.halves.push(h.pts);
     a.halves.push(a.pts);
-    this.log(0, `End of 1st half: ${h.name} ${h.pts}, ${a.name} ${a.pts}.`);
+    this.log(0, `End of 1st half: ${h.name} ${h.pts}, ${a.name} ${a.pts}.`, { k: "info" });
     for (const ts of this.t) for (const g of ts.roster) g.energy = Math.min(1, g.energy + 0.45);
     this.per = 2;
     this.periodLen = 1200;
+    this.elapsed = 0;
     this.setLineup(h, a, true);
     this.setLineup(a, h, true);
     this.playPeriod((1 - firstPoss) as 0 | 1);
@@ -932,7 +971,8 @@ export class GameSim {
       ot++;
       this.per = 2 + ot;
       this.periodLen = 300;
-      this.log(0, `Overtime ${ot > 1 ? ot : ""}`.trim() + ` - tied at ${h.pts}.`);
+      this.elapsed = 0;
+      this.log(0, `Overtime ${ot > 1 ? ot : ""}`.trim() + ` - tied at ${h.pts}.`, { k: "info" });
       for (const ts of this.t) for (const g of ts.roster) g.energy = Math.min(1, g.energy + 0.12);
       const hb = h.pts;
       const ab = a.pts;
@@ -943,7 +983,7 @@ export class GameSim {
       a.halves.push(a.pts - ab);
       if (ot > 8) break;
     }
-    this.log(0, `Final: ${h.name} ${h.pts}, ${a.name} ${a.pts}${ot ? ` (${ot > 1 ? ot : ""}OT)` : ""}.`);
+    this.log(0, `Final: ${h.name} ${h.pts}, ${a.name} ${a.pts}${ot ? ` (${ot > 1 ? ot : ""}OT)` : ""}.`, { k: "info" });
     const lines = (ts: TS): BoxLine[] =>
       ts.roster
         .filter((g) => g.sec_ > 0 || g.starter)

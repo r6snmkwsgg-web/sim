@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useLeague } from "../store";
 import { dayLabel, shortDayLabel, team } from "../../engine/core";
@@ -7,6 +7,7 @@ import { Card, Empty, Logo, Tabs } from "../components/common";
 import { getBox } from "../db";
 import { fetchSeason, pct100, useAsync, cls, f1, heroColors } from "../util";
 import { Icon } from "../components/Icons";
+import { GameViewer } from "../components/GameViewer";
 import { curSeason } from "../../engine/play";
 import { currentRank, rosterStrength } from "../../engine/rankings";
 import { teamLeaders } from "../helpers";
@@ -188,6 +189,7 @@ function PlayByPlay({ L, box }: { L: League; box: BoxScore }) {
     prev = { hs: e.hs, as: e.as };
     if (per && e.per !== per) return false;
     if (scoring && !isScore) return false;
+    if (!e.text) return false; // lineup bookkeeping
     return !e.text.startsWith("Substitution") || !scoring;
   });
   const ht = team(L, box.home.tid);
@@ -224,7 +226,7 @@ function PlayByPlay({ L, box }: { L: League; box: BoxScore }) {
               <Logo team={t} size={20} />
               <span>{e.text}</span>
               <span className="num right">
-                {e.hs}-{e.as}
+                {e.as}-{e.hs}
               </span>
             </div>
           );
@@ -234,95 +236,6 @@ function PlayByPlay({ L, box }: { L: League; box: BoxScore }) {
   );
 }
 
-
-function LiveReplay({ L, box, onDone }: { L: League; box: BoxScore; onDone: () => void }) {
-  const ev = box.pbp ?? [];
-  const [i, setI] = useState(0);
-  const [speed, setSpeed] = useState(2);
-  const [paused, setPaused] = useState(false);
-  const feedRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (paused || i >= ev.length - 1) return;
-    const delay = [0, 900, 450, 200, 70][speed];
-    const t = setTimeout(() => setI((x) => Math.min(ev.length - 1, x + 1)), ev[i]?.text.startsWith("Substitution") ? delay / 3 : delay);
-    return () => clearTimeout(t);
-  }, [i, paused, speed, ev]);
-  useEffect(() => {
-    if (feedRef.current) feedRef.current.scrollTop = 0;
-  }, [i]);
-  if (!ev.length) return null;
-  const e = ev[i];
-  const ht = team(L, box.home.tid);
-  const at = team(L, box.away.tid);
-  const done = i >= ev.length - 1;
-  const recent = ev.slice(Math.max(0, i - 14), i + 1).reverse();
-  const perLabel = e.per === 1 ? "1st Half" : e.per === 2 ? "2nd Half" : `OT${e.per > 3 ? e.per - 2 : ""}`;
-  return (
-    <div className="card" style={{ overflow: "hidden" }}>
-      <div className="scoreboard" style={{ ["--ca" as string]: heroColors(at.colors).h1, ["--ch" as string]: heroColors(ht.colors).h1, borderRadius: 0, border: "none", boxShadow: "none" }}>
-        <div className="sb-main">
-          <div className="sb-team">
-            <Logo team={at} size={68} />
-            <div>
-              <div className="sb-name">{at.name}</div>
-              <div className="sb-sub">{at.mascot}</div>
-            </div>
-          </div>
-          <span className={cls("sb-score", done && e.as < e.hs && "lose")}>{e.as}</span>
-          <div className="sb-mid">
-            <span className="sb-clock">{done ? "FINAL" : clock(e.t, e.per)}</span>
-            <span className="sb-per">{done ? (box.ot ? `${box.ot > 1 ? box.ot : ""}OT` : "") : perLabel}</span>
-          </div>
-          <span className={cls("sb-score", done && e.hs < e.as && "lose")}>{e.hs}</span>
-          <div className="sb-team home">
-            <Logo team={ht} size={68} />
-            <div>
-              <div className="sb-name">{ht.name}</div>
-              <div className="sb-sub">{ht.mascot}</div>
-            </div>
-          </div>
-        </div>
-        <div className="sb-progress">
-          <span style={{ width: `${(100 * i) / Math.max(1, ev.length - 1)}%` }} />
-        </div>
-      </div>
-      <div className="card-h">
-        <button className="btn btn-sm" onClick={() => setPaused(!paused)} disabled={done}>
-          {paused ? "Resume" : "Pause"}
-        </button>
-        <div className="seg">
-          {[1, 2, 3, 4].map((x) => (
-            <button key={x} className={speed === x ? "on" : ""} onClick={() => setSpeed(x)}>
-              {["", "1x", "2x", "4x", "Fast"][x]}
-            </button>
-          ))}
-        </div>
-        <div className="spacer" />
-        <button className="btn btn-sm" onClick={() => setI(ev.length - 1)} disabled={done}>
-          Skip to end
-        </button>
-        <button className="btn btn-sm btn-primary" onClick={onDone}>
-          Box score
-        </button>
-      </div>
-      <div ref={feedRef} className="pbp" style={{ maxHeight: 420 }}>
-        {recent.map((x, k) => {
-          const t = x.side === 0 ? ht : at;
-          return (
-            <div key={i - k} className="pbp-row" style={{ opacity: k === 0 ? 1 : Math.max(0.35, 1 - k * 0.05), fontWeight: k === 0 ? 650 : undefined }}>
-              <span className="muted num">{clock(x.t, x.per)}</span>
-              <Logo team={t} size={20} />
-              <span>{x.text}</span>
-              <span className="num right">
-                {x.as}-{x.hs}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
 
 function Preview({ L, g }: { L: League; g: Game }) {
   const ht = team(L, g.home);
@@ -448,7 +361,7 @@ export function GamePage() {
         </div>
       </div>
       {watching && box?.pbp ? (
-        <LiveReplay L={L} box={box} onDone={() => setSp({})} />
+        <GameViewer L={L} box={box} onDone={() => setSp({})} />
       ) : !g.played ? (
         <Preview L={L} g={g} />
       ) : !box ? (

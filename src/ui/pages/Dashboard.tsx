@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
-import { useLeague } from "../store";
+import { useLeague, useSim } from "../store";
+import { canWatchNext, useWatchNext } from "../components/Layout";
 import { coach, roster, seasonLabel, shortDayLabel, team, PHASE_LABEL } from "../../engine/core";
 import { curSeason } from "../../engine/play";
 import { expectations } from "../../engine/coaches";
@@ -79,6 +80,13 @@ function Guide({ L }: { L: League }) {
 /** The right side of the hero: the next game, the next bracket game, or the season summary. */
 function NextUp({ L }: { L: League }) {
   const ut = team(L, L.userTid);
+  const watchNext = useWatchNext();
+  const sim = useSim();
+  const watchBtn = canWatchNext(L) ? (
+    <button className="btn btn-sm btn-white" disabled={sim.running} onClick={() => void watchNext()}>
+      <Icon name="tv" size={13} /> Watch live
+    </button>
+  ) : null;
   const g = nextGame(L, L.userTid);
   if (g) {
     const v = gameView(g, L.userTid);
@@ -106,6 +114,7 @@ function NextUp({ L }: { L: League }) {
           </div>
         </div>
         <div className="row" style={{ marginTop: 12 }}>
+          {watchBtn}
           <Link to={`/l/${L.id}/team/${opp.id}`} className="btn btn-sm btn-glass">
             <Icon name="eye" size={13} /> Scout
           </Link>
@@ -150,6 +159,7 @@ function NextUp({ L }: { L: League }) {
           </div>
         </div>
         <div className="row" style={{ marginTop: 12 }}>
+          {watchBtn}
           <Link to={`/l/${L.id}/tournaments`} className="btn btn-sm btn-glass">
             <Icon name="bracket" size={13} /> Bracket
           </Link>

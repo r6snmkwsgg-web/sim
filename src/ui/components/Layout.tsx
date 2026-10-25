@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Link, NavLink, useNavigate } from "react-router-dom";
-import { useLeague, useSim, runSim, stopSim, type SimTarget } from "../store";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
+import { useLeague, useSim, runSim, stopSim, getWatchGuard, setWatchGuard, useWatchGuard, type SimTarget } from "../store";
 import { currentDateLabel, PHASE_LABEL, seasonLabel, team } from "../../engine/core";
 import { currentRank } from "../../engine/rankings";
 import { curSeason } from "../../engine/play";
@@ -8,7 +8,8 @@ import { heroColors, inkOn } from "../util";
 import { Icon } from "./Icons";
 import { Logo } from "./common";
 import { GlobalSearch } from "./Search";
-import { PORTAL_ROUNDS, advanceBlocker } from "../../engine/advance";
+import { PORTAL_ROUNDS, advanceBlocker, isDayPhase } from "../../engine/advance";
+import { nextGame } from "../helpers";
 import type { League } from "../../engine/types";
 
 interface Action {
@@ -71,6 +72,28 @@ function actionsFor(L: League): { main: Action; more: Action[] } {
   }
 }
 
+/** Does the user's team have a game coming that can be watched? */
+export function canWatchNext(L: League): boolean {
+  if (!isDayPhase(L)) return false;
+  if (nextGame(L, L.userTid)) return true;
+  return L.brackets.some((b) => b.champion === null && b.games.some((g) => g.winner === null && (g.a === L.userTid || g.b === L.userTid)));
+}
+
+/** Sim to the user's next game without revealing the result, then open it in the live viewer. */
+export function useWatchNext(): () => Promise<void> {
+  const L = useLeague();
+  const nav = useNavigate();
+  return async () => {
+    const { userGameId } = await runSim("nextGame", { quiet: true });
+    if (userGameId === null) return;
+    const g = L.games.find((x) => x.id === userGameId);
+    if (!g) return;
+    const won = g.home === L.userTid ? g.hs > g.as : g.as > g.hs;
+    setWatchGuard({ gid: g.id, won, conf: g.type === "conf" });
+    nav(`/l/${L.id}/game/${g.id}?watch=1`);
+  };
+}
+
 function PlayMenu() {
   const L = useLeague();
   const sim = useSim();
@@ -85,6 +108,8 @@ function PlayMenu() {
     return () => document.removeEventListener("mousedown", h);
   }, []);
   const { main, more } = actionsFor(L);
+  const watchNext = useWatchNext();
+  const canWatch = canWatchNext(L);
   const go = async (a: Action) => {
     setOpen(false);
     if (a.target === "advance") {
@@ -120,7 +145,12 @@ function PlayMenu() {
     }
   };
   return (
-    <div ref={ref} style={{ position: "relative", display: "flex" }}>
+    <div ref={ref} style={{ position: "relative", display: "flex", gap: 6 }}>
+      {canWatch && (
+        <button className="watch-btn" disabled={sim.running} onClick={() => void watchNext()} title="Play your next game and watch it live">
+          <Icon name="tv" size={15} /> Watch
+        </button>
+      )}
       <button className="play-btn" disabled={sim.running} onClick={() => go(main)}>
         <span className="ic">
           <Icon name="play" />
@@ -132,6 +162,21 @@ function PlayMenu() {
       </button>
       {open && (
         <div className="menu">
+          {canWatch && (
+            <>
+              <button
+                className="menu-item"
+                onClick={() => {
+                  setOpen(false);
+                  void watchNext();
+                }}
+              >
+                Watch next game live
+                <small>Your game plays out on a court with a live box score</small>
+              </button>
+              <div className="menu-sep" />
+            </>
+          )}
           {more.map((a, i) => (
             <button key={i} className="menu-item" onClick={() => go(a)}>
               {a.label}
@@ -283,6 +328,17 @@ export function Layout({ children }: { children: ReactNode }) {
   const s = curSeason(t);
   const rank = currentRank(L, t.id);
   const unread = L.news.filter((n) => n.user && !n.read).length;
+  // hide the result of a game that's being watched
+  const guard = useWatchGuard();
+  const loc = useLocation();
+  // leaving the game being watched reveals the result (checked only when the page changes)
+  useEffect(() => {
+    const g = getWatchGuard();
+    if (g && !(loc.pathname.endsWith(`/game/${g.gid}`) && loc.search.includes("watch=1"))) setWatchGuard(null);
+  }, [loc]);
+  const rec = guard
+    ? { w: s.w - (guard.won ? 1 : 0), l: s.l - (guard.won ? 0 : 1), cw: s.cw - (guard.conf && guard.won ? 1 : 0), cl: s.cl - (guard.conf && !guard.won ? 1 : 0) }
+    : { w: s.w, l: s.l, cw: s.cw, cl: s.cl };
   useEffect(() => {
     const root = document.documentElement;
     const h = heroColors(t.colors);
@@ -349,9 +405,9 @@ export function Layout({ children }: { children: ReactNode }) {
             </div>
             <div className="sub">
               <b>
-                {s.w}-{s.l}
+                {rec.w}-{rec.l}
               </b>{" "}
-              · {s.cw}-{s.cl} {L.conferences[t.cid].short} · {PHASE_LABEL[L.phase]}
+              · {rec.cw}-{rec.cl} {L.conferences[t.cid].short} · {PHASE_LABEL[L.phase]}
             </div>
           </div>
           <div className="spacer" />
