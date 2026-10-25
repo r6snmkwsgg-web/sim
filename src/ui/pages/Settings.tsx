@@ -4,6 +4,8 @@ import { mutate, setLeague, useLeague } from "../store";
 import { deleteLeague, exportLeague } from "../db";
 import type { Settings } from "../../engine/types";
 import { Card, PageHead } from "../components/common";
+import { CloudCard } from "../components/CloudCard";
+import { deleteCloudLeague } from "../cloud";
 
 export function SettingsPage() {
   const L = useLeague();
@@ -114,9 +116,10 @@ export function SettingsPage() {
             </div>
           </div>
         </Card>
+        <CloudCard />
         <Card title="Backup">
           <p className="small muted" style={{ marginTop: 0 }}>
-            Your league lives in this browser's storage. Export a backup file (every season, player, box score and record) and import it from the start screen on any computer.
+            Download the whole league (every season, player, box score and record) as a file you keep yourself. Import it from the start screen on any computer.
           </p>
           <button
             className="btn btn-primary"
@@ -143,8 +146,9 @@ export function SettingsPage() {
           <button
             className="btn btn-danger"
             onClick={async () => {
-              if (!confirm(`Delete "${L.name}" and all of its history? This cannot be undone.`)) return;
+              if (!confirm(`Delete "${L.name}" and all of its history, on this device and in the cloud? This cannot be undone.`)) return;
               await deleteLeague(L.id);
+              await deleteCloudLeague(L.id).catch(() => undefined);
               setLeague(null);
               nav("/");
             }}

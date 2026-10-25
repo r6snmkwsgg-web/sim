@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { HashRouter, Navigate, Outlet, Route, Routes, useParams } from "react-router-dom";
+import { HashRouter, Navigate, Outlet, Route, Routes, useNavigate, useParams } from "react-router-dom";
+import { switchCode } from "./cloud";
 import { openLeague, useLeagueMaybe } from "./store";
 import { Layout } from "./components/Layout";
 import { Home } from "./pages/Home";
@@ -51,6 +52,17 @@ function LeagueRoot() {
   );
 }
 
+/** #/link/CODE: use a save code from another device, then show its leagues. */
+function LinkCode() {
+  const { code } = useParams();
+  const nav = useNavigate();
+  const [bad, setBad] = useState(false);
+  useEffect(() => {
+    void switchCode(code ?? "").then((ok) => (ok ? nav("/?linked=1", { replace: true }) : setBad(true)));
+  }, [code]);
+  return <div className="empty" style={{ paddingTop: 120 }}>{bad ? "That save code doesn't look right." : "Linking your saves…"}</div>;
+}
+
 function ProgramRedirect() {
   const L = useLeagueMaybe();
   if (!L) return null;
@@ -63,6 +75,7 @@ export function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/new" element={<NewLeague />} />
+        <Route path="/link/:code" element={<LinkCode />} />
         <Route path="/l/:lid" element={<LeagueRoot />}>
           <Route index element={<Dashboard />} />
           <Route path="inbox" element={<Inbox />} />

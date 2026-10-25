@@ -80,7 +80,7 @@ export function Guide() {
         </Card>
         <Card title="Saving">
           <p className="small" style={{ margin: 0 }}>
-            The game saves automatically after every sim and edit, in this browser. Use <Link to={`${b}/settings`}>Settings → Export</Link> to keep a backup file, or to move a league to another computer.
+            The game saves automatically after every sim and edit, and with cloud saves on it also uploads your leagues a few minutes after you play. To play on another device, open <Link to={`${b}/settings`}>Settings → Cloud saves</Link> and use your save code or link there. You can also export a backup file.
           </p>
         </Card>
       </div>

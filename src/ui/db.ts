@@ -20,29 +20,63 @@ export interface LeagueMeta {
 
 type WithLid<T> = T & { lid: string };
 
+/** What this device last wrote to (or read from) the cloud for a league. */
+export interface SyncRec {
+  lid: string;
+  code: string;
+  head: string;
+  updated: number;
+  manifest: string;
+  state: string;
+  chunks: string[];
+}
+
+/** An archived record written since the last cloud sync. */
+export interface OutboxItem {
+  lid: string;
+  t: "p" | "b" | "s";
+  d: Player | BoxScore | SeasonArchive;
+}
+
 interface Schema extends DBSchema {
   meta: { key: string; value: LeagueMeta };
   states: { key: string; value: League };
   players: { key: [string, number]; value: WithLid<Player> };
   boxes: { key: [string, number]; value: WithLid<BoxScore> };
   seasons: { key: [string, number]; value: WithLid<SeasonArchive> };
+  sync: { key: string; value: SyncRec };
+  outbox: { key: number; value: OutboxItem; indexes: { lid: string } };
 }
 
 let dbp: Promise<IDBPDatabase<Schema>> | null = null;
 
 export function db(): Promise<IDBPDatabase<Schema>> {
   if (!dbp) {
-    dbp = openDB<Schema>("hardwood-dynasty", 1, {
-      upgrade(d) {
-        d.createObjectStore("meta", { keyPath: "id" });
-        d.createObjectStore("states");
-        d.createObjectStore("players", { keyPath: ["lid", "id"] });
-        d.createObjectStore("boxes", { keyPath: ["lid", "gid"] });
-        d.createObjectStore("seasons", { keyPath: ["lid", "season"] });
+    dbp = openDB<Schema>("hardwood-dynasty", 2, {
+      upgrade(d, oldVersion) {
+        if (oldVersion < 1) {
+          d.createObjectStore("meta", { keyPath: "id" });
+          d.createObjectStore("states");
+          d.createObjectStore("players", { keyPath: ["lid", "id"] });
+          d.createObjectStore("boxes", { keyPath: ["lid", "gid"] });
+          d.createObjectStore("seasons", { keyPath: ["lid", "season"] });
+        }
+        if (oldVersion < 2) {
+          d.createObjectStore("sync", { keyPath: "lid" });
+          d.createObjectStore("outbox", { autoIncrement: true }).createIndex("lid", "lid");
+        }
       },
     });
   }
   return dbp;
+}
+
+// cloud saves hook in here: queue newly archived records, and hear about saves
+let queueForCloud = () => false;
+let onSaved: ((lid: string) => void) | null = null;
+export function setCloudHooks(queue: () => boolean, saved: (lid: string) => void) {
+  queueForCloud = queue;
+  onSaved = saved;
 }
 
 export function metaOf(L: League): LeagueMeta {
@@ -76,19 +110,35 @@ export interface Pending {
   seasons: SeasonArchive[];
 }
 
-export async function saveLeague(L: League, pending: Pending) {
+/** Write the live league and anything it archived. `quiet` skips cloud bookkeeping (used when the save came from the cloud). */
+export async function saveLeague(L: League, pending: Pending, opts: { quiet?: boolean } = {}) {
   const d = await db();
-  const tx = d.transaction(["meta", "states", "players", "boxes", "seasons"], "readwrite");
+  const tx = d.transaction(["meta", "states", "players", "boxes", "seasons", "outbox"], "readwrite");
   const lid = L.id;
   const boxes = pending.boxes.splice(0);
   const players = pending.players.splice(0);
   const seasons = pending.seasons.splice(0);
+  const queue = !opts.quiet && queueForCloud();
   for (const b of boxes) tx.objectStore("boxes").put({ ...b, lid });
   for (const p of players) tx.objectStore("players").put({ ...p, lid });
   for (const s of seasons) tx.objectStore("seasons").put({ ...s, lid });
+  if (queue) {
+    const out = tx.objectStore("outbox");
+    for (const b of boxes) out.add({ lid, t: "b", d: b });
+    for (const p of players) out.add({ lid, t: "p", d: p });
+    for (const s of seasons) out.add({ lid, t: "s", d: s });
+  }
   tx.objectStore("states").put(L, lid);
   tx.objectStore("meta").put(metaOf(L));
   await tx.done;
+  if (!opts.quiet) onSaved?.(lid);
+}
+
+/** Every archived record of a league, for a full cloud upload. */
+export async function getArchives(lid: string): Promise<{ players: Player[]; boxes: BoxScore[]; seasons: SeasonArchive[] }> {
+  const d = await db();
+  const [players, boxes, seasons] = await Promise.all([d.getAll("players", range(lid)), d.getAll("boxes", range(lid)), d.getAll("seasons", range(lid))]);
+  return { players, boxes, seasons };
 }
 
 export async function loadLeague(lid: string): Promise<League | undefined> {
@@ -102,12 +152,25 @@ function range(lid: string) {
 
 export async function deleteLeague(lid: string) {
   const d = await db();
-  const tx = d.transaction(["meta", "states", "players", "boxes", "seasons"], "readwrite");
+  const tx = d.transaction(["meta", "states", "players", "boxes", "seasons", "sync", "outbox"], "readwrite");
   tx.objectStore("meta").delete(lid);
   tx.objectStore("states").delete(lid);
   tx.objectStore("players").delete(range(lid));
   tx.objectStore("boxes").delete(range(lid));
   tx.objectStore("seasons").delete(range(lid));
+  tx.objectStore("sync").delete(lid);
+  const out = tx.objectStore("outbox");
+  for (const k of await out.index("lid").getAllKeys(lid)) out.delete(k);
+  await tx.done;
+}
+
+/** Write archived records in one transaction (used when restoring). */
+export async function putArchives(lid: string, batch: Pending) {
+  const d = await db();
+  const tx = d.transaction(["players", "boxes", "seasons"], "readwrite");
+  for (const b of batch.boxes.splice(0)) tx.objectStore("boxes").put({ ...b, lid });
+  for (const p of batch.players.splice(0)) tx.objectStore("players").put({ ...p, lid });
+  for (const a of batch.seasons.splice(0)) tx.objectStore("seasons").put({ ...a, lid });
   await tx.done;
 }
 
@@ -175,7 +238,7 @@ export async function exportLeague(L: League): Promise<Blob> {
   return blob;
 }
 
-async function* lines(file: File): AsyncGenerator<string> {
+export async function* lines(file: Blob): AsyncGenerator<string> {
   const head = new Uint8Array(await file.slice(0, 2).arrayBuffer());
   // the DOM lib's stream generics don't line up across TS versions; the
   // runtime types are fine
@@ -219,12 +282,7 @@ export async function importLeague(file: File): Promise<string> {
   const batch: Pending = { boxes: [], players: [], seasons: [] };
   const flush = async () => {
     if (!batch.boxes.length && !batch.players.length && !batch.seasons.length) return;
-    const d = await db();
-    const tx = d.transaction(["players", "boxes", "seasons"], "readwrite");
-    for (const b of batch.boxes.splice(0)) tx.objectStore("boxes").put({ ...b, lid: L.id });
-    for (const p of batch.players.splice(0)) tx.objectStore("players").put({ ...p, lid: L.id });
-    for (const a of batch.seasons.splice(0)) tx.objectStore("seasons").put({ ...a, lid: L.id });
-    await tx.done;
+    await putArchives(L.id, batch);
   };
   for await (const ln of it) {
     const rec = JSON.parse(ln) as { t: string; d: never };

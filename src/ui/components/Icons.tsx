@@ -48,6 +48,8 @@ const P: Record<string, string> = {
   search: "M11 4a7 7 0 100 14 7 7 0 000-14zM20 20l-4-4",
   x: "M6 6l12 12M18 6L6 18",
   back: "M15 5l-7 7 7 7",
+  cloud: "M7 18h10.5a3.5 3.5 0 00.6-6.95A6 6 0 006.3 9.6 4.25 4.25 0 007 18z",
+  copy: "M9 9h11v11H9zM5 15H4V4h11v1",
   menu: "M4 6h16M4 12h16M4 18h16",
   league: "M12 3a9 9 0 100 18 9 9 0 000-18zM12 3v18M3.5 9h17M3.5 15h17",
 };

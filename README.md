@@ -22,7 +22,7 @@ Or build one self-contained file you can double-click to play, no server needed:
 npm run build:single   # writes release/hardwood-dynasty.html
 ```
 
-Saves live in your browser (IndexedDB) and autosave after every sim and edit. Use **Settings → Export** to back up a league to a compressed `.hdsave.gz` file (every season, player, box score and record), and **Import Save** on the start screen to restore it on any computer. Saves belong to the browser and the address you play from, so keep using the same one (or export and import when you switch).
+Saves live in your browser (IndexedDB) and autosave after every sim and edit. **Cloud saves** also upload your leagues to the Vercel deployment a few minutes after you play and whenever you leave the page. Each browser gets a private save code (Settings → Cloud saves); open the copy link, or enter the code on another device, and your leagues load there. Uploads are incremental (the live league plus only the new history since the last upload), stored in Vercel Blob under a hash of the code. The downloadable single file syncs too, through the deployed API. Use **Settings → Export** to back up a league to a compressed `.hdsave.gz` file (every season, player, box score and record), and **Import Save** on the start screen to restore it on any computer. Saves belong to the browser and the address you play from, so keep using the same one (or export and import when you switch).
 
 Getting around: five sections (Home, My Team, Recruiting, League, History) sit on the left, or along the bottom on a phone, and each section's pages are tabs under the top bar. Team, player and game pages have a Back button. Press `/` or `Ctrl+K` to search for any team, player or page ("standings", "bracket", "draft"). If you'd rather not manage recruiting week to week, turn on auto recruiting in **Settings** and your staff will handle it.
 
@@ -78,6 +78,9 @@ npx tsx scripts/calibrate.ts 4000     # game engine vs. D1 averages
 npx tsx scripts/seasons.ts 10 7       # multi-season stability check (talent, prestige, recruiting, upsets)
 npx tsx scripts/realism.ts 4 11       # full league vs. real D1: 36 measures from shooting to coaching changes
 ```
+
+Cloud saves need a Vercel Blob store connected to the project (`vercel blob create-store <name> --access public --yes`). For local development, `vercel env pull` writes the Blob token to `.env.local`, and `npm run dev` serves `api/saves.ts` itself.
+
 
 ## Code layout
 

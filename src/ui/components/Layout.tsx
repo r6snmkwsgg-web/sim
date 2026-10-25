@@ -12,6 +12,8 @@ import { PORTAL_ROUNDS, advanceBlocker, isDayPhase } from "../../engine/advance"
 import { nextGame } from "../helpers";
 import type { League } from "../../engine/types";
 import { HUBS, hubPages, hubTarget, locate, rememberPage, type NavHub } from "../nav";
+import { useCloudStatus } from "../cloud";
+import { cloudLine } from "./CloudCard";
 
 interface Action {
   target: SimTarget;
@@ -281,6 +283,16 @@ function ResultToast() {
   );
 }
 
+/** Cloud save status at a glance; opens Settings. */
+function CloudDot({ lid }: { lid: string }) {
+  const st = useCloudStatus();
+  return (
+    <Link to={`/l/${lid}/settings`} className={`side-icon cloud-dot ${st.state}`} title={cloudLine(st)}>
+      <Icon name="cloud" />
+    </Link>
+  );
+}
+
 /** The five sections: a slim rail on desktop, a tab bar on phones. */
 function HubLinks({ L, active, badges, className }: { L: League; active: NavHub | null; badges: Record<string, number>; className: string }) {
   return (
@@ -381,6 +393,7 @@ export function Layout({ children }: { children: ReactNode }) {
         </Link>
         <HubLinks L={L} active={spot.hub} badges={badges} className="rail-hubs" />
         <div className="rail-foot">
+          <CloudDot lid={L.id} />
           <NavLink to={`/l/${L.id}/guide`} className={({ isActive }) => `side-icon${isActive ? " active" : ""}`} title="How to play">
             <Icon name="ball" />
           </NavLink>

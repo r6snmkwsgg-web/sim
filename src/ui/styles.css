@@ -1048,3 +1048,34 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--control); }
 }
 .menu-item.row { gap: 10px; }
 kbd { font: 600 11px var(--font); border: 1px solid var(--border-strong); border-bottom-width: 2px; border-radius: 5px; padding: 0 5px; background: var(--panel-3); }
+
+/* start screen brand */
+.brand-mark {
+  width: 32px; height: 32px; border-radius: 9px; flex: none;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(140deg, #ffb547, #ff6a3d 60%, #e0402a);
+  color: #1a0d05; box-shadow: 0 4px 14px rgba(255, 106, 61, 0.35);
+}
+.brand-name { font-family: var(--display); font-weight: 800; font-size: 17px; letter-spacing: 0.03em; white-space: nowrap; text-transform: uppercase; line-height: 1; }
+
+/* cloud saves */
+.cloud-status { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-radius: 10px; background: var(--panel-2); border: 1px solid var(--border); font-size: 13px; }
+.cloud-status svg { color: var(--good); flex: none; }
+.cloud-status.saving svg { color: var(--accent-ink); animation: pulse 1.2s ease-in-out infinite; }
+.cloud-status.error svg { color: var(--warn, #f59e0b); }
+.cloud-status.off svg { color: var(--faint); }
+@keyframes pulse { 50% { opacity: 0.35; } }
+.save-code { font: 700 15px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.08em; padding: 8px 10px; border-radius: 8px; background: var(--panel-3); border: 1px solid var(--border-strong); }
+.cloud-dot svg { color: #34d399; }
+.cloud-dot.saving svg { color: var(--accent-ink-d, #7aa7ff); animation: pulse 1.2s ease-in-out infinite; }
+.cloud-dot.error svg { color: #f59e0b; }
+.cloud-dot.off svg { color: var(--sidebar-head); }
+.home-cloud { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; color: #a9b4c6; font-size: 13.5px; margin: -4px 0 14px; }
+.home-cloud > svg { color: #34d399; flex: none; }
+.home-cloud.error > svg { color: #f59e0b; }
+.home-cloud.off > svg { color: #5d6a80; }
+.home-cloud b { color: #e6ebf2; }
+.home-link { background: none; border: 0; padding: 0; color: #ffb547; font-weight: 650; cursor: pointer; font-size: 13.5px; }
+.home-link:hover { text-decoration: underline; }
+.home-codebox { margin: 0 0 18px; padding: 14px 16px; border-radius: 14px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1); }
+.league-cloud { position: absolute; right: 10px; top: 10px; display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px; background: rgba(0, 0, 0, 0.35); color: #fff; }
