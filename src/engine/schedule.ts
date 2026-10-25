@@ -5,12 +5,19 @@ import { rngOf } from "./core";
 const CONF_START = 49;
 const CONF_END = 124;
 const NC_SLOTS = [0, 3, 7, 10, 14, 17, 21, 24, 28, 31, 35, 38, 42, 45];
+// Thanksgiving-week tournaments, played on neutral floors
 const MTE_SLOTS = new Set([17, 21, 24]);
+// early December challenge series and the holiday showcases: programs schedule their peers
+const MARQUEE_SLOTS = new Set([28, 38]);
 const MTE_NAMES = [
   "Maui Invitational", "Battle 4 Atlantis", "Players Era Festival", "Las Vegas Invitational", "Charleston Classic",
-  "Cancun Challenge", "Legends Classic", "Empire Classic", "Fort Myers Tip-Off", "Arizona Tip-Off",
-  "Baha Mar Championship", "Diamond Head Classic", "Jimmy V Classic", "Champions Classic", "CBS Sports Classic",
+  "Legends Classic", "Empire Classic", "Fort Myers Tip-Off", "Arizona Tip-Off", "Baha Mar Championship", "ESPN Events Invitational",
 ];
+const SMALL_MTE_NAMES = [
+  "Cancun Challenge", "Paradise Jam", "Cayman Islands Classic", "Jamaica Classic", "Myrtle Beach Invitational",
+  "Gulf Coast Showcase", "Hall of Fame Tip-Off", "Sunshine Slam", "Emerald Coast Classic", "Diamond Head Classic",
+];
+const SHOWCASE_NAMES = ["Champions Classic", "CBS Sports Classic", "Jimmy V Classic", "Holiday Hoopsgiving", "Hall of Fame Series", "Basketball Hall of Fame Showcase"];
 
 type Pair = [number, number];
 
@@ -153,7 +160,11 @@ export function generateSchedule(L: League): Game[] {
   const played = new Set<string>();
   const byId = new Map(L.teams.map((t) => [t.id, t]));
   const mteNames = rng.shuffle(MTE_NAMES.slice());
+  const smallNames = rng.shuffle(SMALL_MTE_NAMES.slice());
+  const showNames = rng.shuffle(SHOWCASE_NAMES.slice());
   let mteIdx = 0;
+  let smallIdx = 0;
+  let showIdx = 0;
   NC_SLOTS.forEach((day, si) => {
     const slotsLeft = NC_SLOTS.length - si;
     const avail = L.teams
@@ -166,6 +177,7 @@ export function generateSchedule(L: League): Game[] {
     for (const a of avail) {
       if (busy.has(a.id)) continue;
       // find an opponent: different conference, not yet played, also available
+      const peerSlot = MTE_SLOTS.has(day) || (MARQUEE_SLOTS.has(day) && a.prestige >= 50);
       let best: Team | null = null;
       let bestScore = -Infinity;
       for (let tries = 0; tries < 18; tries++) {
@@ -173,7 +185,9 @@ export function generateSchedule(L: League): Game[] {
         if (b.id === a.id || busy.has(b.id) || b.cid === a.cid) continue;
         const key = a.id < b.id ? `${a.id}-${b.id}` : `${b.id}-${a.id}`;
         if (played.has(key)) continue;
-        const score = rng.next() + (need.get(b.id) ?? 0) / slotsLeft;
+        let score = rng.next() + (need.get(b.id) ?? 0) / slotsLeft;
+        // tournaments and marquee dates bring programs of a similar level together
+        if (peerSlot) score += 1.6 * (1 - Math.min(1, Math.abs(a.prestige - b.prestige) / 30));
         if (score > bestScore) {
           bestScore = score;
           best = b;
@@ -189,9 +203,14 @@ export function generateSchedule(L: League): Game[] {
       const ta = byId.get(a.id)!;
       const tb = byId.get(b.id)!;
       const bothStrong = ta.prestige >= 55 && tb.prestige >= 55;
-      if (MTE_SLOTS.has(day) && bothStrong && rng.chance(0.75)) {
-        const ev = mteNames[mteIdx++ % mteNames.length];
+      if (MTE_SLOTS.has(day) && rng.chance(bothStrong ? 0.95 : 0.6)) {
+        const big = Math.max(ta.prestige, tb.prestige) >= 50;
+        const ev = big ? mteNames[mteIdx++ % mteNames.length] : smallNames[smallIdx++ % smallNames.length];
         games.push(mk(a.id, b.id, day, "nc", true, ev));
+        continue;
+      }
+      if (day === 38 && bothStrong && rng.chance(0.5)) {
+        games.push(mk(a.id, b.id, day, "nc", true, showNames[showIdx++ % showNames.length]));
         continue;
       }
       const pHome = Math.max(0.15, Math.min(0.88, 0.5 + (ta.prestige - tb.prestige) / 110));

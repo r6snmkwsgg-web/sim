@@ -239,9 +239,9 @@ function makeGP(p: Player, starters: number[], minutes: Record<number, number>):
 }
 
 // game-to-game randomness on shooting, and how much a lead pulls efficiency back
-export let FORM_SD = 0.03;
-export let SCORE_EFFECT = 0.0015;
-export let SKILL_SCALE = 0.7;
+export let FORM_SD = 0.025;
+export let SCORE_EFFECT = 0.0025;
+export let SKILL_SCALE = 0.87;
 /** Calibration hook for scripts. */
 export function setTuning(form: number, scoreEffect: number, skillScale = SKILL_SCALE) {
   FORM_SD = form;
@@ -578,7 +578,7 @@ export class GameSim {
 
   freeThrows(off: TS, def: TS, shooter: GP, n: number, oneAndOne = false): boolean {
     // returns true if the final free throw was missed (live rebound)
-    const p = clamp(0.4 + 0.62 * shooter.ft + off.shootAdj * 0.5, 0.35, 0.95);
+    const p = clamp(0.415 + 0.62 * shooter.ft + off.shootAdj * 0.5, 0.35, 0.95);
     let lastMissed = false;
     for (let i = 0; i < n; i++) {
       shooter.fta++;
@@ -613,12 +613,12 @@ export class GameSim {
     if (blocked) p += 0.08;
     p = clamp(p, 0.08, 0.55);
     if (this.rng.next() < p) {
-      const g = this.pickWeighted(off.on, (x) => Math.pow(x.raw.reb, 1.6) * (0.7 + 0.6 * x.hf));
+      const g = this.pickWeighted(off.on, (x) => Math.pow(x.raw.reb, 1.5) * (0.7 + 0.6 * x.hf));
       g.orb++;
       this.log(off.side, `Offensive rebound by ${g.name}.`, { k: "orb", p: g.pid });
       return true;
     }
-    const g = this.pickWeighted(def.on, (x) => Math.pow(x.raw.reb, 1.6) * (0.75 + 0.6 * x.hf));
+    const g = this.pickWeighted(def.on, (x) => Math.pow(x.raw.reb, 1.5) * (0.75 + 0.6 * x.hf));
     g.drb++;
     this.log(def.side, `Defensive rebound by ${g.name}.`, { k: "drb", p: g.pid });
     return false;
@@ -671,7 +671,7 @@ export class GameSim {
     let to = 0.168 * Math.exp(-2.05 * (off.aSec - 0.5)) * Math.exp(1.7 * (def.aStl - 0.5));
     if (def.strat.defense === "press") to *= 1.22;
     if (def.strat.defense === "zone") to *= 0.95;
-    to *= 1 - (off.tactics - 50) / 1000;
+    to *= 1 - (off.tactics - 50) / 500 + (def.tactics - 50) / 700;
     if (this.rng.next() < to) {
       const g = this.pickWeighted(off.on, (x) => x.usageBase * (1.35 - x.sec));
       g.tov++;
@@ -679,7 +679,7 @@ export class GameSim {
       if (def.strat.defense === "press") stealP *= 1.15;
       if (def.strat.defense === "zone") stealP *= 0.88;
       if (this.rng.next() < stealP) {
-        const s = this.pickWeighted(def.on, (x) => Math.pow(x.raw.stl, 1.7) * (x.posIdx <= 2 ? 1.15 : 0.9));
+        const s = this.pickWeighted(def.on, (x) => Math.pow(x.raw.stl, 1.25) * (x.posIdx <= 2 ? 1.15 : 0.9));
         s.stl_++;
         this.log(def.side, `${s.name} steals the ball from ${g.name}.`, { k: "stl", p: s.pid, q: g.pid });
         this.deadBall = false;
@@ -786,6 +786,8 @@ export class GameSim {
     let g: GP;
     // down three late: look for the best shooter and a three to tie
     const needThree = !putback && this.per >= 2 && this.remaining() < 35 && def.pts - off.pts === 3;
+    // down two late: most coaches go to the rim for the tie
+    const needTwo = !putback && this.per >= 2 && this.remaining() < 30 && def.pts - off.pts === 2 && this.rng.next() < 0.7;
     if (putback) {
       g = this.pickWeighted(off.on, (x) => Math.pow(x.raw.reb, 3) * (0.6 + x.hf));
     } else if (needThree) {
@@ -793,7 +795,7 @@ export class GameSim {
     } else {
       g = this.pickWeighted(off.on, (x) => x.usageBase * ((x.tend.three + x.tend.mid + x.tend.inside + x.tend.drive) / 20 + 0.02));
     }
-    const type = needThree ? "three" : this.chooseShot(off, def, g, putback);
+    const type = needThree ? "three" : needTwo ? (g.posIdx >= 3 ? "post" : "drive") : this.chooseShot(off, def, g, putback);
     // matchup defender: same lineup slot by position order
     const sortedDef = def.onSorted;
     const sortedOff = off.onSorted;
@@ -840,13 +842,16 @@ export class GameSim {
         foulP = 0.17;
         assistP = 0.04;
     }
-    p = p * ef + off.shootAdj + off.form + (off.tactics - 50) * 0.0002;
+    // game planning on both ends: a great tactician is worth about two points a night per standout
+    p = p * ef + off.shootAdj + off.form + (off.tactics - 50) * 0.0006 - (def.tactics - 50) * 0.0004;
     // score effects: teams with a lead relax and trailing teams press, more so as the game goes on
     const lead = Math.max(-20, Math.min(20, off.pts - def.pts));
     p -= lead * SCORE_EFFECT * (0.4 + this.gameElapsed() / 2400);
     if (def.strat.defense === "press") p += 0.012; // press gives up easier looks when broken
     if (def.strat.rebounding === "crash") p += 0.006; // transition opportunities
     if (buzzer) p *= 0.45;
+    // the last shot of a close game is a set play against a set defense
+    else if (this.per >= 2 && this.remaining() < 8 && Math.abs(off.pts - def.pts) <= 3) p *= 0.82;
     p = clamp(p, 0.05, 0.9);
     // rim protection: the best shot-blocker on the floor matters as much as the average
     blockP *= Math.exp(3.2 * (0.45 * def.aBlk + 0.55 * def.aBlkMax - 0.56));
@@ -879,7 +884,7 @@ export class GameSim {
       this.score(off, def, g, isThree ? 3 : 2);
       let assister: GP | null = null;
       if (this.rng.next() < assistP * (0.75 + 0.5 * off.aPass)) {
-        assister = this.pickWeighted(off.on, (x) => Math.pow(x.raw.pass, 4) * (x.posIdx === 0 ? 1.7 : x.posIdx === 1 ? 1.15 : 1), g);
+        assister = this.pickWeighted(off.on, (x) => Math.pow(x.raw.pass, 5) * (x.posIdx === 0 ? 1.7 : x.posIdx === 1 ? 1.15 : 1), g);
         if (assister === g) assister = null;
         else assister.ast++;
       }
@@ -888,7 +893,7 @@ export class GameSim {
     }
     // miss: blocked?
     if (this.rng.next() < Math.min(0.6, blockP / (1 - p))) {
-      const b = this.pickWeighted(def.on, (x) => Math.pow(x.raw.blk, 5) * (0.4 + x.hf) * (x === md ? 1.4 : 1));
+      const b = this.pickWeighted(def.on, (x) => Math.pow(x.raw.blk, 7) * (0.4 + x.hf) * (x === md ? 1.4 : 1));
       b.blk_++;
       this.shotLog(def.side, `${b.name} blocks ${g.name}'s shot!`, "blk", b.pid, g.pid, type, 0);
       return "blocked";

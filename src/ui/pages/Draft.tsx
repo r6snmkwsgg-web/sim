@@ -11,14 +11,14 @@ export function DraftPage() {
   const [year, setYear] = useState<number>(years[0] ?? L.season + 1);
   const picks = L.draftHistory.filter((d) => d.season === year).sort((a, b) => a.pick - b.pick);
   const byTeam = new Map<number, number>();
-  for (const d of L.draftHistory) byTeam.set(d.tid, (byTeam.get(d.tid) ?? 0) + 1);
+  for (const d of L.draftHistory) if (d.tid >= 0) byTeam.set(d.tid, (byTeam.get(d.tid) ?? 0) + 1);
   const top = [...byTeam.entries()].sort((a, b) => b[1] - a[1]).slice(0, 15);
   const mine = L.draftHistory.filter((d) => d.tid === L.userTid);
   return (
     <div>
       <PageHead
         title="NBA Draft"
-        sub="College players selected in each NBA Draft. Seniors are eligible; underclassmen declare when projected to go high."
+        sub="Every pick, college and international. Seniors are eligible; underclassmen declare when they project to go high."
         right={
           years.length ? (
             <select className="select" value={year} onChange={(e) => setYear(Number(e.target.value))}>
@@ -44,7 +44,7 @@ export function DraftPage() {
                   <th className="n">Pick</th>
                   <th>NBA Team</th>
                   <th>Player</th>
-                  <th>College</th>
+                  <th>From</th>
                   <th>Pos</th>
                   <th>Class</th>
                   <th className="n">OVR</th>
@@ -55,17 +55,11 @@ export function DraftPage() {
                   <tr key={d.pid} className={d.tid === L.userTid ? "hl" : i === 29 ? "sep" : ""}>
                     <td className="n bold">{d.pick}</td>
                     <td className="muted">{d.nbaTeam}</td>
-                    <td>
-                      <Link to={`/l/${L.id}/player/${d.pid}`}>{d.name}</Link>
-                    </td>
-                    <td>
-                      <TeamLink L={L} tid={d.tid} size={18} short />
-                    </td>
+                    <td>{d.pid >= 0 ? <Link to={`/l/${L.id}/player/${d.pid}`}>{d.name}</Link> : <span className="bold">{d.name}</span>}</td>
+                    <td>{d.tid >= 0 ? <TeamLink L={L} tid={d.tid} size={18} short /> : <span className="muted">{d.from ?? "International"}</span>}</td>
                     <td>{d.pos}</td>
-                    <td className="muted">{CLASS_LABELS[Math.min(5, d.year)]}</td>
-                    <td className="n">
-                      <Grade v={d.ovr} />
-                    </td>
+                    <td className="muted">{d.tid >= 0 ? CLASS_LABELS[Math.min(5, d.year)] : "Intl"}</td>
+                    <td className="n">{d.tid >= 0 ? <Grade v={d.ovr} /> : <span className="faint">-</span>}</td>
                   </tr>
                 ))}
               </tbody>

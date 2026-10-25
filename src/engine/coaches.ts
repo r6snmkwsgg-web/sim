@@ -47,7 +47,7 @@ export function expectations(prestige: number): { goal: string; wins: number } {
 export function nilBudgetFor(L: League, t: Team): number {
   const tier = conference(L, t.cid).tier;
   const mult = [0, 1, 0.45, 0.2, 0.08][tier] ?? 0.08;
-  return Math.round(6000 * mult * Math.pow(t.prestige / 100, 1.5) + 50);
+  return Math.round(6000 * mult * Math.pow(t.prestige / 100, 1.5) * (t.boosters ?? 1) + 50);
 }
 
 export function updatePrograms(L: League) {
@@ -86,7 +86,8 @@ export function updatePrograms(L: League) {
       }
       c.rep = Math.round(clamp(c.rep + 0.2 * (score - c.rep) + (score - old) * 0.05, 1, 99) * 10) / 10;
       const yearsIn = L.season - c.hired + 1;
-      let sec = c.security + (score - old) * 0.9 + 3;
+      // drifts toward neutral each year; a season above or below the program's standard moves it
+      let sec = c.security * 0.82 + 0.18 * 58 + (score - old) * 1.15;
       if (yearsIn <= 2) sec = Math.max(sec, 35);
       c.security = Math.round(clamp(sec, 0, 100));
       c.seasons.push({
@@ -123,14 +124,33 @@ export function startCarousel(L: League) {
     const c = coach(L, t.coachId);
     if (!c || c.user) continue;
     c.age++;
-    const fire = c.security < 12 && L.season - c.hired >= 2 && rng.chance(0.7);
-    const retire = (c.age >= 68 && rng.chance(0.35)) || c.age >= 73;
-    if (fire || retire) {
+    // about 55 head coaching changes a year in real D1: firings, retirements,
+    // coaches leaving for other jobs (handled when vacancies are filled) and the NBA
+    const years = L.season - c.hired;
+    const fireP =
+      years < 2
+        ? 0
+        : c.security < 15
+          ? 0.85
+          : c.security < 28 && years >= 3
+            ? 0.55
+            : t.prestige >= 65 && c.security < 40 && years >= 3
+              ? 0.45
+              : c.security < 36 && years >= 4
+                ? 0.38
+                : c.security < 45 && years >= 5
+                  ? 0.12
+                  : 0;
+    const fire = rng.chance(fireP);
+    const retire = (c.age >= 66 && rng.chance(0.3)) || c.age >= 72;
+    const leave = !fire && !retire && c.age < 62 && c.rep >= 55 && rng.chance(0.012);
+    if (fire || retire || leave) {
       c.tid = null;
-      if (retire) c.retired = true;
+      if (retire || leave) c.retired = true;
       vacancies.push(t.id);
       t.coachId = -1;
       if (fire) addNews(L, "job", `${t.name} has fired head coach ${c.first} ${c.last}.`, { tid: t.id, user: false });
+      else if (leave) addNews(L, "job", `${t.name} head coach ${c.first} ${c.last} is leaving for an NBA job.`, { tid: t.id, user: false });
       else addNews(L, "job", `${t.name} head coach ${c.first} ${c.last} has retired.`, { tid: t.id, user: false });
     }
   }

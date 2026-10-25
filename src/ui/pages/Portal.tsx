@@ -21,7 +21,7 @@ export function Portal() {
     return (
       <div>
         <PageHead title="Transfer Portal" sub="The portal opens after the NBA Draft, once the season is over." />
-        <Card title="Your players' transfer outlook" sub="Players who aren't getting minutes, stars at programs below their level, and players whose coach leaves are most likely to enter." flush>
+        <Card title="Your players' transfer outlook" sub="About half of all college players enter the portal each spring. Players who aren't getting minutes, standouts at programs below their level, and players whose coach leaves are the most likely. NIL deals and winning keep players home." flush>
           <table className="tbl">
             <thead>
               <tr>
@@ -41,7 +41,7 @@ export function Portal() {
                   <td className="n">
                     <Grade v={p.ovr} />
                   </td>
-                  <td>{r >= 0.25 ? <span className="badge bad">High</span> : r >= 0.12 ? <span className="badge warn">Moderate</span> : <span className="badge good">Low</span>}</td>
+                  <td>{r >= 0.55 ? <span className="badge bad">High</span> : r >= 0.35 ? <span className="badge warn">Moderate</span> : <span className="badge good">Low</span>}</td>
                 </tr>
               ))}
             </tbody>

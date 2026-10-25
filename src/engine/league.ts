@@ -25,6 +25,7 @@ export const DEFAULT_SETTINGS: Settings = {
   keepAllBoxScores: true,
   homeCourt: 3.5,
   autoRecruit: false,
+  portalRate: 1,
 };
 
 export interface TeamInfo {
@@ -65,7 +66,7 @@ export function createLeague(o: NewLeagueOptions): League {
   const seed = o.seed ?? Math.floor(Math.random() * 2 ** 31);
   const season = o.startSeason ?? 2026;
   const settings: Settings = { ...DEFAULT_SETTINGS, ...(o.settings ?? {}) };
-  const conferences: Conference[] = (confData as { id: string; name: string; short: string; tier: number; confGames: number; tourneyTeams: number }[]).map((c, i) => ({
+  const conferences: Conference[] = (confData as { id: string; name: string; short: string; tier: number; confGames: number; tourneyTeams: number; campusRounds?: number }[]).map((c, i) => ({
     id: i,
     slug: c.id,
     name: c.name,
@@ -73,6 +74,7 @@ export function createLeague(o: NewLeagueOptions): League {
     tier: c.tier,
     confGames: c.confGames,
     tourneyTeams: c.tourneyTeams,
+    campusRounds: c.campusRounds ?? 0,
   }));
   const confBySlug = new Map(conferences.map((c) => [c.slug, c]));
   const L: League = {
@@ -142,6 +144,8 @@ export function createLeague(o: NewLeagueOptions): League {
       prestige: d.prestige,
       facilities: Math.round(clamp(d.prestige + rng.normal(0, 9), 5, 99)),
       nilBudget: 0,
+      // most collectives are typical for their level; a few schools have deep-pocketed boosters
+      boosters: Math.round(clamp(Math.exp(rng.normal(0, 0.5)), 0.4, 3.2) * 100) / 100,
       coachId: -1,
       strategy: { tempo: 3, offense: "balanced", defense: "man", rebounding: "balanced" },
       rotation: { auto: true, starters: [], minutes: {} },

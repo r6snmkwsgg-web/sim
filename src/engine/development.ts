@@ -70,7 +70,7 @@ export function weeklyDevelopment(L: League) {
   for (const t of L.teams) {
     const plan = t.practice;
     const ch = coachOf(L, t.id);
-    const dev = 0.8 + 0.4 * ((ch?.development ?? 50) / 100);
+    const dev = 0.6 + 0.8 * ((ch?.development ?? 50) / 100);
     const intensity = INTENSITY[plan.intensity];
     for (const p of roster(L, t.id)) {
       if (p.injury) continue;
@@ -92,7 +92,7 @@ const YEAR_RATE = [0, 0.36, 0.32, 0.3, 0.28, 0.25, 0.2];
 export function offseasonDevelopment(L: League, p: Player, t: Team | undefined) {
   const rng = rngOf(L);
   const ch = t ? coachOf(L, t.id) : undefined;
-  const dev = 0.8 + 0.4 * ((ch?.development ?? 50) / 100);
+  const dev = 0.6 + 0.8 * ((ch?.development ?? 50) / 100);
   const we = 0.7 + 0.6 * (p.workEthic / 100);
   const gap = Math.max(0, p.pot - p.ovr);
   const rate = YEAR_RATE[Math.min(6, Math.max(1, p.year))];

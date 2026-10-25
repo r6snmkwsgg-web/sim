@@ -81,9 +81,9 @@ export function newRecruitInfo(rng: Rng, kind: "hs" | "portal", classSeason: num
   };
 }
 
-/** NBA draft stock used for early-entry projections. */
+/** How NBA teams value a prospect: current level, a lot of upside, and youth. */
 export function draftStock(p: Player): number {
-  return p.ovr + 0.4 * (p.pot - p.ovr) - 1.2 * (Math.max(1, p.year) - 1);
+  return p.ovr + 0.8 * (p.pot - p.ovr) - 3.4 * (Math.max(1, p.year) - 1);
 }
 
 /** Underclassman projected to leave early for the NBA. */

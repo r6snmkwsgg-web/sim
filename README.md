@@ -40,15 +40,16 @@ Tips: press `/` or `Ctrl+K` to search for any team or player. If you'd rather no
 - Rotation: auto, or your own starters and minute targets
 - Expectations and job security that scale with your program's prestige
 - Practice: team focus, intensity, individual focus; weekly in-season growth and offseason jumps
-- Redshirts, releasing players, walk-ons, NIL budgets
+- Redshirts, releasing players, walk-ons, NIL budgets (each school has its own booster wealth, so a few mid-majors can spend like bigger programs)
+- Coaches matter: a great tactician is worth about two points a night, and a great developer grows players noticeably faster, at any level
 
 **The season**
-- About 31-game schedules with home, away and neutral-site games, including Thanksgiving events
+- About 31-game schedules shaped like real ones: Thanksgiving-week tournaments on neutral floors, December challenge games and holiday showcases against peers, and big schools hosting smaller ones
 - A possession-by-possession game engine calibrated to real D1 averages (pace, shooting splits, free throws, turnovers, rebounding, blocks, steals, assists, fouls, home-court edge, overtime rate, game-to-game variance), with fatigue, foul trouble, substitutions, score effects and real end-of-game decisions (holding for the last shot, fouling when the shot clock is off, needing a three)
 - Watch your games live: a scoreboard, a shot chart on a full court, a live box score, a game-flow chart you can click to rewind, and the play-by-play, at 1x to 8x speed. The result stays hidden until the final buzzer
 - Box scores and play-by-play for your games
 - Weekly AP-style Top 25, opponent-adjusted power ratings, bracketology
-- Conference tournaments, Selection Sunday, NCAA Tournament (64, 68 with First Four, or 76), NIT and CBI
+- Conference tournaments (the Patriot, America East, NEC, ASUN and early Horizon rounds are on campus, like the real ones), Selection Sunday with a Quad 1-minded committee, NCAA Tournament (64, 68 with First Four, or 76), NIT and CBI
 - Awards: national and conference Player of the Year, Defensive POY, Freshman, Sixth Man, Most Improved, Coach of the Year, All-America and All-Conference teams, Final Four MOP
 
 **Recruiting & the offseason**
@@ -57,7 +58,8 @@ Tips: press `/` or `Ctrl+K` to search for any team or player. If you'd rather no
 - Scouting that reveals true ratings; star ratings are noisy, so there are sleepers and busts
 - Top-five lists, verbal commitments that can flip, early and late signing periods
 - AI programs recruit under the same rules, following a realistic pecking order
-- NBA Draft with early entries, graduation, and a transfer portal with four windows, where you can re-recruit your own players
+- NBA Draft with early entries and international picks (about 20 of the 58 picks go to players from overseas clubs, as in recent drafts), graduation, and a transfer portal with four windows, where you can re-recruit your own players
+- A modern portal: about a third of players enter each spring, for playing time, NIL, a coaching change or a fresh start; winning teams keep their players and losing ones bleed them, and plenty of entrants never land at another D1 school. Settings has a Transfer activity option from pre-portal era to chaos
 - Coaching carousel with firings, retirements, poaching, job offers and getting fired, plus conference realignment invitations
 
 **History**
@@ -74,6 +76,7 @@ npm run typecheck
 npm test                              # engine tests (full seasons, offseason, data integrity)
 npx tsx scripts/calibrate.ts 4000     # game engine vs. D1 averages
 npx tsx scripts/seasons.ts 10 7       # multi-season stability check (talent, prestige, recruiting, upsets)
+npx tsx scripts/realism.ts 4 11       # full league vs. real D1: 36 measures from shooting to coaching changes
 ```
 
 ## Code layout

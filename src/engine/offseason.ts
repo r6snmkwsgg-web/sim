@@ -17,6 +17,7 @@ import { generateSchedule } from "./schedule";
 import { chooseStrategy, aiRedshirts } from "./ai";
 import { emptyLine, emptyTeamSeason } from "./stats";
 import { applyRealignment } from "./realignment";
+import { INTL } from "./data/international";
 
 export const NBA_TEAMS = [
   "Atlanta", "Boston", "Brooklyn", "Charlotte", "Chicago", "Cleveland", "Dallas", "Denver", "Detroit", "Golden State",
@@ -121,29 +122,53 @@ export function departures(L: League) {
     .filter((p) => p.ovr >= 55)
     .map((p) => ({ p, v: draftValue(p) + rng.normal(0, 2) }))
     .sort((a, b) => b.v - a.v);
+  // international and pro-path prospects take about 20 of the 58 picks, mostly in the second round
+  const DRAFT_PICKS = 58;
+  const intlSlots = new Set<number>();
+  const firstRound = rng.int(4, 7);
+  while (intlSlots.size < firstRound) {
+    // later first-round picks are more likely to go abroad
+    const w = Array.from({ length: 30 }, (_, i) => 3 + i);
+    intlSlots.add(1 + rng.weighted(w));
+  }
+  const secondRound = rng.int(12, 17);
+  while (intlSlots.size < firstRound + secondRound) intlSlots.add(rng.int(31, DRAFT_PICKS));
+  const collegeSlots = DRAFT_PICKS - intlSlots.size;
   const declared = new Set<number>();
   board.forEach(({ p }, i) => {
     if (graduating.includes(p)) return;
     const proj = i + 1;
-    let prob = proj <= 10 ? 0.97 : proj <= 20 ? 0.85 : proj <= 30 ? 0.62 : proj <= 45 ? 0.3 : 0;
+    let prob = proj <= 8 ? 0.97 : proj <= 16 ? 0.85 : proj <= 24 ? 0.6 : proj <= 36 ? 0.28 : 0;
     prob *= 1 - 0.25 * (p.loyalty / 100);
     if (p.nilDeal > NIL_VALUE[4]) prob *= 0.8;
     if (rng.chance(prob)) declared.add(p.id);
   });
-  const pool = board.filter(({ p }) => graduating.includes(p) || declared.has(p.id)).slice(0, 58);
+  const pool = board.filter(({ p }) => graduating.includes(p) || declared.has(p.id)).slice(0, collegeSlots);
   const order = rng.shuffle(NBA_TEAMS.slice());
   const picks: DraftPick[] = [];
-  pool.forEach(({ p }, i) => {
-    const round = i < 29 ? 1 : 2;
-    const pick = i + 1;
-    const nbaTeam = order[i % 30];
+  let ci = 0;
+  for (let pick = 1; pick <= DRAFT_PICKS; pick++) {
+    const round = pick <= 30 ? 1 : 2;
+    const nbaTeam = order[(pick - 1) % 30];
+    if (intlSlots.has(pick) || ci >= pool.length) {
+      const src = INTL[rng.weighted(INTL.map((x) => x.weight))];
+      const name = `${rng.pick(src.first)} ${rng.pick(src.last)}`;
+      const pos = rng.pick(["PG", "SG", "SF", "PF", "C"] as const);
+      picks.push({ season: L.season + 1, round, pick, pid: -((L.season + 1) * 100 + pick), name, tid: -1, pos, year: 0, ovr: 0, nbaTeam, from: `${rng.pick(src.clubs)} (${src.country})` });
+      continue;
+    }
+    const { p } = pool[ci++];
     p.draft = { season: L.season + 1, round, pick, team: nbaTeam };
     p.status = "drafted";
     picks.push({ season: L.season + 1, round, pick, pid: p.id, name: playerName(p), tid: p.tid ?? -1, pos: p.pos, year: p.year, ovr: p.ovr, nbaTeam });
     leaving.add(p.id);
     if (p.tid === L.userTid) addNews(L, "draft", `${playerName(p)} was selected No. ${pick} overall by ${nbaTeam} in the NBA Draft!`, { tid: p.tid, pid: p.id, user: true });
-  });
-  if (picks[0]) addNews(L, "draft", `${picks[0].name} (${team(L, picks[0].tid).name}) goes No. 1 overall to ${picks[0].nbaTeam}.`, { tid: picks[0].tid, pid: picks[0].pid, user: picks[0].tid === L.userTid });
+  }
+  if (picks[0]) {
+    const p0 = picks[0];
+    const from = p0.tid >= 0 ? team(L, p0.tid).name : p0.from;
+    addNews(L, "draft", `${p0.name} (${from}) goes No. 1 overall to ${p0.nbaTeam}.`, p0.tid >= 0 ? { tid: p0.tid, pid: p0.pid, user: p0.tid === L.userTid } : { user: false });
+  }
   L.draftHistory.push(...picks);
   for (const p of graduating) {
     if (leaving.has(p.id)) continue;
@@ -166,6 +191,13 @@ export function departures(L: League) {
 }
 
 // ---------------- transfer portal ----------------
+/**
+ * Chance a player enters the transfer portal this spring. Modern college
+ * basketball sees about half of all players with eligibility left enter:
+ * bench players chasing minutes, mid-major standouts moving up for NIL
+ * money, players following (or fleeing) a coaching change, grad transfers,
+ * and plain fresh starts. Each reason is its own chance; they combine.
+ */
 export function transferRisk(L: League, p: Player): number {
   if (p.tid === null || p.status !== "active") return 0;
   const t = team(L, p.tid);
@@ -173,22 +205,36 @@ export function transferRisk(L: League, p: Player): number {
   const rank = mates.indexOf(p) + 1;
   const s = p.stats.find((x) => x.season === L.season && x.tid === p.tid);
   const mpg = s && s.g ? s.min / s.g : 0;
-  const expected = rank <= 5 ? 26 : rank <= 8 ? 15 : rank <= 10 ? 7 : 2;
-  // playing-time frustration only counts once there's a real sample of games
-  const dis = s && s.g >= 6 ? Math.max(0, expected - mpg - 4) / 20 : 0;
-  let pr = 0.03 + 0.3 * Math.min(1, dis);
+  const played = !!s && s.g >= 6;
   const lvl = talentLevel(t.prestige);
-  if (p.ovr > lvl + 6 && t.prestige < 70) pr += 0.12 * Math.min(2, (p.ovr - lvl - 6) / 6);
+  const reasons: number[] = [];
+  // a fresh start: fit, family, school, or just the modern market
+  reasons.push(0.36);
+  // playing time against where he sits on the depth chart
+  const expected = rank <= 5 ? 26 : rank <= 8 ? 16 : rank <= 10 ? 9 : 4;
+  if (played) reasons.push(0.7 * Math.min(1, Math.max(0, expected - mpg - 3) / 14));
+  // buried: deep bench guys who barely play look for a real role
+  if (rank > 8 && mpg < 10) reasons.push(rank > 11 ? 0.65 : 0.5);
+  // moving up: a player better than his program's level gets courted (NIL)
+  if (p.ovr > lvl + 6 && t.prestige < 78) reasons.push(Math.min(0.55, 0.18 + 0.06 * (p.ovr - lvl - 6)));
+  // a new head coach
   const c = coach(L, t.coachId);
-  if (c && c.hired === L.season + 1) pr += 0.12;
-  if (p.eligUsed === 3 && mpg < 15) pr += 0.08;
-  // buried well below the program's level: look for minutes elsewhere
-  if (rank > 9 && p.ovr < lvl - 10 && mpg < 6 && p.eligUsed < 3 && s && s.g >= 6) pr += 0.3;
-  pr *= 1.35 - p.loyalty / 100;
-  pr *= 1 - 0.5 * Math.min(1, p.nilDeal / NIL_VALUE[3]);
+  if (c && c.hired === L.season + 1) reasons.push(0.3);
+  // one year left and not a starter: graduate transfer
+  if (p.eligUsed === 3 && rank > 5) reasons.push(0.2);
+  let pr = 1 - reasons.reduce((a, r) => a * (1 - r), 1);
+  pr *= 1.3 - p.loyalty / 100;
+  pr *= 1 - 0.45 * Math.min(1, p.nilDeal / NIL_VALUE[3]);
+  // winning keeps a locker room together; losing empties it
   const ts = curSeason(t);
-  if (ts.w + ts.l > 0 && ts.w / (ts.w + ts.l) > 0.65) pr *= 0.85;
-  return clamp(pr, 0, 0.85);
+  const wp = ts.w + ts.l > 0 ? ts.w / (ts.w + ts.l) : 0.5;
+  if (wp > 0.7) pr *= 0.72;
+  else if (wp > 0.6) pr *= 0.86;
+  else if (wp < 0.4) pr *= 1.15;
+  if (ts.post?.event === "ncaa") pr *= 0.88;
+  // portal intensity setting (1 = modern era)
+  pr *= L.settings.portalRate ?? 1;
+  return clamp(pr, 0, 0.92);
 }
 
 export function openPortal(L: League) {
@@ -213,6 +259,18 @@ export function openPortal(L: League) {
   for (const p of entering) {
     const r = p.recruit!;
     const from = fromTid.get(p.id)!;
+    // what a transfer is looking for depends on why he left
+    const ft = team(L, from);
+    const st = p.stats.find((x) => x.season === L.season && x.tid === from);
+    const mpg = st && st.g ? st.min / st.g : 0;
+    if (p.ovr > talentLevel(ft.prestige) + 6) {
+      r.prefs.prestige = Math.max(r.prefs.prestige, 4);
+      r.prefs.nil = 5;
+      r.prefs.contender = Math.max(r.prefs.contender, 4);
+    } else if (mpg < 18) {
+      r.prefs.pt = 5;
+      r.prefs.prestige = Math.min(r.prefs.prestige, 3);
+    }
     r.fromTid = from;
     // former school keeps a relationship
     r.interest[from] = 8 * (p.loyalty / 100);
@@ -240,11 +298,15 @@ export function closePortal(L: League) {
     const from = r.fromTid!;
     let dest: number | null = null;
     if (r.committedTo !== null && (r.stage === "committed" || r.stage === "signed")) dest = r.committedTo;
-    else if (spots(from) > 0 && rng.chance(0.6)) dest = from;
+    // most players who enter don't go back, but some withdraw and return
+    else if (spots(from) > 0 && rng.chance(0.18)) dest = from;
     else {
       const needy = L.teams.filter((t) => (t.id !== L.userTid || L.settings.autoRecruit) && spots(t.id) > 0);
-      if (needy.length) {
-        const fitting = needy.sort((a, b) => Math.abs(talentLevel(a.prestige) - p.ovr) - Math.abs(talentLevel(b.prestige) - p.ovr)).slice(0, 10);
+      // about a third of real entrants never land at another Division I school
+      if (needy.length && rng.chance(0.62)) {
+        // late signings land where they'd start, a little above the program's typical player
+        const want = p.ovr - 3;
+        const fitting = needy.sort((a, b) => Math.abs(talentLevel(a.prestige) - want) - Math.abs(talentLevel(b.prestige) - want)).slice(0, 10);
         dest = rng.pick(fitting).id;
       }
     }

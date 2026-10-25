@@ -170,7 +170,8 @@ export function selectionScores(L: League): Map<number, number> {
     const s = t.seasons[t.seasons.length - 1];
     const q = wins.get(t.id)!;
     const pw = L.power[t.id]?.power ?? 0;
-    out.set(t.id, pw + 0.45 * (s.w - s.l) + 1.1 * q.q1 - 1.6 * q.bad);
+    // like the real committee: Quad 1 wins count most, so mid-majors with few chances get seeded lower
+    out.set(t.id, pw + 0.38 * (s.w - s.l) + 1.3 * q.q1 - 1.6 * q.bad);
   }
   return out;
 }

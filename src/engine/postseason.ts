@@ -160,7 +160,7 @@ export function createConfTourneys(L: League) {
       4: ["First Round", "Quarterfinals", "Semifinals", "Championship"],
       5: ["First Round", "Second Round", "Quarterfinals", "Semifinals", "Championship"],
     };
-    const br = makeBracket(`conf:${c.id}`, `${c.short} Tournament`, seeds, names[R] ?? names[5], days, true);
+    const br = makeBracket(`conf:${c.id}`, `${c.short} Tournament`, seeds, names[R] ?? names[5], days, true, c.campusRounds ?? 0);
     L.brackets.push(br);
     for (const tid of order.slice(n)) curSeason(team(L, tid)).confTourney = "Did not qualify";
   }

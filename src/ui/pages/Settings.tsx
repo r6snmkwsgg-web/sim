@@ -87,6 +87,15 @@ export function SettingsPage() {
                 </select>
               </div>
               <div className="field" style={{ flex: 1 }}>
+                <label>Transfer activity</label>
+                <select className="select" value={L.settings.portalRate ?? 1} disabled={!L.settings.portal} onChange={(e) => set("portalRate", Number(e.target.value))}>
+                  <option value={0.4}>Pre-portal era</option>
+                  <option value={0.7}>Light</option>
+                  <option value={1}>Modern (real)</option>
+                  <option value={1.25}>Chaos</option>
+                </select>
+              </div>
+              <div className="field" style={{ flex: 1 }}>
                 <label>Home-court edge</label>
                 <select className="select" value={L.settings.homeCourt} onChange={(e) => set("homeCourt", Number(e.target.value))}>
                   <option value={0}>None</option>

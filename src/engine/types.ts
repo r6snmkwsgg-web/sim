@@ -227,6 +227,8 @@ export interface Team {
   prestige: number;
   facilities: number;
   nilBudget: number; // $K per year
+  /** booster/collective wealth: multiplies the NIL budget (1 = typical for the program's level) */
+  boosters?: number;
   coachId: number;
   strategy: Strategy;
   rotation: Rotation;
@@ -244,6 +246,8 @@ export interface Conference {
   tier: number;
   confGames: number;
   tourneyTeams: number;
+  /** conference tournament rounds played on the higher seed's floor (several one-bid leagues do this) */
+  campusRounds?: number;
 }
 
 export interface CoachSeason {
@@ -466,13 +470,17 @@ export interface DraftPick {
   season: number;
   round: number;
   pick: number;
+  /** negative for international and pro prospects (not college players) */
   pid: number;
   name: string;
+  /** college team, or -1 for international and pro prospects */
   tid: number;
   pos: Pos;
   year: number;
   ovr: number;
   nbaTeam: string;
+  /** club and country for international and pro prospects */
+  from?: string;
 }
 
 export interface TransferMove {
@@ -508,6 +516,8 @@ export interface Settings {
   keepAllBoxScores: boolean;
   homeCourt: number; // points of home advantage, roughly
   autoRecruit: boolean; // the user's staff recruits automatically
+  /** transfer portal activity: 1 = modern era (about half of players enter), 0.35 = the early portal years */
+  portalRate: number;
 }
 
 export interface SeasonArchive {

@@ -50,8 +50,8 @@ export function StatusBadges({ L, p }: { L: League; p: Player }) {
       )}
       {p.redshirt && <span className="badge warn">Redshirt</span>}
       {likelyPro(p) && L.phase !== "draft" && L.phase !== "portal" && L.phase !== "signing" && <span className="badge gold">NBA prospect</span>}
-      {risk >= 0.25 && <span className="badge bad">Transfer risk</span>}
-      {risk >= 0.12 && risk < 0.25 && <span className="badge warn">Unhappy</span>}
+      {risk >= 0.55 && <span className="badge bad">Transfer risk</span>}
+      {risk >= 0.35 && risk < 0.55 && <span className="badge warn">Unhappy</span>}
     </span>
   );
 }
