@@ -79,6 +79,17 @@ export type PrefKey = "pt" | "prestige" | "proximity" | "contender" | "coach" | 
 export const PREF_KEYS: PrefKey[] = ["pt", "prestige", "proximity", "contender", "coach", "facilities", "nil"];
 
 export type RevealKey = "film" | "live" | "coach";
+
+export interface Goal {
+  id: string;
+  kind: "wins" | "conf" | "confchamp" | "recruit" | "ranked" | "ncaa" | "sweet16" | "final4";
+  text: string;
+  target: number;
+  stretch?: boolean;
+  reward: { kind: "points" | "prestige" | "security"; amount: number; text: string };
+  done: boolean;
+  failed?: boolean;
+}
 export type RecruitStage = "open" | "top5" | "committed" | "signed" | "unsigned";
 
 export interface RecruitInfo {
@@ -212,6 +223,8 @@ export interface TeamSeason {
   recruitRank: number | null;
   recruitPts: number;
   roster: number[];
+  /** wins over AP-ranked teams */
+  rankedWins?: number;
 }
 
 export interface Team {
@@ -301,6 +314,11 @@ export interface Game {
   event?: string; // e.g. holiday tournament name
   /** the user's game prep level for this game (shown on the box score) */
   prep?: number;
+  /** user games: the opponent's AP rank and how much stronger they were (power) at tip-off */
+  oppRank?: number | null;
+  oppEdge?: number;
+  /** user games decided in the final seconds: who hit the go-ahead shot, and for which side (0 home, 1 away) */
+  clutch?: { pid: number; name: string; side: 0 | 1; secs: number };
   hasBox?: boolean;
   hasPbp?: boolean;
 }
@@ -580,6 +598,12 @@ export interface League {
   /** user's coaching points left this week (recruiting and game prep share them) */
   recruitPts: number;
   recruitPtsMax: number;
+  /** this season's goals for the user, with rewards */
+  goals?: { season: number; list: Goal[] };
+  /** extra weekly coaching points earned from goals this season */
+  pointsBonus?: number;
+  /** goals completed across every season */
+  goalsDone?: number;
   /** game prep bought for the user's next game; `weekPaid` is the part paid this week (refundable) */
   prep?: { opp: number; level: number; paid: number; week: number; weekPaid: number };
   /** player ids the user has on the recruiting board */

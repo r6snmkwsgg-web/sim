@@ -7,6 +7,8 @@ import { advancePhase, isDayPhase, simDay } from "../engine/advance";
 import { currentDateLabel } from "../engine/core";
 import { loadLeague, saveLeague, type Pending } from "./db";
 import { migrate } from "../engine/migrate";
+import { ensureGoals } from "../engine/goals";
+import { momentsSince, pushMoments, snapshot, type Moment } from "./moments";
 
 let league: League | null = null;
 let version = 0;
@@ -57,6 +59,7 @@ export async function openLeague(lid: string): Promise<League | null> {
   if (!L) return null;
   migrate(L);
   reindex(L);
+  ensureGoals(L);
   league = L;
   emit();
   return L;
@@ -154,9 +157,15 @@ export interface WatchGuard {
 let watchGuard: WatchGuard | null = null;
 let watchVersion = 0;
 const watchListeners = new Set<() => void>();
+// big moments from a game being watched wait until the replay is over
+let heldMoments: Moment[] = [];
 export function setWatchGuard(g: WatchGuard | null) {
   if (watchGuard === g || (!watchGuard && !g)) return;
   watchGuard = g;
+  if (!g && heldMoments.length) {
+    pushMoments(heldMoments);
+    heldMoments = [];
+  }
   watchVersion++;
   for (const l of watchListeners) l();
 }
@@ -189,6 +198,7 @@ export async function runSim(target: SimTarget, opts: { quiet?: boolean } = {}):
   sim.label = "Simulating…";
   simEmit();
   let userGameId: number | null = null;
+  const before = snapshot(L);
   try {
     if (target === "advance" || !isDayPhase(L)) {
       if (target === "endPortal") {
@@ -237,6 +247,9 @@ export async function runSim(target: SimTarget, opts: { quiet?: boolean } = {}):
       }
     }
     emit();
+    const ms = momentsSince(L, before);
+    if (opts.quiet) heldMoments = ms;
+    else pushMoments(ms);
     sim.label = "Saving…";
     simEmit();
     await save();

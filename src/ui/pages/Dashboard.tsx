@@ -4,6 +4,7 @@ import { canWatchNext, useWatchNext } from "../components/Layout";
 import { coach, roster, seasonLabel, shortDayLabel, team, PHASE_LABEL } from "../../engine/core";
 import { curSeason } from "../../engine/play";
 import { PREP_LEVELS, currentPrep } from "../../engine/prep";
+import { goalProgress } from "../../engine/goals";
 import { expectations } from "../../engine/coaches";
 import { currentPoll, currentRank, powerRanks } from "../../engine/rankings";
 import { prestigeStars, prestigeTier } from "../../engine/ratings";
@@ -78,6 +79,74 @@ function Guide({ L }: { L: League }) {
                 {x.link}
               </Link>
             )}
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+/** This season's goals, their progress and rewards. */
+function GoalsCard({ L }: { L: League }) {
+  const goals = L.goals?.season === L.season ? L.goals.list : [];
+  if (!goals.length) return null;
+  const done = goals.filter((g) => g.done).length;
+  return (
+    <Card title="Season goals" sub={`${done} of ${goals.length} complete · rewards pay out the moment you hit them`}>
+      <div className="col" style={{ gap: 10 }}>
+        {goals.map((g) => {
+          const [cur, max] = goalProgress(L, g);
+          return (
+            <div key={g.id} className={`goal${g.done ? " done" : g.failed ? " failed" : ""}`}>
+              <span className="goal-ic">
+                <Icon name={g.done ? "check" : g.failed ? "x" : g.stretch ? "fire" : "star"} size={14} />
+              </span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="row" style={{ gap: 6 }}>
+                  <b>{g.text}</b>
+                  {g.stretch && <span className="badge gold">Stretch</span>}
+                </div>
+                <div className="tiny muted">{g.done ? `Earned: ${g.reward.text}` : g.failed ? "Missed this season" : `Reward: ${g.reward.text}`}</div>
+                {!g.done && !g.failed && max > 1 && (
+                  <div className="row" style={{ gap: 8, marginTop: 5 }}>
+                    <div style={{ flex: 1 }}>
+                      <Meter value={(100 * cur) / max} color="var(--accent-ink)" />
+                    </div>
+                    <span className="tiny bold">
+                      {cur}/{max}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
+/** Everything the program has won, at a glance. */
+function TrophyCase({ L }: { L: League }) {
+  const t = team(L, L.userTid);
+  const ss = t.seasons;
+  const deep = (r: string | undefined) => !!r && ["Final Four", "Championship", "Runner-up", "Champion"].includes(r);
+  const items: [string, string, number][] = [
+    ["crown", "National titles", ss.filter((s) => s.post?.event === "ncaa" && s.post.result === "Champion").length],
+    ["awards", "Final Fours", ss.filter((s) => s.post?.event === "ncaa" && deep(s.post.result)).length],
+    ["bracket", "NCAA bids", ss.filter((s) => s.post?.event === "ncaa").length],
+    ["standings", "Conference titles", ss.filter((s) => s.confChamp).length],
+    ["records", "Tournament titles", ss.filter((s) => s.confTourney === "Champion").length],
+    ["star", "Goals hit", L.goalsDone ?? 0],
+  ];
+  return (
+    <Card title="Trophy case" right={<Link to={`/l/${L.id}/program`} className="btn btn-sm btn-ghost">History</Link>}>
+      <div className="trophies">
+        {items.map(([ic, label, n]) => (
+          <div key={label} className={`trophy${n ? " won" : ""}`}>
+            <Icon name={ic} size={18} />
+            <b>{n}</b>
+            <span>{label}</span>
           </div>
         ))}
       </div>
@@ -190,7 +259,7 @@ function NextUp({ L }: { L: League }) {
     : L.phase === "preseason"
       ? "Tip-off is coming. Set your rotation and start recruiting."
       : s.confTourney && s.confTourney !== "Champion"
-        ? `Conference tournament: ${s.confTourney === "Did not qualify" ? "did not qualify" : `out in the ${s.confTourney.toLowerCase()}`}. Waiting on Selection Sunday.`
+        ? `Conference tournament: ${s.confTourney === "Did not qualify" ? "did not qualify" : `out in the ${s.confTourney.toLowerCase()}`}. ${L.phase === "confTourney" || L.phase === "selection" ? "Waiting on Selection Sunday." : "No postseason bid this year."}`
         : PHASE_LABEL[L.phase];
   return (
     <div className="next-panel">
@@ -420,16 +489,8 @@ export function Dashboard() {
                   <Meter value={ch.security} color={secColor} />
                 </div>
               </div>
-              <div className="exp-box">
-                <div className="muted small bold" style={{ textTransform: "uppercase", letterSpacing: "0.08em", fontSize: 10.5 }}>
-                  This season's goal
-                </div>
-                <div className="bold" style={{ fontSize: 14.5, marginTop: 3 }}>
-                  {exp.goal}
-                </div>
-                <div className="small muted" style={{ marginTop: 2 }}>
-                  Around {exp.wins} wins keeps the athletic director happy.
-                </div>
+              <div className="small muted">
+                Your boss wants: <b style={{ color: "var(--text)" }}>{exp.goal}</b> (about {exp.wins} wins).
               </div>
               <div className="grid g3" style={{ gap: 8 }}>
                 <div className="mini-stat">
@@ -461,7 +522,9 @@ export function Dashboard() {
               )}
             </div>
           </Card>
+          <GoalsCard L={L} />
           <Guide L={L} />
+          <TrophyCase L={L} />
           <Card title={`${L.conferences[ut.cid].short} Standings`} flush right={<Link to={`/l/${L.id}/standings`} className="btn btn-sm btn-ghost">Full</Link>}>
             <table className="tbl compact">
               <thead>

@@ -13,6 +13,8 @@ import { nextGame } from "../helpers";
 import type { League } from "../../engine/types";
 import { HUBS, hubPages, hubTarget, locate, rememberPage, type NavHub } from "../nav";
 import { useCloudStatus } from "../cloud";
+import { clearMoments, popMoment, useMoments } from "../moments";
+import { Face } from "./Face";
 import { cloudLine } from "./CloudCard";
 
 interface Action {
@@ -283,6 +285,81 @@ function ResultToast() {
   );
 }
 
+const CONFETTI = Array.from({ length: 36 }, (_, i) => ({
+  left: (i * 37) % 100,
+  delay: ((i * 53) % 100) / 100,
+  dur: 1.8 + ((i * 29) % 10) / 10,
+  rot: (i * 47) % 360,
+  c: i % 3,
+}));
+
+/** Full-screen celebrations (and gut punches) after a sim. */
+function MomentOverlay() {
+  const L = useLeague();
+  const guard = useWatchGuard();
+  const { queue, more } = useMoments();
+  const nav = useNavigate();
+  useEffect(() => () => clearMoments(), [L.id]);
+  useEffect(() => {
+    if (!queue.length || guard) return;
+    const k = (e: KeyboardEvent) => {
+      if (e.key === "Enter" || e.key === "Escape" || e.key === " ") {
+        e.preventDefault();
+        popMoment();
+      }
+    };
+    window.addEventListener("keydown", k);
+    return () => window.removeEventListener("keydown", k);
+  }, [queue.length, guard]);
+  if (guard || !queue.length) return null;
+  const m = queue[0];
+  const t = team(L, m.tid);
+  const h = heroColors(t.colors);
+  const p = m.pid !== undefined ? L.players.find((x) => x.id === m.pid) : undefined;
+  return (
+    <div className="moment-wrap" onClick={(e) => e.target === e.currentTarget && popMoment()}>
+      <div className={`moment${m.sad ? " sad" : ""}`} style={{ ["--m1" as string]: h.h1, ["--m2" as string]: h.h2, ["--md" as string]: h.hd }}>
+        {m.celebrate && (
+          <div className="confetti" aria-hidden>
+            {CONFETTI.map((c, i) => (
+              <i key={i} className={`c${c.c}`} style={{ left: `${c.left}%`, animationDelay: `${c.delay}s`, animationDuration: `${c.dur}s`, transform: `rotate(${c.rot}deg)` }} />
+            ))}
+          </div>
+        )}
+        <div className="moment-kicker">{m.kicker}</div>
+        <div className="moment-art">
+          {p ? <Face seed={p.faceSeed} race={p.race} colors={t.colors} size={120} frame={false} /> : null}
+          {m.logos?.map((tid, i) => (
+            <span key={tid} className={i === 0 ? "lead" : "other"}>
+              <Logo team={team(L, tid)} size={i === 0 ? (p ? 64 : 96) : 48} />
+            </span>
+          ))}
+        </div>
+        <div className="moment-title">{m.title}</div>
+        {m.sub && <div className="moment-sub">{m.sub}</div>}
+        <div className="moment-actions">
+          {m.link && (
+            <button
+              className="btn btn-glass"
+              onClick={() => {
+                const to = m.link!.to;
+                popMoment();
+                nav(to);
+              }}
+            >
+              {m.link.label}
+            </button>
+          )}
+          <button className="btn btn-white" autoFocus onClick={popMoment}>
+            {queue.length > 1 ? `Next (${queue.length - 1} more)` : "Continue"}
+          </button>
+        </div>
+        {queue.length === 1 && more > 0 && <div className="moment-more">+{more} more in your inbox</div>}
+      </div>
+    </div>
+  );
+}
+
 /** Cloud save status at a glance; opens Settings. */
 function CloudDot({ lid }: { lid: string }) {
   const st = useCloudStatus();
@@ -451,6 +528,7 @@ export function Layout({ children }: { children: ReactNode }) {
       <HubLinks L={L} active={spot.hub} badges={badges} className="tabbar" />
       <SimOverlay />
       <ResultToast />
+      <MomentOverlay />
     </div>
   );
 }

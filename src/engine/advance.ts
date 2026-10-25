@@ -1,5 +1,6 @@
 // The season state machine: day simulation and phase transitions.
 
+import { checkGoals } from "./goals";
 import type { League } from "./types";
 import { CT_START, SELECTION_DAY, REG_DAYS, addNews, roster, userTeam } from "./core";
 import { playGame } from "./play";
@@ -17,7 +18,7 @@ export const EARLY_SIGNING_WEEK = 3;
 
 /** Weekly processing: recruiting, development, polls. */
 export function resetUserPoints(L: League) {
-  L.recruitPtsMax = staffPoints(L, userTeam(L));
+  L.recruitPtsMax = staffPoints(L, userTeam(L)) + (L.pointsBonus ?? 0);
   // with auto recruiting on, the staff spends the week's points itself
   L.recruitPts = L.settings.autoRecruit ? 0 : L.recruitPtsMax;
 }
@@ -39,6 +40,12 @@ export function isDayPhase(L: League): boolean {
 
 /** Simulate one day. Returns whether the user's team played. */
 export function simDay(L: League): { userPlayed: boolean } {
+  const out = simDayInner(L);
+  checkGoals(L);
+  return out;
+}
+
+function simDayInner(L: League): { userPlayed: boolean } {
   let userPlayed = false;
   const play = (games: { home: number; away: number }[]) => {
     for (const g of games) if (g.home === L.userTid || g.away === L.userTid) userPlayed = true;
@@ -111,6 +118,11 @@ export function advanceBlocker(L: League): string | null {
 
 /** Move to the next phase (for phases that are not simulated day by day). */
 export function advancePhase(L: League) {
+  advancePhaseInner(L);
+  checkGoals(L);
+}
+
+function advancePhaseInner(L: League) {
   switch (L.phase) {
     case "preseason": {
       // preseason counts as recruiting week 0

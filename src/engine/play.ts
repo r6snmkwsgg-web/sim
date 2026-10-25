@@ -1,4 +1,4 @@
-import type { BoxScore, Game, League, Player, Team, TeamSeason } from "./types";
+import type { BoxScore, Game, League, PbpEvent, Player, Team, TeamSeason } from "./types";
 import { addNews, coachOf, getSink, playerName, roster, rngOf, team } from "./core";
 import { simGame, type SimTeam } from "./sim/game";
 import { resolveRotation } from "./sim/rotation";
@@ -190,6 +190,17 @@ export function playGame(L: League, g: Game) {
     const top = lines.slice().sort((a, b) => b.pts - a.pts)[0];
     const loc = g.neutral ? "vs" : userHome ? "vs" : "at";
     const oppRank = currentRank(L, opp.id);
+    g.oppRank = oppRank;
+    g.oppEdge = (L.power[opp.id]?.power ?? 0) - (L.power[L.userTid]?.power ?? 0);
+    if (us > them && oppRank) {
+      const cs = curSeason(team(L, L.userTid));
+      cs.rankedWins = (cs.rankedWins ?? 0) + 1;
+    }
+    const c = clutchShot(res.pbp, res.home.pts > res.away.pts ? 0 : 1);
+    if (c) {
+      const line = [...res.home.lines, ...res.away.lines].find((x) => x.pid === c.pid);
+      if (line) g.clutch = { ...c, name: line.name };
+    }
     addNews(
       L,
       "game",
@@ -208,4 +219,21 @@ export function playGame(L: League, g: Game) {
       addNews(L, "league", `Upset! ${w.name} knocks off #${loserRank} ${l.name}, ${Math.max(g.hs, g.as)}-${Math.min(g.hs, g.as)}.`, { tid: w.id, gid: g.id, user: false });
     }
   }
+}
+
+/** The go-ahead score of a game decided in the final seconds, if there was one. */
+function clutchShot(pbp: PbpEvent[], winner: 0 | 1): { pid: number; side: 0 | 1; secs: number } | null {
+  if (!pbp.length) return null;
+  const lastPer = pbp[pbp.length - 1].per;
+  const end = lastPer <= 2 ? lastPer * 1200 : 2400 + (lastPer - 2) * 300;
+  let prevLead = 0;
+  let pick: PbpEvent | null = null;
+  for (const e of pbp) {
+    const lead = winner === 0 ? e.hs - e.as : e.as - e.hs;
+    if (lead > 0 && prevLead <= 0 && (e.k === "fg" || e.k === "ft") && e.m) pick = e;
+    prevLead = lead;
+  }
+  if (!pick || pick.per !== lastPer || pick.p === undefined) return null;
+  const secs = end - pick.t;
+  return secs <= 5 ? { pid: pick.p, side: winner, secs: Math.max(0, secs) } : null;
 }

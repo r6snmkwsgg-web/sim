@@ -13,6 +13,7 @@ import { emptyTeamSeason } from "./stats";
 import { emptyRecordBook } from "./records";
 import { nilBudgetFor } from "./coaches";
 import { DATA_VERSION } from "./migrate";
+import { ensureGoals } from "./goals";
 
 export const DEFAULT_SETTINGS: Settings = {
   nil: true,
@@ -206,6 +207,7 @@ export function createLeague(o: NewLeagueOptions): League {
   makePoll(L, "Preseason");
   L.recruitPtsMax = staffPoints(L, user);
   L.recruitPts = L.recruitPtsMax;
+  ensureGoals(L);
   const rank = L.polls[0]?.ranks.find((r) => r.tid === user.id)?.rank;
   const welcome = rank ? `Expectations are high: the ${user.mascot} open the season ranked No. ${rank}.` : "Nobody expects much yet. Time to change that.";
   addNews(L, "job", `Welcome to ${user.name}, Coach ${o.coachLast || "You"}. ${welcome}`, { tid: user.id, user: true });

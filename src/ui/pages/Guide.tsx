@@ -18,6 +18,8 @@ export function Guide() {
             Press <kbd>/</kbd> (or tap the search button) and type a team, a player or a page name, like "standings", "bracket" or "draft".
           </li>
           <li>The big button in the top right always does the next thing: play your next game, start the tournament, open the portal. The arrow beside it has more sim options.</li>
+          <li>Your coaching points are always in the top bar (the lightning bolt). Spend them on recruits or on Game Prep; they reset every Monday.</li>
+          <li>Each season you get goals on the dashboard. Hit them for rewards: extra weekly points, prestige or job security. Big wins, buzzer-beaters, commitments and March runs pop up as they happen.</li>
         </ul>
       </Card>
       <div className="grid g2">

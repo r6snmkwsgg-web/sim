@@ -52,10 +52,16 @@ Getting around: five sections (Home, My Team, Recruiting, League, History) sit o
 - Conference tournaments (the Patriot, America East, NEC, ASUN and early Horizon rounds are on campus, like the real ones), Selection Sunday with a Quad 1-minded committee, NCAA Tournament (64, 68 with First Four, or 76), NIT and CBI
 - Awards: national and conference Player of the Year, Defensive POY, Freshman, Sixth Man, Most Improved, Coach of the Year, All-America and All-Conference teams, Final Four MOP
 
+**Goals, moments and Game Prep**
+- Season goals sized to your program (wins, the conference race, a recruit, a stretch goal) with rewards paid the moment you hit them: extra weekly coaching points, prestige or job security; a trophy case on the dashboard
+- Big moments pop up after each sim: upsets, buzzer-beaters (and heartbreakers), rank jumps, win streaks, conference titles, Selection Sunday, every NCAA round, commitments ("he chose you over..."), flips, decommitments, recruits you lost to rivals, and Signing Day
+- Game Prep: spend the week's coaching points scouting your next opponent (Film study, Scouting report, Full game plan) for about +1 to +2.5 points in that game, with a scouting report and keys to the game
+
 **Recruiting & the offseason**
 - About 1,700 high school prospects a year, each with seven preferences: playing time, prestige, proximity, contender, coach, facilities, NIL
 - Weekly recruiting points for calls, assistant visits, head coach visits, official visits, offers and NIL deals
-- Scouting that reveals true ratings; star ratings are noisy, so there are sleepers and busts
+- Scouting the Blue Bloods way: Watch film (skills), Watch him play (athleticism and defense), Talk to his coach (work ethic, loyalty, real potential); until then it's "?", and star ratings are noisy, so there are sleepers and busts
+- Coaching points always visible in the top bar; a "Realistic for us" board filter and a plain-language chance for every recruit
 - Top-five lists, verbal commitments that can flip, early and late signing periods
 - AI programs recruit under the same rules, following a realistic pecking order
 - NBA Draft with early entries and international picks (about 20 of the 58 picks go to players from overseas clubs, as in recent drafts), graduation, and a transfer portal with four windows, where you can re-recruit your own players
