@@ -1079,3 +1079,48 @@ kbd { font: 600 11px var(--font); border: 1px solid var(--border-strong); border
 .home-link:hover { text-decoration: underline; }
 .home-codebox { margin: 0 0 18px; padding: 14px 16px; border-radius: 14px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1); }
 .league-cloud { position: absolute; right: 10px; top: 10px; display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px; background: rgba(0, 0, 0, 0.35); color: #fff; }
+
+/* =====================================================================
+   Light theme: the rail, top bar and phone tab bar go light too
+   ===================================================================== */
+[data-theme="light"] .rail { background: #ffffff; border-right: 1px solid var(--border); color: var(--muted); }
+[data-theme="light"] .hub-item { color: var(--muted) !important; }
+[data-theme="light"] .hub-item:hover { background: var(--panel-3); color: var(--text) !important; }
+[data-theme="light"] .hub-item.active { background: color-mix(in srgb, var(--accent-ink) 11%, #ffffff); color: var(--text) !important; }
+[data-theme="light"] .hub-item.active svg { color: var(--accent-ink); }
+[data-theme="light"] .rail .hub-item.active::before { background: var(--accent-ink); }
+[data-theme="light"] .hub-badge { box-shadow: 0 0 0 2px #ffffff; }
+[data-theme="light"] .side-icon { color: var(--muted) !important; background: var(--panel-2); border-color: var(--border); }
+[data-theme="light"] .side-icon:hover, [data-theme="light"] .side-icon.active { color: var(--text) !important; background: var(--panel-3); }
+[data-theme="light"] .cloud-dot svg { color: #059669; }
+[data-theme="light"] .cloud-dot.saving svg { color: var(--accent-ink); }
+[data-theme="light"] .cloud-dot.error svg { color: #d97706; }
+[data-theme="light"] .cloud-dot.off svg { color: var(--faint); }
+
+[data-theme="light"] .topbar {
+  background:
+    radial-gradient(420px 120px at 60px 50%, color-mix(in srgb, var(--accent) 13%, transparent), transparent 70%),
+    #ffffff;
+  color: var(--text);
+  box-shadow: 0 1px 0 var(--border), 0 6px 18px rgba(15, 23, 38, 0.05);
+}
+[data-theme="light"] .topbar .team-name { text-shadow: none; }
+[data-theme="light"] .topbar .sub, [data-theme="light"] .topbar .date { opacity: 1; color: var(--muted); }
+[data-theme="light"] .topbar .sub b, [data-theme="light"] .topbar .date b { color: var(--text); }
+[data-theme="light"] .input.search-glass { background: var(--panel-2) !important; border: 1px solid var(--border-strong) !important; color: var(--text) !important; }
+[data-theme="light"] .search-glass::placeholder { color: var(--muted) !important; }
+[data-theme="light"] .search-glass:focus { background: #ffffff !important; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-ink) 18%, transparent) !important; }
+[data-theme="light"] .search-ic { color: var(--muted); }
+[data-theme="light"] .search-kbd { color: var(--muted); border-color: var(--border-strong); }
+[data-theme="light"] .search-btn { color: var(--text); background: var(--panel-2); border-color: var(--border-strong); }
+[data-theme="light"] .watch-btn { color: var(--text); background: var(--panel-2); border-color: var(--border-strong); }
+[data-theme="light"] .watch-btn:hover:not(:disabled) { background: var(--panel-3); }
+[data-theme="light"] .play-btn { background: var(--primary-bg); color: var(--primary-fg); box-shadow: 0 4px 14px rgba(15, 23, 38, 0.18); }
+[data-theme="light"] .play-btn:hover:not(:disabled) { background: #1f2937; box-shadow: 0 6px 18px rgba(15, 23, 38, 0.22); }
+[data-theme="light"] .play-btn.play-more { background: var(--panel-2); color: var(--text); border: 1px solid var(--border-strong); box-shadow: none; }
+[data-theme="light"] .play-btn.play-more:hover:not(:disabled) { background: var(--panel-3); }
+
+@media (max-width: 760px) {
+  [data-theme="light"] .tabbar { background: rgba(255, 255, 255, 0.97); border-top: 1px solid var(--border); box-shadow: 0 -4px 16px rgba(15, 23, 38, 0.06); }
+  [data-theme="light"] .search-wrap.open .search-glass { background: #ffffff !important; }
+}

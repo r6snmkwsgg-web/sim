@@ -13,7 +13,10 @@ import type { League } from "../engine/types";
 import { db, deleteLeague, getArchives, lines, metaOf, putArchives, saveLeague, setCloudHooks, type LeagueMeta, type OutboxItem, type Pending, type SyncRec } from "./db";
 
 const SITE = "https://hardwood-dynasty.vercel.app";
-const API = `${typeof location !== "undefined" && location.protocol === "file:" ? SITE : ""}/api/saves`;
+// the main site and local dev serve the API themselves; every other copy (the
+// downloaded file, other Vercel addresses) uses the main site's, so saves are shared
+const SAME_ORIGIN = typeof location !== "undefined" && (location.origin === SITE || /^(localhost|127\.0\.0\.1)$/.test(location.hostname));
+const API = `${SAME_ORIGIN ? "" : SITE}/api/saves`;
 // keep uploads well inside the free plan: at most one every few minutes while playing
 const PUSH_GAP_MS = 10 * 60 * 1000;
 const FIRST_PUSH_MS = 20 * 1000;
