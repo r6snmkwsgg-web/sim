@@ -428,6 +428,15 @@ export function Layout({ children }: { children: ReactNode }) {
           </div>
           <div className="spacer" />
           <GlobalSearch />
+          <Link
+            to={`/l/${L.id}/targets`}
+            className={`points-pill${L.recruitPts === 0 ? " empty" : ""}`}
+            title="Coaching points left this week. Spend them on recruits or game prep. They reset every Monday."
+          >
+            <Icon name="bolt" size={15} />
+            <b>{L.recruitPts}</b>
+            <span className="lbl-long">pts</span>
+          </Link>
           <div className="date">
             <b>{currentDateLabel(L)}</b>
             {seasonLabel(L.season)} season

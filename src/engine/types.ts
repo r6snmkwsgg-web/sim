@@ -78,6 +78,7 @@ export interface RatingsSnapshot {
 export type PrefKey = "pt" | "prestige" | "proximity" | "contender" | "coach" | "facilities" | "nil";
 export const PREF_KEYS: PrefKey[] = ["pt", "prestige", "proximity", "contender", "coach", "facilities", "nil"];
 
+export type RevealKey = "film" | "live" | "coach";
 export type RecruitStage = "open" | "top5" | "committed" | "signed" | "unsigned";
 
 export interface RecruitInfo {
@@ -96,7 +97,9 @@ export interface RecruitInfo {
   top5: number[];
   committedTo: number | null;
   commitWeek: number; // earliest week a decision can happen
-  scout: number; // user team's scouting level 0-3
+  scout: number; // user team's scouting level 0-3 (one per reveal below)
+  /** what the user's staff has found out: film = skills, live = athleticism & defense, coach = work ethic & potential */
+  reveals?: RevealKey[];
   lastAction: Record<string, number>; // `${tid}:${action}` -> week
   fromTid?: number; // portal: previous team
   history: { week: number; text: string }[]; // events shown on the profile

@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useLeague } from "../store";
 import { team } from "../../engine/core";
 import { regionOf } from "../../engine/data/cities";
-import { classRankings, commitsFor, OFFICIAL_VISITS, openSpots } from "../../engine/recruiting";
+import { actionMult, classRankings, commitsFor, OFFICIAL_VISITS, openSpots } from "../../engine/recruiting";
 import { Card, Meter, PageHead, Seg, Tile } from "../components/common";
 import { Icon } from "../components/Icons";
 import { RecruitTable } from "../components/RecruitTable";
@@ -49,6 +49,9 @@ export function RecruitingBoard() {
   const [status, setStatus] = useState("available");
   const [q, setQ] = useState("");
   const [boardOnly, setBoardOnly] = useState(false);
+  // start with recruits who'd actually consider you
+  const [realistic, setRealistic] = useState(true);
+  const ut = team(L, L.userTid);
   const all = useMemo(() => L.players.filter((p) => p.recruit?.kind === "hs" && p.status === "recruit"), [L.players, L.players.length]);
   const regions = useMemo(() => [...new Set(all.map((p) => regionOf(p.state)))].sort(), [all]);
   const rows = all.filter((p: Player) => {
@@ -59,6 +62,7 @@ export function RecruitingBoard() {
     if (status === "available" && (r.stage === "signed" || r.stage === "unsigned" || (r.stage === "committed" && r.committedTo !== L.userTid))) return false;
     if (status === "committed" && r.stage !== "committed" && r.stage !== "signed") return false;
     if (boardOnly && !L.board.includes(p.id)) return false;
+    if (realistic && actionMult(L, ut, p) < 0.45 && !L.board.includes(p.id) && r.committedTo !== L.userTid) return false;
     if (q && !`${p.first} ${p.last} ${p.city} ${p.state}`.toLowerCase().includes(q.toLowerCase())) return false;
     return true;
   });
@@ -93,8 +97,11 @@ export function RecruitingBoard() {
           <button className={`chip${boardOnly ? " on" : ""}`} onClick={() => setBoardOnly(!boardOnly)}>
             <Icon name="star" size={12} /> My board
           </button>
+          <button className={`chip${realistic ? " on" : ""}`} onClick={() => setRealistic(!realistic)} title="Hide recruits who'd barely notice your program">
+            <Icon name="check" size={12} /> Realistic for us
+          </button>
           <span className="spacer" />
-          <span className="faint small">{rows.length} shown · OVR* and POT* are scouting estimates</span>
+          <span className="faint small">{rows.length} shown · ? = not scouted yet</span>
         </div>
         <RecruitTable L={L} rows={rows} kind="hs" showActions />
       </Card>

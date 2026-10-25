@@ -2,11 +2,11 @@ import { useNavigate } from "react-router-dom";
 import type { League, Player } from "../../engine/types";
 import { team } from "../../engine/core";
 import { heightStr, classLabel } from "../../engine/ratings";
-import { ACTIONS, canAct, doAction, scoutedOvr, scoutedPot, type ActionKey } from "../../engine/recruiting";
+import { ACTIONS, actionMult, canAct, doAction, revealsOf, scoutedOvr, type ActionKey } from "../../engine/recruiting";
 import { mutate } from "../store";
 import { Grade, Logo, PlayerLink, Pos, Stars, Table, type Col } from "./common";
 import { Icon } from "./Icons";
-import { stageText } from "../pages/RecruitProfile";
+import { chanceOf, stageText } from "../pages/RecruitProfile";
 
 export function interestRank(L: League, p: Player): number | null {
   const r = p.recruit!;
@@ -48,13 +48,15 @@ export function StageCell({ L, p }: { L: League; p: Player }) {
 
 const ACTION_ICON: Record<ActionKey, string> = { scout: "eye", call: "phone", assistant: "whistle", coach: "coach", visit: "plane", offer: "check" };
 
-export function QuickActions({ L, p, keys = ["call", "assistant", "coach", "visit", "offer"] }: { L: League; p: Player; keys?: ActionKey[] }) {
+const QUICK_LABEL: Partial<Record<ActionKey, string>> = { call: "Call", assistant: "Visit", coach: "Head coach visit", visit: "Official visit" };
+
+export function QuickActions({ L, p, keys = ["call", "assistant", "offer"] }: { L: League; p: Player; keys?: ActionKey[] }) {
   return (
     <span className="qa" onClick={(e) => e.stopPropagation()}>
       {keys.map((k) => {
         const c = canAct(L, L.userTid, p, k);
         const done = !c.ok && (c.why === "Done this week" || c.why === "Already offered" || c.why === "Already visited" || c.why === "Fully scouted" || c.why?.startsWith("Available"));
-        const tip = `${ACTIONS[k].label} · ${ACTIONS[k].cost} pts${c.ok ? "" : ` · ${c.why}`}`;
+        const tip = `${QUICK_LABEL[k] ?? ACTIONS[k].label} · ${ACTIONS[k].cost} pts${c.ok ? "" : ` · ${c.why}`}`;
         if (k === "offer")
           return (
             <button key={k} className={`btn btn-sm ${done ? "qa-done" : "btn-primary"}`} style={{ minWidth: 62 }} disabled={!c.ok} title={tip} onClick={() => mutate((LL) => void doAction(LL, LL.userTid, p, k))}>
@@ -78,14 +80,32 @@ export function QuickActions({ L, p, keys = ["call", "assistant", "coach", "visi
   );
 }
 
-export function ScoutDots({ n }: { n: number }) {
+/** Which of the three scouting looks you've done. */
+export function ScoutDots({ p }: { p: Player }) {
+  const done = revealsOf(p);
+  const all = [
+    ["film", "tv", "Film"],
+    ["live", "eye", "Watched him play"],
+    ["coach", "phone", "Talked to his coach"],
+  ] as const;
   return (
-    <span className="dots3" title={`Scouting ${n}/3`}>
-      {[0, 1, 2].map((i) => (
-        <i key={i} className={i < n ? "on" : ""} />
+    <span className="scout-ics" title={done.length ? `Scouted: ${all.filter(([k]) => done.includes(k)).map(([, , t]) => t).join(", ")}` : "Not scouted"}>
+      {all.map(([k, ic]) => (
+        <i key={k} className={done.includes(k) ? "on" : ""}>
+          <Icon name={ic} size={11} />
+        </i>
       ))}
     </span>
   );
+}
+
+/** A recruit's rating as far as you know it: "?" until you've scouted him. */
+export function KnownOvr({ p }: { p: Player }) {
+  const d = revealsOf(p);
+  return d.includes("film") || d.includes("live") ? <Grade v={scoutedOvr(p)} /> : <span className="unknown">?</span>;
+}
+export function KnownPot({ p }: { p: Player }) {
+  return revealsOf(p).includes("coach") ? <Grade v={p.pot} /> : <span className="unknown">?</span>;
 }
 
 export function RecruitTable({ L, rows, kind, limit = 50, showActions = false }: { L: League; rows: Player[]; kind: "hs" | "portal"; limit?: number; showActions?: boolean }) {
@@ -129,10 +149,22 @@ export function RecruitTable({ L, rows, kind, limit = 50, showActions = false }:
           { key: "pot", label: "POT", render: (p: Player) => <Grade v={p.pot + p.potErr} />, sort: (p: Player) => p.pot, num: true },
         ]
       : [
-          { key: "ovr", label: "OVR*", title: "Your scouted estimate", render: (p: Player) => <span title={`Scouting ${p.recruit!.scout}/3`}><Grade v={scoutedOvr(p)} /></span>, sort: (p: Player) => scoutedOvr(p), num: true },
-          { key: "pot", label: "POT*", title: "Your scouted estimate", render: (p: Player) => <Grade v={scoutedPot(p)} />, sort: (p: Player) => scoutedPot(p), num: true },
-          { key: "sc", label: "Scout", title: "Scouting level", render: (p: Player) => <ScoutDots n={p.recruit!.scout} />, sort: (p: Player) => p.recruit!.scout, center: true },
+          { key: "hs", label: "HS PPG", title: "High school points per game", render: (p: Player) => (p.recruit!.hs ? p.recruit!.hs.pts.toFixed(1) : "-"), sort: (p: Player) => p.recruit!.hs?.pts ?? 0, num: true },
+          { key: "ovr", label: "OVR", title: "Scout him to find out", render: (p: Player) => <KnownOvr p={p} />, sort: (p: Player) => (revealsOf(p).some((x) => x !== "coach") ? scoutedOvr(p) : p.recruit!.stars * 10), num: true },
+          { key: "pot", label: "POT", title: "Talk to his coach to find out", render: (p: Player) => <KnownPot p={p} />, sort: (p: Player) => (revealsOf(p).includes("coach") ? p.pot : p.recruit!.stars * 10), num: true },
+          { key: "sc", label: "Scouted", title: "Film, watched him play, talked to his coach", render: (p: Player) => <ScoutDots p={p} />, sort: (p: Player) => revealsOf(p).length, center: true },
         ]),
+    {
+      key: "chance",
+      label: "Chance",
+      title: "How seriously he'd take your program",
+      render: (p) => {
+        const c = chanceOf(actionMult(L, team(L, L.userTid), p));
+        return <span style={{ color: c.c, fontWeight: 700 }}>{c.t}</span>;
+      },
+      sort: (p) => actionMult(L, team(L, L.userTid), p),
+      num: true,
+    },
     { key: "status", label: "Status", render: (p) => <StageCell L={L} p={p} />, sort: (p) => ({ open: 0, top5: 1, committed: 2, signed: 3, unsigned: 4 })[p.recruit!.stage] },
     {
       key: "lead",

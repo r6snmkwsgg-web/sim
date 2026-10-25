@@ -1,4 +1,4 @@
-import type { League, Player, PrefKey, RecruitInfo, Team } from "./types";
+import type { League, Player, PrefKey, RatingKey, RecruitInfo, RevealKey, Team } from "./types";
 import { PREF_KEYS } from "./types";
 import { Rng, clamp, distanceMiles } from "./rng";
 import { addNews, addPlayer, coachOf, nextPid, playerName, roster, rngOf, rostersDirty, rosterVersion, team } from "./core";
@@ -24,6 +24,35 @@ export const ACTIONS: Record<ActionKey, { label: string; cost: number; value: nu
   visit: { label: "Official Visit", cost: 20, value: 22, cooldown: 0, once: true, desc: "Bring him to campus. Huge boost (once per recruit, limited per season)." },
   offer: { label: "Offer Scholarship", cost: 0, value: 9, cooldown: 0, once: true, desc: "Required for him to commit. Limited by your open roster spots." },
 };
+
+/** Scouting, Blue Bloods style: each look reveals part of the picture. */
+export const REVEALS: Record<RevealKey, { label: string; cost: number; reveals: string; keys: RatingKey[] }> = {
+  film: { label: "Watch film", cost: 3, reveals: "Shooting, handles, passing and IQ", keys: ["ins", "mid", "three", "ft", "hnd", "pas", "iq"] },
+  live: { label: "Watch him play", cost: 5, reveals: "Athleticism, defense and rebounding", keys: ["ath", "str", "end", "perD", "intD", "stl", "blk", "reb"] },
+  coach: { label: "Talk to his coach", cost: 3, reveals: "Work ethic, loyalty and his real potential", keys: [] },
+};
+
+/** Which reveals the user has done on a recruit (older saves only stored a level). */
+export function revealsOf(p: Player): RevealKey[] {
+  const r = p.recruit;
+  if (!r) return [];
+  if (r.reveals) return r.reveals;
+  return (["film", "live", "coach"] as RevealKey[]).slice(0, r.scout);
+}
+
+export function reveal(L: League, p: Player, k: RevealKey): { ok: boolean; msg: string } {
+  const r = p.recruit;
+  if (!r || r.stage === "signed" || r.stage === "unsigned") return { ok: false, msg: "No longer available" };
+  const done = revealsOf(p);
+  if (done.includes(k)) return { ok: false, msg: "Already done" };
+  const def = REVEALS[k];
+  if (L.recruitPts < def.cost) return { ok: false, msg: `Needs ${def.cost} points` };
+  L.recruitPts -= def.cost;
+  r.reveals = [...done, k];
+  r.scout = Math.min(3, r.reveals.length);
+  if (!L.board.includes(p.id)) L.board.push(p.id);
+  return { ok: true, msg: `${def.label}: done` };
+}
 
 export const OFFICIAL_VISITS = 12;
 export const BASE_POINTS = 50;

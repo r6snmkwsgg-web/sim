@@ -2,10 +2,10 @@ import { Link } from "react-router-dom";
 import { mutate, useLeague } from "../store";
 import { team } from "../../engine/core";
 import { heightStr } from "../../engine/ratings";
-import { commitsFor, scoutedOvr, scoutedPot } from "../../engine/recruiting";
+import { commitsFor } from "../../engine/recruiting";
 import type { League, Player } from "../../engine/types";
 import { Bar, Card, Empty, Grade, Logo, PageHead, PlayerLink, Stars } from "../components/common";
-import { QuickActions, StageCell, interestRank, leader } from "../components/RecruitTable";
+import { KnownOvr, KnownPot, QuickActions, StageCell, interestRank, leader } from "../components/RecruitTable";
 import { RecruitingSummary } from "./Recruiting";
 import { money } from "../util";
 
@@ -35,7 +35,7 @@ function TargetRow({ L, p }: { L: League; p: Player }) {
         {p.pos} <span className="muted small">{heightStr(p.hgt)}</span>
       </td>
       <td>
-        {r.kind === "portal" ? <Grade v={p.ovr} /> : <Grade v={scoutedOvr(p)} />} {r.kind === "portal" ? <Grade v={p.pot + p.potErr} /> : <Grade v={scoutedPot(p)} />}
+        {r.kind === "portal" ? <Grade v={p.ovr} /> : <KnownOvr p={p} />} {r.kind === "portal" ? <Grade v={p.pot + p.potErr} /> : <KnownPot p={p} />}
       </td>
       <td style={{ width: 220 }}>
         <div className="row" style={{ gap: 6 }}>
@@ -117,7 +117,7 @@ export function Targets() {
                   <th>OVR / POT</th>
                   <th>Interest vs. top rival</th>
                   <th>Status</th>
-                  <th>Actions (Call 3 · Asst 8 · HC 18 · Visit 20 · Offer 0)</th>
+                  <th>Call 3 · Visit 8 · Offer</th>
                   <th />
                 </tr>
               </thead>
@@ -174,7 +174,7 @@ export function Targets() {
                   <td>
                     <StageCell L={L} p={p} />
                   </td>
-                  <td>{p.recruit!.stage === "committed" ? <QuickActions L={L} p={p} keys={["call", "assistant", "coach"]} /> : null}</td>
+                  <td>{p.recruit!.stage === "committed" ? <QuickActions L={L} p={p} keys={["call", "assistant"]} /> : null}</td>
                 </tr>
               ))}
             </tbody>
