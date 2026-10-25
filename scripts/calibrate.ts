@@ -92,8 +92,8 @@ console.log(`FGA/team      ${(agg.fga / tg).toFixed(1)}  (D1 ~58)`);
 console.log(`PF/team       ${(agg.pf / tg).toFixed(1)}  (D1 ~17)`);
 console.log(`REB/team      ${((agg.orb + agg.drb) / tg).toFixed(1)}  (D1 ~35)`);
 console.log(`home win%     ${pct(homeWins / (GAMES / 2))}  (D1 ~62-65% overall, inflated by scheduling)`);
-console.log(`home margin   ${(mean(homeMargins) - mean(neutralMargins)).toFixed(2)} pts (target ~3.2)`);
-console.log(`OT rate       ${pct(ots / GAMES)}  (D1 ~6%)`);
+console.log(`home margin   ${(mean(homeMargins) - mean(neutralMargins)).toFixed(2)} pts (setting 3.5; real D1 ~3-3.5)`);
+console.log(`OT rate       ${pct(ots / GAMES)}  (D1 ~5.4%; random matchups here run lower than a real schedule)`);
 
 // strength difference vs result
 const buckets = [0, 3, 6, 9, 12, 16, 20, 30];

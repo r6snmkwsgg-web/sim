@@ -8,6 +8,12 @@ import { mean, sd } from "../src/engine/rng";
 import { rosterStrength } from "../src/engine/rankings";
 import type { League } from "../src/engine/types";
 
+import { setTuning } from "../src/engine/sim/game";
+// TUNE="formSd,scoreEffect,skillScale" to try engine settings
+if (process.env.TUNE) {
+  const [f, se, sk] = process.env.TUNE.split(",").map(Number);
+  setTuning(f, se, sk);
+}
 const SEASONS = Number(process.argv[2] ?? 3);
 const SEED = Number(process.argv[3] ?? 7);
 
@@ -16,6 +22,14 @@ const L: League = createLeague({ name: "Test", teamSlug: "kentucky", coachFirst:
 console.log(`create: ${Date.now() - t0}ms, teams ${L.teams.length}, players ${L.players.length}, games ${L.games.length}`);
 
 const seedWins: Record<string, [number, number]> = {};
+const seedExp: Record<string, number[]> = {};
+// normal CDF (Abramowitz-Stegun)
+function phi(z: number): number {
+  const t = 1 / (1 + 0.2316419 * Math.abs(z));
+  const d = 0.3989423 * Math.exp((-z * z) / 2);
+  const p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
+  return z > 0 ? 1 - p : p;
+}
 
 function report() {
   const strengths = L.teams.map((t) => rosterStrength(L, t.id));
@@ -70,6 +84,28 @@ for (let s = 0; s < SEASONS; s++) {
     if (g.winner === hiTeam) e[0]++;
     e[1]++;
   }
+  // expected upset chance from each matchup's power gap and this season's game-level noise
+  {
+    const xs: number[] = [];
+    const ys: number[] = [];
+    for (const g of L.games) {
+      if (!g.played) continue;
+      xs.push((L.power[g.home]?.power ?? 0) - (L.power[g.away]?.power ?? 0) + (g.neutral ? 0 : L.settings.homeCourt));
+      ys.push(g.hs - g.as);
+    }
+    const mx = mean(xs), my = mean(ys);
+    let c = 0, v = 0;
+    for (let i = 0; i < xs.length; i++) { c += (xs[i] - mx) * (ys[i] - my); v += (xs[i] - mx) ** 2; }
+    const slope = c / v;
+    const resid = sd(ys.map((y, i) => y - (my + slope * (xs[i] - mx))));
+    for (const g of ncaa.games) {
+      if (g.round !== 0 || g.a === null || g.b === null || g.sa === null || g.sb === null) continue;
+      const [hi, lo] = g.sa < g.sb ? [g.a, g.b] : [g.b, g.a];
+      const gap = (L.power[hi]?.power ?? 0) - (L.power[lo]?.power ?? 0);
+      (seedExp[`${Math.min(g.sa, g.sb)}v${Math.max(g.sa, g.sb)}`] ??= []).push(phi((-gap * slope) / resid));
+    }
+    console.log(`  power->margin slope ${slope.toFixed(2)}, game noise sd ${resid.toFixed(1)}`);
+  }
   const seedPow: Record<number, number[]> = {};
   for (const g of ncaa.games) {
     if (g.round !== 0) continue;
@@ -79,6 +115,17 @@ for (let s = 0; s < SEASONS; s++) {
   const h = L.history[L.history.length - 1];
   const champ = team(L, h.champion!);
   const games = L.games.filter((g) => g.played).length;
+  // game-level realism: home edge (vs power gap), overtime rate, scoring leaders
+  const played = L.games.filter((g) => g.played);
+  const resid = played.filter((g) => !g.neutral).map((g) => g.hs - g.as - ((L.power[g.home]?.power ?? 0) - (L.power[g.away]?.power ?? 0)));
+  const ots = played.filter((g) => g.ot).length;
+  console.log(`  home edge after power gap ${mean(resid).toFixed(2)} pts; OT rate ${((100 * ots) / played.length).toFixed(1)}%; home win ${((100 * played.filter((g) => !g.neutral && g.hs > g.as).length) / Math.max(1, played.filter((g) => !g.neutral).length)).toFixed(1)}%`);
+  const ppg = L.players
+    .map((p) => p.stats.find((x) => x.season === L.season))
+    .filter((x): x is NonNullable<typeof x> => !!x && x.g >= 20)
+    .map((x) => x.pts / x.g)
+    .sort((a, b) => b - a);
+  console.log(`  scoring leaders ${ppg.slice(0, 6).map((v) => v.toFixed(1)).join(", ")}; #25 ${ppg[24]?.toFixed(1)}; #100 ${ppg[99]?.toFixed(1)}`);
   console.log(`\nSeason ${L.season}: ${games} games in ${tSeason}ms. Champion ${champ.name} (prestige ${champ.prestige.toFixed(0)}), runner-up ${team(L, h.runnerUp!).name}. Final Four: ${h.finalFour.map((t) => team(L, t).name).join(", ")}`);
   console.log(`  POY ${h.poy?.playerName} (${h.poy ? team(L, h.poy.tid).name : ""}) ${h.poy?.line}. User: ${h.userResult}`);
   const recs = L.players.filter((p) => p.recruit?.kind === "hs");
@@ -104,6 +151,6 @@ for (let s = 0; s < SEASONS; s++) {
 }
 console.log("\nNCAA first-round favorite win rates:");
 for (const [k, [w, n]] of Object.entries(seedWins).sort((a, b) => Number(a[0].split("v")[0]) - Number(b[0].split("v")[0]))) {
-  console.log(`  ${k}: ${w}/${n} (${((100 * w) / n).toFixed(0)}%)`);
+  console.log(`  ${k}: ${w}/${n} (${((100 * w) / n).toFixed(0)}%), expected upset rate ${(100 * mean(seedExp[k] ?? [0])).toFixed(0)}%`);
 }
 console.log(`total ${(Date.now() - t0) / 1000}s`);

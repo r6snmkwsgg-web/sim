@@ -66,6 +66,8 @@ interface GP {
   blk: number;
   stl: number;
   foulProp: number;
+  /** uncompressed skills, used to decide which teammate gets credit for a play */
+  raw: { reb: number; stl: number; blk: number; pass: number };
   offSkill: number;
   end: number;
   tend: Tendencies;
@@ -141,6 +143,8 @@ function makeGP(p: Player, starters: number[], minutes: Record<number, number>):
   const three = 0.9 * R(p, "three") + 0.1 * iq;
   const shots = [three, mid, post, drive].sort((a, b) => b - a);
   const offSkill = 0.42 * shots[0] + 0.25 * shots[1] + 0.13 * iq + 0.1 * ath + 0.1 * hnd;
+  // how strongly rating gaps turn into results; shot selection and usage use the raw skills
+  const k = (x: number) => 0.5 + SKILL_SCALE * (x - 0.5);
   const gp: GP = {
     p,
     pid: p.id,
@@ -148,20 +152,26 @@ function makeGP(p: Player, starters: number[], minutes: Record<number, number>):
     posIdx: POS_IDX[p.pos],
     ovr: p.ovr,
     hf,
-    rim,
-    post,
-    drive,
-    mid,
-    three,
+    rim: k(rim),
+    post: k(post),
+    drive: k(drive),
+    mid: k(mid),
+    three: k(three),
     ft: R(p, "ft"),
-    pass: 0.6 * R(p, "pas") + 0.25 * iq + 0.15 * hnd,
-    sec: 0.5 * hnd + 0.3 * iq + 0.2 * R(p, "pas"),
-    reb: 0.55 * R(p, "reb") + 0.25 * hf + 0.12 * str + 0.08 * ath,
-    perD: 0.6 * R(p, "perD") + 0.25 * ath + 0.15 * iq,
-    intD: 0.5 * R(p, "intD") + 0.25 * hf + 0.15 * str + 0.1 * R(p, "blk"),
-    blk: 0.6 * R(p, "blk") + 0.3 * hf + 0.1 * ath,
-    stl: 0.7 * R(p, "stl") + 0.2 * R(p, "perD") + 0.1 * ath,
+    pass: k(0.6 * R(p, "pas") + 0.25 * iq + 0.15 * hnd),
+    sec: k(0.5 * hnd + 0.3 * iq + 0.2 * R(p, "pas")),
+    reb: k(0.55 * R(p, "reb") + 0.25 * hf + 0.12 * str + 0.08 * ath),
+    perD: k(0.6 * R(p, "perD") + 0.25 * ath + 0.15 * iq),
+    intD: k(0.5 * R(p, "intD") + 0.25 * hf + 0.15 * str + 0.1 * R(p, "blk")),
+    blk: k(0.6 * R(p, "blk") + 0.3 * hf + 0.1 * ath),
+    stl: k(0.7 * R(p, "stl") + 0.2 * R(p, "perD") + 0.1 * ath),
     foulProp: clamp(1.25 - 0.6 * iq - 0.25 * R(p, "perD"), 0.4, 1.3),
+    raw: {
+      reb: 0.55 * R(p, "reb") + 0.25 * hf + 0.12 * str + 0.08 * ath,
+      stl: 0.7 * R(p, "stl") + 0.2 * R(p, "perD") + 0.1 * ath,
+      blk: 0.6 * R(p, "blk") + 0.3 * hf + 0.1 * ath,
+      pass: 0.6 * R(p, "pas") + 0.25 * iq + 0.15 * hnd,
+    },
     offSkill,
     end: R(p, "end"),
     tend: p.tend,
@@ -198,6 +208,17 @@ function makeGP(p: Player, starters: number[], minutes: Record<number, number>):
   return gp;
 }
 
+// game-to-game randomness on shooting, and how much a lead pulls efficiency back
+export let FORM_SD = 0.03;
+export let SCORE_EFFECT = 0.0015;
+export let SKILL_SCALE = 0.7;
+/** Calibration hook for scripts. */
+export function setTuning(form: number, scoreEffect: number, skillScale = SKILL_SCALE) {
+  FORM_SD = form;
+  SCORE_EFFECT = scoreEffect;
+  SKILL_SCALE = skillScale;
+}
+
 export class GameSim {
   rng: Rng;
   opts: SimOptions;
@@ -216,11 +237,12 @@ export class GameSim {
     this.rng = rng;
     this.opts = opts;
     this.t = [this.makeTS(home, 0), this.makeTS(away, 1)];
-    for (const ts of this.t) ts.form = rng.normal(0, 0.024);
+    for (const ts of this.t) ts.form = rng.normal(0, FORM_SD);
     const avgTempo = (this.t[0].tempoPoss + this.t[1].tempoPoss) / 2;
     for (const ts of this.t) ts.tempoPoss = 0.55 * ts.tempoPoss + 0.45 * avgTempo;
     if (!opts.neutral) {
-      const adj = opts.homeAdv * 0.005;
+      // calibrated so the average home margin matches the setting in points
+      const adj = opts.homeAdv * 0.0048;
       this.t[0].shootAdj = adj;
       this.t[1].shootAdj = -adj;
     }
@@ -553,12 +575,12 @@ export class GameSim {
     if (blocked) p += 0.08;
     p = clamp(p, 0.08, 0.55);
     if (this.rng.next() < p) {
-      const g = this.pickWeighted(off.on, (x) => Math.pow(x.reb, 1.6) * (0.7 + 0.6 * x.hf));
+      const g = this.pickWeighted(off.on, (x) => Math.pow(x.raw.reb, 1.6) * (0.7 + 0.6 * x.hf));
       g.orb++;
       this.log(off.side, `Offensive rebound by ${g.name}.`);
       return true;
     }
-    const g = this.pickWeighted(def.on, (x) => Math.pow(x.reb, 1.6) * (0.75 + 0.6 * x.hf));
+    const g = this.pickWeighted(def.on, (x) => Math.pow(x.raw.reb, 1.6) * (0.75 + 0.6 * x.hf));
     g.drb++;
     this.log(def.side, `Defensive rebound by ${g.name}.`);
     return false;
@@ -573,12 +595,17 @@ export class GameSim {
     let mean = 1200 / off.tempoPoss;
     if (def.strat.defense === "press") mean *= 0.93;
     let dt = mean * (0.35 + 1.3 * this.rng.next());
+    // only a few seconds to go the length of the floor: a rushed look at best
+    const rushed = rem < 5.5;
     if (lateGame && margin > 0) dt = Math.min(30, rem); // milk the clock
-    if (lateGame && margin < 0 && margin >= -3) dt = Math.min(dt, Math.max(2, rem - 3));
+    // tied or within a possession inside the shot clock: play for the last shot
+    if (this.per >= 2 && margin <= 0 && margin >= -3 && rem <= 30 && !rushed) dt = Math.max(0.6, rem - (margin === 0 ? this.rng.uniform(0.5, 3) : this.rng.uniform(1.5, 5)));
+    else if (lateGame && margin < 0 && margin >= -3) dt = Math.min(dt, Math.max(2, rem - 3));
     if (lateGame && margin < -3) dt = Math.min(dt, 7);
 
-    // intentional foul when defense trails late
-    if (this.per >= 2 && rem < 45 && margin >= 1 && margin <= 8 && rem > 2) {
+    // intentional foul when the defense trails late: right away when down two
+    // possessions, otherwise once the shot clock is off
+    if (this.per >= 2 && margin >= 1 && margin <= 8 && rem > 2 && (rem < 34 || (margin >= 4 && rem < 45))) {
       const t = Math.min(rem, this.rng.uniform(2, 6));
       this.runClock(t);
       const handler = this.pickWeighted(off.on, (x) => Math.pow(x.sec, 2));
@@ -596,12 +623,11 @@ export class GameSim {
     }
 
     if (dt >= rem) dt = rem;
-    this.halfCourt(off, def, dt);
+    this.halfCourt(off, def, dt, rushed);
   }
 
-  halfCourt(off: TS, def: TS, dt: number) {
-    this.totalPoss += 0; // counted in caller
-    const buzzer = dt >= this.remaining() - 0.01 && this.remaining() < 4;
+  halfCourt(off: TS, def: TS, dt: number, rushed = false) {
+    const buzzer = rushed || (dt >= this.remaining() - 0.01 && this.remaining() < 4);
     this.runClock(dt * 0.6);
     // turnover
     let to = 0.168 * Math.exp(-2.05 * (off.aSec - 0.5)) * Math.exp(1.7 * (def.aStl - 0.5));
@@ -615,7 +641,7 @@ export class GameSim {
       if (def.strat.defense === "press") stealP *= 1.15;
       if (def.strat.defense === "zone") stealP *= 0.88;
       if (this.rng.next() < stealP) {
-        const s = this.pickWeighted(def.on, (x) => Math.pow(x.stl, 1.7) * (x.posIdx <= 2 ? 1.15 : 0.9));
+        const s = this.pickWeighted(def.on, (x) => Math.pow(x.raw.stl, 1.7) * (x.posIdx <= 2 ? 1.15 : 0.9));
         s.stl_++;
         this.log(def.side, `${s.name} steals the ball from ${g.name}.`);
         this.deadBall = false;
@@ -720,12 +746,16 @@ export class GameSim {
   shot(off: TS, def: TS, putback: boolean, buzzer: boolean): "made" | "miss" | "blocked" | "ft-made" | "ft-miss" | "ft-dead" {
     // shooter
     let g: GP;
+    // down three late: look for the best shooter and a three to tie
+    const needThree = !putback && this.per >= 2 && this.remaining() < 35 && def.pts - off.pts === 3;
     if (putback) {
-      g = this.pickWeighted(off.on, (x) => Math.pow(x.reb, 3) * (0.6 + x.hf));
+      g = this.pickWeighted(off.on, (x) => Math.pow(x.raw.reb, 3) * (0.6 + x.hf));
+    } else if (needThree) {
+      g = this.pickWeighted(off.on, (x) => Math.pow(x.three, 4) * x.usageBase);
     } else {
       g = this.pickWeighted(off.on, (x) => x.usageBase * ((x.tend.three + x.tend.mid + x.tend.inside + x.tend.drive) / 20 + 0.02));
     }
-    const type = this.chooseShot(off, def, g, putback);
+    const type = needThree ? "three" : this.chooseShot(off, def, g, putback);
     // matchup defender: same lineup slot by position order
     const sortedDef = def.onSorted;
     const sortedOff = off.onSorted;
@@ -773,6 +803,9 @@ export class GameSim {
         assistP = 0.04;
     }
     p = p * ef + off.shootAdj + off.form + (off.tactics - 50) * 0.0002;
+    // score effects: teams with a lead relax and trailing teams press, more so as the game goes on
+    const lead = Math.max(-20, Math.min(20, off.pts - def.pts));
+    p -= lead * SCORE_EFFECT * (0.4 + this.gameElapsed() / 2400);
     if (def.strat.defense === "press") p += 0.012; // press gives up easier looks when broken
     if (def.strat.rebounding === "crash") p += 0.006; // transition opportunities
     if (buzzer) p *= 0.45;
@@ -808,7 +841,7 @@ export class GameSim {
       this.score(off, def, g, isThree ? 3 : 2);
       let assister: GP | null = null;
       if (this.rng.next() < assistP * (0.75 + 0.5 * off.aPass)) {
-        assister = this.pickWeighted(off.on, (x) => Math.pow(x.pass, 4) * (x.posIdx === 0 ? 1.7 : x.posIdx === 1 ? 1.15 : 1), g);
+        assister = this.pickWeighted(off.on, (x) => Math.pow(x.raw.pass, 4) * (x.posIdx === 0 ? 1.7 : x.posIdx === 1 ? 1.15 : 1), g);
         if (assister === g) assister = null;
         else assister.ast++;
       }
@@ -817,7 +850,7 @@ export class GameSim {
     }
     // miss: blocked?
     if (this.rng.next() < Math.min(0.6, blockP / (1 - p))) {
-      const b = this.pickWeighted(def.on, (x) => Math.pow(x.blk, 5) * (0.4 + x.hf) * (x === md ? 1.4 : 1));
+      const b = this.pickWeighted(def.on, (x) => Math.pow(x.raw.blk, 5) * (0.4 + x.hf) * (x === md ? 1.4 : 1));
       b.blk_++;
       this.log(def.side, `${b.name} blocks ${g.name}'s shot!`);
       return "blocked";

@@ -23,7 +23,7 @@ export function seasonScore(L: League, t: Team): number {
   const s = curSeason(t);
   // team strength sets the base (tops out at "Elite"); Blue Blood status takes March runs, titles and top classes
   const power = L.power[t.id]?.power ?? 0;
-  let score = clamp(43 + 2.0 * power, 2, 84) + 10 * (winPct(s.w, s.l) - 0.5);
+  let score = clamp(43 + 2.6 * power, 2, 84) + 10 * (winPct(s.w, s.l) - 0.5);
   if (s.post?.event === "ncaa") score += POST_SCORE[s.post.result] ?? 2;
   else if (s.post?.event === "nit") score += s.post.result === "Champion" ? 3 : 0.8;
   else if (s.post?.event === "cbi") score += 0.3;

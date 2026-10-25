@@ -12,7 +12,7 @@ export function rosterStrength(L: League, tid: number): number {
   return ps.length ? mean(ps) : 30;
 }
 
-const PTS_PER_OVR = 1.65;
+const PTS_PER_OVR = 1.25;
 
 export function priorPower(L: League): Map<number, number> {
   const s = new Map<number, number>();
