@@ -7,7 +7,7 @@ import type { League, Player } from "../engine/types";
 import { playerName, team } from "../engine/core";
 import { currentRank } from "../engine/rankings";
 import { curSeason } from "../engine/play";
-import { classRankings } from "../engine/recruiting";
+import { classRankings, classUnrated, ratingsHidden } from "../engine/recruiting";
 
 export interface Moment {
   priority: number;
@@ -33,6 +33,7 @@ interface Snap {
   confTourney: string | null;
   post: string | null;
   event: string | null;
+  unrated: boolean;
   recruits: Map<number, number | null>;
   goals: Set<string>;
   offers: number;
@@ -63,6 +64,7 @@ export function snapshot(L: League): Snap {
     confTourney: s.confTourney,
     post: s.post ? `${s.post.event}:${s.post.result}` : null,
     event: s.event ? `${s.event.key}:${s.event.place}` : null,
+    unrated: classUnrated(L),
     recruits: new Map(watched(L).map((p) => [p.id, p.recruit!.committedTo])),
     goals: new Set((L.goals?.season === L.season ? L.goals.list : []).filter((g) => g.done).map((g) => g.id)),
     offers: L.jobOffers.length,
@@ -166,12 +168,16 @@ export function momentsSince(L: League, b: Snap): Moment[] {
     if (now === was) continue;
     const name = playerName(p);
     const link = { to: `${base}/player/${p.id}`, label: "His page" };
+    // before the rankings come out nobody knows how many stars he is
+    const unrated = ratingsHidden(L, p);
+    const st = unrated ? 3 : r.stars;
+    const starTxt = unrated ? "" : `${stars(r.stars)} `;
     if (now === me) {
       const over = beat(p, me);
       out.push({
-        priority: 60 + r.stars * 6,
+        priority: 60 + st * 6,
         kicker: was !== null ? "Flipped!" : "Committed!",
-        title: `${stars(r.stars)} ${name} picks ${ut.short}`,
+        title: `${starTxt}${name} picks ${ut.short}`,
         sub: `${r.kind === "portal" ? "Transfer" : `${p.pos} from ${p.city}, ${p.state}`}${over.length ? `. He chose you over ${over.map((t) => team(L, t).name).join(" and ")}.` : "."}`,
         tid: me,
         logos: [me, ...over],
@@ -181,9 +187,30 @@ export function momentsSince(L: League, b: Snap): Moment[] {
       });
     } else if (was === me) {
       out.push({ priority: 70, kicker: "Decommitment", title: `${name} backs off his pledge`, sub: now !== null ? `He's flipped to ${team(L, now).name}.` : "He's back on the market. Win him back.", tid: now ?? me, logos: now !== null ? [now, me] : [me], pid: p.id, link, sad: true });
-    } else if (now !== null && was === null && (r.offers.includes(me) || r.stars >= 3)) {
-      out.push({ priority: 34 + r.stars * 4, kicker: "Lost one", title: `${team(L, now).name} lands ${stars(r.stars)} ${name}`, sub: "A recruit you were after went elsewhere.", tid: now, logos: [now, me], pid: p.id, link, sad: true });
+    } else if (now !== null && was === null && (r.offers.includes(me) || (!unrated && r.stars >= 3))) {
+      out.push({ priority: 34 + st * 4, kicker: "Lost one", title: `${team(L, now).name} lands ${starTxt}${name}`, sub: "A recruit you were after went elsewhere.", tid: now, logos: [now, me], pid: p.id, link, sad: true });
     }
+  }
+  // the rankings come out: did one of your early targets turn out to be a gem?
+  if (b.unrated && !classUnrated(L) && L.season === b.season) {
+    const mine = watched(L)
+      .filter((p) => p.recruit!.kind === "hs")
+      .sort((a, b2) => a.recruit!.rank - b2.recruit!.rank);
+    const top = mine[0];
+    if (top) {
+      const r = top.recruit!;
+      out.push({
+        priority: 58 + r.stars * 5,
+        kicker: "Rankings are out",
+        title: `${playerName(top)} is a ${stars(r.stars)}`,
+        sub: `No. ${r.rank} in the class.${r.early?.includes(me) ? " You got in early, so he still takes you seriously." : ""}`,
+        tid: me,
+        logos: [me],
+        pid: top.id,
+        link: { to: `${base}/player/${top.id}`, label: "His page" },
+        celebrate: r.stars >= 4,
+      });
+    } else out.push({ priority: 30, kicker: "Rankings are out", title: "The new class is ranked", sub: "Stars and national rankings are on the board now.", tid: me, logos: [me], link: { to: `${base}/recruiting`, label: "Recruiting board" } });
   }
   if (L.phase === "signing" && b.phase !== "signing") {
     const cr = classRankings(L).find((x) => x.tid === me);

@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useLeague } from "../store";
-import { classRankings, commitsFor } from "../../engine/recruiting";
-import { Card, PageHead, Seg, Stars, Table, TeamLink, type Col } from "../components/common";
-import { team } from "../../engine/core";
+import { classRankings, classUnrated, commitsFor, RATINGS_DAY } from "../../engine/recruiting";
+import { Card, Empty, PageHead, Seg, Stars, Table, TeamLink, type Col } from "../components/common";
+import { shortDayLabel, team } from "../../engine/core";
 
 type Row = ReturnType<typeof classRankings>[number];
 
@@ -47,9 +47,15 @@ export function ClassRankings() {
           />
         }
       />
-      <Card flush>
-        <Table cols={cols} rows={rows} rowKey={(r) => r.tid} initialSort="pts" limit={50} rowClass={(r) => (r.tid === L.userTid ? "hl" : undefined)} empty="No commitments yet." />
-      </Card>
+      {kind === "hs" && classUnrated(L) ? (
+        <Card>
+          <Empty>The class is unrated until the rankings come out on {shortDayLabel(L.season, RATINGS_DAY)}. Until then nobody knows whose class is best.</Empty>
+        </Card>
+      ) : (
+        <Card flush>
+          <Table cols={cols} rows={rows} rowKey={(r) => r.tid} initialSort="pts" limit={50} rowClass={(r) => (r.tid === L.userTid ? "hl" : undefined)} empty="No commitments yet." />
+        </Card>
+      )}
     </div>
   );
 }

@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import type { League, Player } from "../../engine/types";
 import { team } from "../../engine/core";
 import { heightStr, classLabel } from "../../engine/ratings";
-import { ACTIONS, actionMult, canAct, doAction, heatOf, openSpots, scoutedOvr, seenOf, talkedTo, type ActionKey } from "../../engine/recruiting";
+import { ACTIONS, actionMult, canAct, doAction, heatOf, openSpots, ratingsHidden, scoutedOvr, seenOf, talkedTo, type ActionKey } from "../../engine/recruiting";
 import { mutate } from "../store";
 import { Grade, Logo, PlayerLink, Pos, Stars, Table, type Col } from "./common";
 import { Icon } from "./Icons";
@@ -117,10 +117,25 @@ export function HeatTag({ L, p }: { L: League; p: Player }) {
   return <span className={`heat-label l${h.level}`}>{h.label}</span>;
 }
 
+/** His stars, or "Unrated" until the rankings come out. */
+export function RecruitStars({ L, p, lg }: { L: League; p: Player; lg?: boolean }) {
+  return ratingsHidden(L, p) ? <span className="unrated">Unrated</span> : <Stars n={p.recruit!.stars} lg={lg} />;
+}
+
 export function RecruitTable({ L, rows, kind, limit = 50, showActions = false }: { L: League; rows: Player[]; kind: "hs" | "portal"; limit?: number; showActions?: boolean }) {
   const nav = useNavigate();
+  // until the rankings come out there's no rank to sort by: high school scoring is the best public guide
+  const unrated = kind === "hs" && rows.length > 0 && ratingsHidden(L, rows[0]);
+  const hsPts = (p: Player) => p.recruit!.hs?.pts ?? 0;
   const cols: Col<Player>[] = [
-    { key: "rank", label: "Rk", render: (p) => <span className="faint bold">{p.recruit!.rank}</span>, sort: (p) => -p.recruit!.rank, num: true, defaultDesc: true },
+    {
+      key: "rank",
+      label: "Rk",
+      render: (p) => <span className="faint bold">{unrated ? "-" : p.recruit!.rank}</span>,
+      sort: (p) => (unrated ? hsPts(p) : -p.recruit!.rank),
+      num: true,
+      defaultDesc: true,
+    },
     {
       key: "name",
       label: "Player",
@@ -137,7 +152,7 @@ export function RecruitTable({ L, rows, kind, limit = 50, showActions = false }:
       sort: (p) => p.last,
     },
     { key: "pos", label: "Pos", render: (p) => <Pos p={p.pos} />, sort: (p) => "PG SG SF PF C".indexOf(p.pos) },
-    { key: "stars", label: "Stars", render: (p) => <Stars n={p.recruit!.stars} />, sort: (p) => p.recruit!.stars * 10000 - p.recruit!.rank, num: true },
+    { key: "stars", label: "Stars", render: (p) => <RecruitStars L={L} p={p} />, sort: (p) => (unrated ? hsPts(p) : p.recruit!.stars * 10000 - p.recruit!.rank), num: true },
     ...(kind === "portal"
       ? [
           { key: "cls", label: "Class", render: (p: Player) => classLabel(p), sort: (p: Player) => p.eligUsed },
@@ -159,8 +174,8 @@ export function RecruitTable({ L, rows, kind, limit = 50, showActions = false }:
         ]
       : [
           { key: "hs", label: "HS PPG", title: "High school points per game", render: (p: Player) => (p.recruit!.hs ? p.recruit!.hs.pts.toFixed(1) : "-"), sort: (p: Player) => p.recruit!.hs?.pts ?? 0, num: true },
-          { key: "ovr", label: "OVR", title: "Scout 4 of his 7 categories to estimate it", render: (p: Player) => <KnownOvr p={p} />, sort: (p: Player) => (seenOf(p).length >= 4 ? scoutedOvr(p) : p.recruit!.stars * 10), num: true },
-          { key: "pot", label: "POT", title: "Talk to his coach to find out", render: (p: Player) => <KnownPot p={p} />, sort: (p: Player) => (talkedTo(p) ? p.pot : p.recruit!.stars * 10), num: true },
+          { key: "ovr", label: "OVR", title: "Scout 4 of his 7 categories to estimate it", render: (p: Player) => <KnownOvr p={p} />, sort: (p: Player) => (seenOf(p).length >= 4 ? scoutedOvr(p) : unrated ? 0 : p.recruit!.stars * 10), num: true },
+          { key: "pot", label: "POT", title: "Talk to his coach to find out", render: (p: Player) => <KnownPot p={p} />, sort: (p: Player) => (talkedTo(p) ? p.pot : unrated ? 0 : p.recruit!.stars * 10), num: true },
           { key: "sc", label: "Scouted", title: "Categories scouted out of 7 (+ = talked to his coach)", render: (p: Player) => <ScoutDots p={p} />, sort: (p: Player) => seenOf(p).length, center: true },
         ]),
     {

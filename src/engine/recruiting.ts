@@ -126,12 +126,96 @@ export function talkToCoach(L: League, p: Player): { ok: boolean; msg: string } 
   return { ok: true, msg: "His coach filled you in" };
 }
 
+/** The new class goes unrated for the first two weeks of the season: no stars, no national rank, for anyone. */
+export const RATINGS_WEEK = 3;
+
+/** The day the rankings come out (the start of week 3). */
+export const RATINGS_DAY = 7 * (RATINGS_WEEK - 1);
+
+/** Is this season's high school class still unrated? */
+export function classUnrated(L: League): boolean {
+  return L.phase === "preseason" || (L.phase === "regular" && L.week < RATINGS_WEEK);
+}
+
+export function ratingsHidden(L: League, p: Player): boolean {
+  const r = p.recruit;
+  if (!r || r.kind !== "hs" || p.status !== "recruit") return false;
+  return classUnrated(L);
+}
+
+/** Stars as the world sees them: null while the class is unrated. */
+export function shownStars(L: League, p: Player): number | null {
+  return ratingsHidden(L, p) ? null : p.recruit!.stars;
+}
+
+/** What high school production and word of mouth suggest before anyone ranks him (fixed per player). */
+function buzz(p: Player): number {
+  let h = Math.imul(p.id ^ 0x9e3779b9, 2654435761) >>> 0;
+  const u1 = ((h % 100000) + 0.5) / 100000;
+  h = Math.imul(h ^ (h >>> 15), 2246822519) >>> 0;
+  const u2 = ((h % 100000) + 0.5) / 100000;
+  return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2) * 7;
+}
+
+// the class ranked by buzz, refreshed once a week (it only matters before the rankings come out)
+const buzzCache = new WeakMap<League, { key: string; rank: Map<number, number>; total: number }>();
+
+function buzzRanks(L: League) {
+  const key = `${L.season}:${L.phase}:${L.week}`;
+  let c = buzzCache.get(L);
+  if (!c || c.key !== key) {
+    const cls = L.players.filter((p) => p.status === "recruit" && p.recruit?.kind === "hs");
+    const rank = new Map<number, number>();
+    cls
+      .map((p) => ({ p, v: recruitValue(p) + buzz(p) }))
+      .sort((a, b) => b.v - a.v)
+      .forEach((x, i) => rank.set(x.p.id, i + 1));
+    c = { key, rank, total: cls.length };
+    buzzCache.set(L, c);
+  }
+  return c;
+}
+
+/**
+ * The level a recruit carries himself at. Before the rankings that's his buzz: an obvious stud knows it,
+ * but an under-the-radar kid is open to anyone. Afterwards it's his star rating.
+ */
+export function levelStars(L: League, p: Player): number {
+  const r = p.recruit!;
+  if (!ratingsHidden(L, p)) return r.stars;
+  const b = buzzRanks(L);
+  return starsForRank(b.rank.get(p.id) ?? r.rank, b.total);
+}
+
 /** The interest a school needs for him to commit to it. It drops the longer he waits past his decision week. */
 export function commitBar(L: League, p: Player): number {
   const r = p.recruit!;
   const late = (r.kind === "portal" ? L.portalRound : L.week) - r.commitWeek;
   const patience = late > 0 ? Math.max(0.45, 1 - 0.07 * late) : 1;
-  return COMMIT_THRESHOLD[r.stars] * (r.kind === "portal" ? 0.6 : 1) * patience;
+  const stars = levelStars(L, p);
+  return COMMIT_THRESHOLD[stars] * (r.kind === "portal" ? 0.6 : 1) * patience;
+}
+
+/** The rankings come out: schools already Hot with a recruit keep that relationship, however big he turns out to be. */
+export function releaseRatings(L: League) {
+  const cls = L.players.filter((p) => p.status === "recruit" && p.recruit?.kind === "hs");
+  if (!cls.length) return;
+  for (const p of cls) {
+    const r = p.recruit!;
+    const hot = HOT * commitBar(L, p);
+    r.early = Object.entries(r.interest)
+      .filter(([, v]) => v >= hot)
+      .map(([k]) => Number(k));
+  }
+  const top = cls.reduce((a, b) => (b.recruit!.rank < a.recruit!.rank ? b : a));
+  addNews(L, "recruit", `The class of ${top.recruit!.classSeason} rankings are out. No. 1 is ${playerName(top)}, a ${top.recruit!.stars}★ ${top.pos} from ${top.city}, ${top.state}.`, { pid: top.id, user: false });
+  const mine = cls
+    .filter((p) => p.recruit!.committedTo === L.userTid || p.recruit!.offers.includes(L.userTid) || L.board.includes(p.id) || (p.recruit!.interest[L.userTid] ?? 0) > 3)
+    .sort((a, b) => a.recruit!.rank - b.recruit!.rank);
+  if (mine.length) {
+    const b = mine[0].recruit!;
+    addNews(L, "recruit", `Rankings are out: ${playerName(mine[0])}, one of your targets, is a ${b.stars}★ (No. ${b.rank} in the class).${b.early?.includes(L.userTid) ? " You got in early, so he still takes you seriously." : ""}`, { pid: mine[0].id, user: true });
+  }
 }
 
 /** Weeks until he starts deciding (0 once he is). */
@@ -442,9 +526,11 @@ export function fit(L: League, t: Team, p: Player): number {
 /** How much each action is worth for this team with this recruit. */
 export function actionMult(L: League, t: Team, p: Player): number {
   const f = fit(L, t, p);
-  // stars-vs-prestige gap: elite recruits pay less attention to small programs
-  const stars = p.recruit?.stars ?? 3;
-  const reach = Math.max(0, (stars - 1) * 22 - t.prestige) / 100;
+  // stars-vs-prestige gap: elite recruits pay less attention to small programs. Nobody knows who's elite
+  // until the rankings come out, and a school that was already recruiting him keeps that relationship.
+  const stars = p.recruit ? levelStars(L, p) : 3;
+  const gap = Math.max(0, (stars - 1) * 22 - t.prestige) / 100;
+  const reach = p.recruit?.early?.includes(t.id) ? gap * 0.5 : gap;
   return Math.max(0.1, (0.3 + 1.4 * f) * Math.max(0.15, 1 - reach * 1.8));
 }
 
@@ -578,7 +664,10 @@ interface AiTargets {
 const aiTargetCache = new WeakMap<League, AiTargets>();
 
 
-function pickTargets(L: League, t: Team, pool: Player[], needs: number, pecking: Map<number, number>): number[] {
+/** How a program sees a recruit: his rank and value, or before the rankings, the buzz around him. */
+type View = (p: Player) => { rank: number; value: number };
+
+function pickTargets(L: League, t: Team, pool: Player[], needs: number, pecking: Map<number, number>, view: View): number[] {
   const rng = rngOf(L);
   const posHave: Record<string, number> = { PG: 0, SG: 0, SF: 0, PF: 0, C: 0 };
   for (const q of returningPlayers(L, t.id)) posHave[q.pos]++;
@@ -592,12 +681,12 @@ function pickTargets(L: League, t: Team, pool: Player[], needs: number, pecking:
     if (r.stage === "signed" || r.stage === "unsigned") continue;
     if (r.committedTo !== null && r.committedTo !== t.id) continue;
     if (r.stage === "top5" && !r.top5.includes(t.id)) continue;
-    const rank = r.rank;
+    const { rank, value } = view(p);
     const over = Math.max(0, center - rank);
     const under = Math.max(0, rank - center);
     if (over > pool.length * 0.25 + 30) continue;
     const near = Math.abs(p.lat - t.lat) + Math.abs(p.lon - t.lon) < 8 ? 5 : 0;
-    let sc = recruitValue(p) - over * (40 / pool.length) * 2 - under * (10 / pool.length) + near + (r.interest[t.id] ?? 0) * 0.15 + rng.next() * 5;
+    let sc = value - over * (40 / pool.length) * 2 - under * (10 / pool.length) + near + (r.interest[t.id] ?? 0) * 0.15 + rng.next() * 5;
     if (posHave[p.pos] < 2) sc += 5;
     if (posHave[p.pos] > 3) sc -= 5;
     pre.push({ p, s: sc, attainable: rank >= center - 15 });
@@ -628,7 +717,8 @@ export function aiRecruitWeek(L: League, kind: "hs" | "portal" | "both" = "both"
   const pool = L.players.filter((p) => p.recruit && (kind === "both" || p.recruit.kind === kind) && (p.status === "recruit" || p.status === "portal"));
   if (!pool.length) return;
   let tc = aiTargetCache.get(L);
-  const refresh = !tc || L.week - tc.week >= 3 || L.week < tc.week;
+  // everyone rethinks their board when the rankings come out
+  const refresh = !tc || L.week - tc.week >= 3 || L.week < tc.week || (tc.week < RATINGS_WEEK && L.week >= RATINGS_WEEK);
   if (refresh) {
     tc = { week: L.week, targets: new Map() };
     aiTargetCache.set(L, tc);
@@ -639,6 +729,9 @@ export function aiRecruitWeek(L: League, kind: "hs" | "portal" | "both" = "both"
   const pecking = new Map(order.map((t, i) => [t.id, i / order.length]));
   const hsPool = pool.filter((p) => p.recruit!.kind === "hs");
   const portalPool = pool.filter((p) => p.recruit!.kind === "portal");
+  const unrated = hsPool.length > 0 && ratingsHidden(L, hsPool[0]);
+  const buzzRank = unrated ? buzzRanks(L).rank : null;
+  const view: View = (p) => (buzzRank && p.recruit!.kind === "hs" ? { rank: buzzRank.get(p.id) ?? p.recruit!.rank, value: recruitValue(p) + buzz(p) } : { rank: p.recruit!.rank, value: recruitValue(p) });
   for (const t of L.teams) {
     if (t.id === L.userTid && !L.settings.autoRecruit) continue;
     const needs = openSpots(L, t.id);
@@ -653,8 +746,8 @@ export function aiRecruitWeek(L: League, kind: "hs" | "portal" | "both" = "both"
       : 0;
     if (!targets || refresh || lost > targets.length * 0.3) {
       targets = [];
-      if (hsPool.length) targets.push(...pickTargets(L, t, hsPool, needs, pecking));
-      if (portalPool.length) targets.push(...pickTargets(L, t, portalPool, Math.max(1, Math.ceil(needs / 2)), pecking));
+      if (hsPool.length) targets.push(...pickTargets(L, t, hsPool, needs, pecking, view));
+      if (portalPool.length) targets.push(...pickTargets(L, t, portalPool, Math.max(1, Math.ceil(needs / 2)), pecking, view));
       tc!.targets.set(t.id, targets);
     }
     const live = targets
@@ -665,17 +758,22 @@ export function aiRecruitWeek(L: League, kind: "hs" | "portal" | "both" = "both"
       const r = p.recruit!;
       let best = 0;
       let bestOther = 0;
+      let leader = -1;
       for (const k in r.interest) {
         const v = r.interest[k];
         if (v > best) best = v;
-        if (Number(k) !== t.id && v > bestOther) bestOther = v;
+        if (Number(k) !== t.id && v > bestOther) {
+          bestOther = v;
+          leader = Number(k);
+        }
       }
       const mine = r.interest[t.id] ?? 0;
       const thr = commitBar(L, p);
       let mode: "commit" | "lead" | "chase" | "drop" = "chase";
       if (r.committedTo === t.id) mode = "commit";
       else if (mine >= thr && mine > bestOther * 1.2) mode = "lead";
-      else if (bestOther > 25 && mine < bestOther * 0.6 && L.week >= 4) mode = "drop";
+      // give up when a peer (or a bigger program) is well ahead; a much smaller school's lead can still be overturned
+      else if (bestOther > 25 && mine < bestOther * 0.6 && L.week >= 4 && team(L, leader).prestige >= t.prestige - 15) mode = "drop";
       return { p, mode };
     });
     let i = 0;
@@ -692,7 +790,7 @@ export function aiRecruitWeek(L: League, kind: "hs" | "portal" | "both" = "both"
       if (i < needs * 2.5 && canAct(L, t.id, p, "offer").ok) {
         doAction(L, t.id, p, "offer");
         if (L.settings.nil && t.nilBudget > 0) {
-          const amt = Math.round(NIL_VALUE[r.stars] * Math.min(1.3, t.nilBudget / 2500) * rng.uniform(0.6, 1.1));
+          const amt = Math.round(NIL_VALUE[levelStars(L, p)] * Math.min(1.3, t.nilBudget / 2500) * rng.uniform(0.6, 1.1));
           if (nilCommitted(L, t.id) + amt <= t.nilBudget) {
             r.nil[t.id] = amt;
             const idx = rec(L);
@@ -734,14 +832,15 @@ function commitTo(L: League, p: Player, tid: number) {
   r.history.unshift({ week: L.week, text: `Committed to ${t.name}` });
   const isUser = tid === L.userTid;
   const wasUserTarget = L.board.includes(p.id) || (r.interest[L.userTid] ?? 0) > 5;
-  const kindTxt = r.kind === "portal" ? "Transfer" : `${r.stars}★ ${p.pos}`;
+  const unrated = ratingsHidden(L, p);
+  const kindTxt = r.kind === "portal" ? "Transfer" : unrated ? `Unrated ${p.pos}` : `${r.stars}★ ${p.pos}`;
   if (isUser) {
     addNews(L, "recruit", `${kindTxt} ${playerName(p)} has committed to ${t.name}!`, { tid, pid: p.id, user: true });
   } else if (prev === L.userTid) {
     addNews(L, "recruit", `${playerName(p)} has flipped his commitment from ${team(L, L.userTid).name} to ${t.name}.`, { tid, pid: p.id, user: true });
   } else if (wasUserTarget) {
     addNews(L, "recruit", `${kindTxt} ${playerName(p)}, one of your targets, committed to ${t.name}.`, { tid, pid: p.id, user: true });
-  } else if (r.kind === "hs" && r.rank <= 25) {
+  } else if (r.kind === "hs" && r.rank <= 25 && !unrated) {
     addNews(L, "recruit", `No. ${r.rank} recruit ${playerName(p)} (${p.pos}) commits to ${t.name}.`, { tid, pid: p.id, user: false });
   }
 }

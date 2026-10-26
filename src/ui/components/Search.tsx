@@ -4,6 +4,7 @@ import { useLeague } from "../store";
 import { Logo } from "./common";
 import { Icon } from "./Icons";
 import { team } from "../../engine/core";
+import { ratingsHidden } from "../../engine/recruiting";
 import { HUBS, hubPages } from "../nav";
 
 interface Hit {
@@ -66,7 +67,7 @@ export function GlobalSearch() {
       if (out.length >= 12) break;
       if (!`${p.first} ${p.last}`.toLowerCase().includes(s)) continue;
       const sub =
-        p.status === "recruit" ? `${p.recruit?.stars}★ recruit · ${p.pos}` : p.status === "portal" ? `Transfer portal · ${p.pos}` : p.tid !== null ? `${team(L, p.tid).short} · ${p.pos}` : p.pos;
+        p.status === "recruit" ? `${ratingsHidden(L, p) ? "Unrated" : `${p.recruit?.stars}★`} recruit · ${p.pos}` : p.status === "portal" ? `Transfer portal · ${p.pos}` : p.tid !== null ? `${team(L, p.tid).short} · ${p.pos}` : p.pos;
       out.push({ key: `p${p.id}`, label: `${p.first} ${p.last}`, sub, to: `/l/${L.id}/player/${p.id}`, tid: p.tid ?? p.recruit?.committedTo ?? undefined });
     }
     return out;

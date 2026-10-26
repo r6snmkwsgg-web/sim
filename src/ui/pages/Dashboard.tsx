@@ -9,7 +9,7 @@ import { goalProgress } from "../../engine/goals";
 import { expectations } from "../../engine/coaches";
 import { currentPoll, currentRank, powerRanks } from "../../engine/rankings";
 import { prestigeStars, prestigeTier } from "../../engine/ratings";
-import { classRankings, commitsFor, openSpots } from "../../engine/recruiting";
+import { classRankings, classUnrated, commitsFor, openSpots, ratingsHidden } from "../../engine/recruiting";
 import { Card, FormStrip, heroStyle, Logo, Meter, Stars, TeamLink } from "../components/common";
 import { Face } from "../components/Face";
 import { Icon } from "../components/Icons";
@@ -366,7 +366,7 @@ export function Dashboard() {
           <div>
             <div className="label">Recruiting class</div>
             <div className="value">
-              {cr && cr.n > 0 ? `#${cr.rank}` : "-"}
+              {cr && cr.n > 0 && !classUnrated(L) ? `#${cr.rank}` : "-"}
               <small>
                 {commits.length} commit{commits.length === 1 ? "" : "s"}
               </small>
@@ -518,7 +518,7 @@ export function Dashboard() {
                   <span className="muted">Commits:</span>
                   {commits.map((p) => (
                     <Link key={p.id} to={`/l/${L.id}/player/${p.id}`} className="pill">
-                      {p.recruit!.stars}★ {p.last}
+                      {ratingsHidden(L, p) ? "Unrated" : `${p.recruit!.stars}★`} {p.last}
                     </Link>
                   ))}
                 </div>

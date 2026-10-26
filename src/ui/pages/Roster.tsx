@@ -3,7 +3,8 @@ import { Link } from "react-router-dom";
 import { mutate, useLeague } from "../store";
 import { playerName, roster, rostersDirty, team, addNews, seasonLabel } from "../../engine/core";
 import { classLabel, heightStr, RATING_SHORT } from "../../engine/ratings";
-import { commitsFor, likelyPro, openSpots } from "../../engine/recruiting";
+import { commitsFor, likelyPro, openSpots, ratingsHidden } from "../../engine/recruiting";
+import { RecruitStars } from "../components/RecruitTable";
 import { transferRisk, archivePlayer } from "../../engine/offseason";
 import type { League, Player, PlayerSeasonStats, RatingKey } from "../../engine/types";
 import { Card, Grade, Logo, PageHead, PlayerLink, Pos, Rating, Stars, Table, Tabs, type Col } from "../components/common";
@@ -483,8 +484,8 @@ export function Roster() {
             cols={[
               { key: "name", label: "Player", render: (p: Player) => <PlayerLink L={L} p={p} face size={28} colors={t.colors} />, sort: (p: Player) => p.last },
               { key: "kind", label: "Type", render: (p: Player) => (p.recruit?.kind === "portal" ? <span className="badge">Transfer</span> : <span className="badge">Freshman</span>) },
-              { key: "stars", label: "Stars", render: (p: Player) => <Stars n={p.recruit!.stars} />, sort: (p: Player) => p.recruit!.stars, num: true },
-              { key: "rank", label: "Rank", render: (p: Player) => `#${p.recruit!.rank}`, sort: (p: Player) => -p.recruit!.rank, num: true },
+              { key: "stars", label: "Stars", render: (p: Player) => <RecruitStars L={L} p={p} />, sort: (p: Player) => (ratingsHidden(L, p) ? 0 : p.recruit!.stars), num: true },
+              { key: "rank", label: "Rank", render: (p: Player) => (ratingsHidden(L, p) ? "-" : `#${p.recruit!.rank}`), sort: (p: Player) => (ratingsHidden(L, p) ? -9999 : -p.recruit!.rank), num: true },
               { key: "pos", label: "Pos", render: (p: Player) => <Pos p={p.pos} /> },
               { key: "ht", label: "Ht", render: (p: Player) => heightStr(p.hgt), num: true },
               { key: "stage", label: "Status", render: (p: Player) => (p.recruit!.stage === "signed" ? <span className="badge good">Signed</span> : <span className="badge warn">Verbal</span>) },

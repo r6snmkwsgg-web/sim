@@ -117,6 +117,8 @@ export interface RecruitInfo {
   /** the user has talked to his coach (work ethic and potential known) */
   talked?: boolean;
   lastAction: Record<string, number>; // `${tid}:${action}` -> week
+  /** schools that were already recruiting him (Warm or better) when the rankings came out */
+  early?: number[];
   fromTid?: number; // portal: previous team
   history: { week: number; text: string }[]; // events shown on the profile
 }

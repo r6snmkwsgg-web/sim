@@ -2,10 +2,10 @@ import { Link } from "react-router-dom";
 import { mutate, useLeague } from "../store";
 import { team } from "../../engine/core";
 import { heightStr } from "../../engine/ratings";
-import { commitsFor } from "../../engine/recruiting";
+import { commitsFor, ratingsHidden } from "../../engine/recruiting";
 import type { League, Player } from "../../engine/types";
-import { Card, Empty, Grade, PageHead, PlayerLink, Stars } from "../components/common";
-import { KnownOvr, KnownPot, QuickActions, StageCell } from "../components/RecruitTable";
+import { Card, Empty, Grade, PageHead, PlayerLink } from "../components/common";
+import { KnownOvr, KnownPot, QuickActions, RecruitStars, StageCell } from "../components/RecruitTable";
 import { HeatMeter } from "./RecruitProfile";
 import { RecruitingSummary } from "./Recruiting";
 import { money } from "../util";
@@ -24,8 +24,8 @@ function TargetRow({ L, p }: { L: League; p: Player }) {
         </div>
       </td>
       <td>
-        <Stars n={r.stars} />
-        <div className="tiny muted">#{r.rank}</div>
+        <RecruitStars L={L} p={p} />
+        {!ratingsHidden(L, p) && <div className="tiny muted">#{r.rank}</div>}
       </td>
       <td>
         {p.pos} <span className="muted small">{heightStr(p.hgt)}</span>
@@ -122,7 +122,7 @@ export function Targets() {
                     <PlayerLink L={L} p={p} face size={28} colors={ut.colors} />
                   </td>
                   <td>
-                    <Stars n={p.recruit!.stars} />
+                    <RecruitStars L={L} p={p} />
                   </td>
                   <td>{p.pos}</td>
                   <td className="muted">{p.recruit!.kind === "portal" ? "Transfer" : "Freshman"}</td>
@@ -147,7 +147,7 @@ export function Targets() {
                     <PlayerLink L={L} p={p} />
                   </td>
                   <td>
-                    <Stars n={p.recruit!.stars} />
+                    <RecruitStars L={L} p={p} />
                   </td>
                   <td>
                     <StageCell L={L} p={p} />

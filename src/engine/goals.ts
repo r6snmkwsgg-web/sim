@@ -5,7 +5,7 @@ import type { Goal, League } from "./types";
 import { addNews, coach, conference, team } from "./core";
 import { curSeason } from "./play";
 import { clamp } from "./rng";
-import { commitsFor } from "./recruiting";
+import { commitsFor, ratingsHidden } from "./recruiting";
 
 const DEEP_RUNS = ["Sweet 16", "Elite Eight", "Final Four", "Championship", "Runner-up", "Champion"];
 
@@ -61,7 +61,8 @@ export function goalProgress(L: League, g: Goal): [number, number] {
     case "confchamp":
       return [s.confChamp ? 1 : 0, 1];
     case "recruit":
-      return [commitsFor(L, t.id).some((p) => p.recruit?.kind === "hs" && p.recruit.stars >= g.target) ? 1 : 0, 1];
+      // an unrated commit counts once the rankings come out
+      return [commitsFor(L, t.id).some((p) => p.recruit?.kind === "hs" && !ratingsHidden(L, p) && p.recruit.stars >= g.target) ? 1 : 0, 1];
     case "ranked":
       return [Math.min(1, s.rankedWins ?? 0), 1];
     case "ncaa":

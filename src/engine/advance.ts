@@ -8,7 +8,7 @@ import { computePower, makePoll } from "./rankings";
 import {
   confTourneysDone, createBracketGames, createConfTourneys, finalizeStandings, nationalDone, recordBracketResult, runSelection,
 } from "./postseason";
-import { aiRecruitWeek, recruitDecisions, signCommits, staffPoints } from "./recruiting";
+import { aiRecruitWeek, RATINGS_WEEK, recruitDecisions, releaseRatings, signCommits, staffPoints } from "./recruiting";
 import { weeklyDevelopment } from "./development";
 import { closePortal, departures, endSeason, openPortal, rollover, signingDay } from "./offseason";
 import { finishCarousel, startCarousel } from "./coaches";
@@ -28,6 +28,7 @@ export function weekTick(L: League, poll: boolean) {
   recruitDecisions(L, "hs");
   L.week++;
   resetUserPoints(L);
+  if (L.phase === "regular" && L.week === RATINGS_WEEK) releaseRatings(L);
   if (L.week === EARLY_SIGNING_WEEK) signCommits(L, "Early signing period");
   if (L.phase === "regular" || L.phase === "confTourney") weeklyDevelopment(L);
   computePower(L);

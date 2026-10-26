@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
 import { useLeague } from "../store";
-import { team } from "../../engine/core";
+import { shortDayLabel, team } from "../../engine/core";
 import { regionOf } from "../../engine/data/cities";
-import { actionMult, classRankings, commitsFor, OFFICIAL_VISITS, openSpots } from "../../engine/recruiting";
+import { actionMult, classRankings, classUnrated, commitsFor, OFFICIAL_VISITS, openSpots, RATINGS_DAY } from "../../engine/recruiting";
 import { Card, Meter, PageHead, Seg, Tile } from "../components/common";
 import { Icon } from "../components/Icons";
 import { RecruitTable } from "../components/RecruitTable";
@@ -33,7 +33,12 @@ export function RecruitingSummary() {
           <div className="foot">Reset Mondays · also buy game prep</div>
         </Tile>
         <Tile label="Open spots" icon="roster" value={openSpots(L, ut.id)} foot="Next season, after departures" />
-        <Tile label="Your class" icon="star" value={<>{cr && cr.n > 0 ? `#${cr.rank}` : "-"}<small>{commits.length} commit{commits.length === 1 ? "" : "s"}</small></>} foot={commits.length ? commits.map((p) => `${p.recruit!.stars}★`).join(" ") : "No commitments yet"} />
+        <Tile
+          label="Your class"
+          icon="star"
+          value={<>{cr && cr.n > 0 && !classUnrated(L) ? `#${cr.rank}` : "-"}<small>{commits.length} commit{commits.length === 1 ? "" : "s"}</small></>}
+          foot={classUnrated(L) ? `Rankings come out ${shortDayLabel(L.season, RATINGS_DAY)}` : commits.length ? commits.map((p) => (p.recruit!.kind === "hs" ? `${p.recruit!.stars}★` : "T")).join(" ") : "No commitments yet"}
+        />
         <Tile label="Offers out" icon="check" value={offers} foot="Uncommitted players you've offered" />
         <Tile label="Official visits" icon="plane" value={<>{OFFICIAL_VISITS - ut.officialVisitsUsed}<small>left</small></>} foot={`Recruiting week ${L.week}`} />
       </div>
@@ -57,7 +62,7 @@ export function RecruitingBoard() {
   const rows = all.filter((p: Player) => {
     const r = p.recruit!;
     if (pos !== "all" && p.pos !== pos) return false;
-    if (stars && r.stars < stars) return false;
+    if (stars && !classUnrated(L) && r.stars < stars) return false;
     if (region !== "all" && regionOf(p.state) !== region) return false;
     if (status === "available" && (r.stage === "signed" || r.stage === "unsigned" || (r.stage === "committed" && r.committedTo !== L.userTid))) return false;
     if (status === "committed" && r.stage !== "committed" && r.stage !== "signed") return false;
@@ -78,7 +83,7 @@ export function RecruitingBoard() {
             <input className="input" placeholder="Search name or hometown" value={q} onChange={(e) => setQ(e.target.value)} />
           </div>
           <Seg options={[{ key: "all", label: "All" }, ...["PG", "SG", "SF", "PF", "C"].map((x) => ({ key: x, label: x }))]} value={pos} onChange={setPos} />
-          <Seg options={[{ key: 0, label: "Any ★" }, { key: 5, label: "5★" }, { key: 4, label: "4★+" }, { key: 3, label: "3★+" }]} value={stars} onChange={setStars} />
+          {!classUnrated(L) && <Seg options={[{ key: 0, label: "Any ★" }, { key: 5, label: "5★" }, { key: 4, label: "4★+" }, { key: 3, label: "3★+" }]} value={stars} onChange={setStars} />}
           <select className="select" value={region} onChange={(e) => setRegion(e.target.value)}>
             <option value="all">All regions</option>
             {regions.map((r) => (

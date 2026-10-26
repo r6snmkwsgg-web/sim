@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { mutate, useLeague } from "../store";
-import { seasonLabel, team, teamMaybe } from "../../engine/core";
+import { seasonLabel, shortDayLabel, team, teamMaybe } from "../../engine/core";
 import { classLabel, heightStr } from "../../engine/ratings";
 import { distanceMiles } from "../../engine/rng";
 import { regionOf } from "../../engine/data/cities";
 import {
-  ACTIONS, actionMult, canAct, CAT_KEYS, CATS, catValue, doAction, factorScores, fit, heatOf, HOT, hsCareer, NIL_VALUE, nilCommitted, OFFICIAL_VISITS, openSpots, PREF_LABELS, pullOffer, recruitingOpen,
+  ACTIONS, actionMult, canAct, CAT_KEYS, CATS, catValue, doAction, factorScores, fit, heatOf, HOT, hsCareer, levelStars, RATINGS_DAY, ratingsHidden, NIL_VALUE, nilCommitted, OFFICIAL_VISITS, openSpots, PREF_LABELS, pullOffer, recruitingOpen,
   SCOUT_COST, scoutedOvr, scoutGame, seenOf, setNilOffer, scoutedThisWeek, talkedTo, talkToCoach, watchFilm, weeksToDecide, type ActionKey,
 } from "../../engine/recruiting";
 import type { CatKey, League, Player, PrefKey } from "../../engine/types";
@@ -192,7 +192,7 @@ function RecruitPanel({ L, p }: { L: League; p: Player }) {
   };
   const nilLeft = ut.nilBudget - nilCommitted(L, ut.id) + (r.nil[L.userTid] ?? 0);
   const keys: ActionKey[] = ["call", "assistant", "coach", "visit", "offer"];
-  const typical = NIL_VALUE[r.stars];
+  const typical = NIL_VALUE[levelStars(L, p)];
   const nilNow = r.nil[L.userTid] ?? 0;
   const nilOpts = [
     { label: "None", v: 0 },
@@ -480,10 +480,16 @@ export function RecruitProfile({ p }: { p: Player }) {
               {p.last}
             </div>
             <div className="row" style={{ marginTop: 10, gap: 12 }}>
-              <Stars n={r.stars} lg />
-              <span className="bold">
-                #{r.rank} overall · #{r.posRank} {p.pos}
-              </span>
+              {ratingsHidden(L, p) ? (
+                <span className="bold">Unrated · rankings come out {shortDayLabel(L.season, RATINGS_DAY)}</span>
+              ) : (
+                <>
+                  <Stars n={r.stars} lg />
+                  <span className="bold">
+                    #{r.rank} overall · #{r.posRank} {p.pos}
+                  </span>
+                </>
+              )}
             </div>
             <div className="row-wrap" style={{ marginTop: 10, gap: 8 }}>
               <span className="chip-light">
