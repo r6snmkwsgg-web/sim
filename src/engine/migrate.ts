@@ -6,7 +6,7 @@ import confData from "./data/conferences.json";
 import { userTeam } from "./core";
 import { staffPoints } from "./recruiting";
 
-export const DATA_VERSION = 3;
+export const DATA_VERSION = 4;
 
 export function migrate(L: League): League {
   L.transferLog ??= [];
@@ -27,6 +27,14 @@ export function migrate(L: League): League {
     const spent = Math.max(0, L.recruitPtsMax - L.recruitPts);
     L.recruitPtsMax = staffPoints(L, userTeam(L)) + (L.pointsBonus ?? 0);
     L.recruitPts = L.settings.autoRecruit ? 0 : Math.max(0, L.recruitPtsMax - spent);
+  }
+  if ((L.version ?? 1) < 4) {
+    // high school commitment bars tripled: scale up interest already built so nobody's bar drops on load
+    for (const p of L.players) {
+      const r = p.recruit;
+      if (!r || r.kind !== "hs" || r.stage === "signed") continue;
+      for (const k in r.interest) r.interest[k] *= 3;
+    }
   }
   L.version = Math.max(L.version ?? 1, DATA_VERSION);
   return L;

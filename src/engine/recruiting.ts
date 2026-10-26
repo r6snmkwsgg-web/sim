@@ -214,7 +214,7 @@ export function commitBar(L: League, p: Player, stars = levelStars(L, p)): numbe
   const r = p.recruit!;
   const late = (r.kind === "portal" ? L.portalRound : L.week) - r.commitWeek;
   const patience = late > 0 ? Math.max(0.45, 1 - 0.07 * late) : 1;
-  return COMMIT_THRESHOLD[stars] * (r.kind === "portal" ? 0.6 : 1) * patience;
+  return COMMIT_THRESHOLD[stars] * (r.kind === "portal" ? PORTAL_SHARE : 1) * patience;
 }
 
 /**
@@ -347,7 +347,11 @@ export const BASE_POINTS = 100;
 export const HOT = 0.5;
 const STAR_POINTS = [0, 4, 12, 30, 60, 100];
 export const NIL_VALUE = [0, 8, 25, 80, 250, 600]; // $K expected by stars
-const COMMIT_THRESHOLD = [0, 15, 20, 26, 34, 44];
+// interest a high schooler needs from a school to commit, by stars: a focused school (about a third of a week's
+// points on him) gets a three-star to Hot in about two weeks and to Ready in three or four
+const COMMIT_THRESHOLD = [0, 45, 60, 78, 102, 132];
+// transfers decide within the four portal windows, so they need far less
+const PORTAL_SHARE = 0.2;
 
 export function recruitValue(p: Player): number {
   return 0.5 * p.ovr + 0.5 * p.pot;
@@ -911,7 +915,7 @@ export function aiRecruitWeek(L: League, kind: "hs" | "portal" | "both" = "both"
       if (r.committedTo === t.id) mode = "commit";
       else if (mine >= thr && mine > bestOther * 1.2) mode = "lead";
       // give up when a peer (or a bigger program) is well ahead; a much smaller school's lead can still be overturned
-      else if (bestOther > 25 && mine < bestOther * 0.6 && L.week >= 4 && team(L, leader).prestige >= t.prestige - 15) mode = "drop";
+      else if (bestOther > thr && mine < bestOther * 0.6 && L.week >= 4 && team(L, leader).prestige >= t.prestige - 15) mode = "drop";
       return { p, mode };
     });
     let i = 0;
@@ -1009,7 +1013,7 @@ export function recruitDecisions(L: League, kind: "hs" | "portal" | "both" = "bo
     const top = sorted[0][1];
     const wk = r.kind === "portal" ? L.portalRound : L.week;
     // nobody narrows his list before the rankings show him how big his market really is
-    if (r.stage === "open" && top >= 18 && wk >= r.commitWeek - 3 && r.offers.length > 0 && !ratingsHidden(L, p)) {
+    if (r.stage === "open" && top >= 0.7 * commitBar(L, p) && wk >= r.commitWeek - 3 && r.offers.length > 0 && !ratingsHidden(L, p)) {
       // schools that offered come first, then the most interested others
       const offering = sorted.filter(([tid]) => r.offers.includes(tid));
       const others = sorted.filter(([tid]) => !r.offers.includes(tid));
