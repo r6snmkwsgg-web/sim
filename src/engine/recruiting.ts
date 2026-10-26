@@ -1,9 +1,10 @@
-import type { CatKey, League, Player, PrefKey, RatingKey, RecruitInfo, RevealKey, Team } from "./types";
+import type { CatKey, League, Player, Pos, PrefKey, RatingKey, RecruitInfo, RevealKey, Team } from "./types";
 import { PREF_KEYS } from "./types";
 import { Rng, clamp, distanceMiles } from "./rng";
 import { addNews, addPlayer, coachOf, nextPid, playerName, roster, rngOf, rostersDirty, rosterVersion, team } from "./core";
 import { generatePlayer } from "./gen/player";
 import { powerRanks } from "./rankings";
+import { POS_HEIGHT } from "./ratings";
 
 export const PREF_LABELS: Record<PrefKey, string> = {
   pt: "Playing Time",
@@ -148,13 +149,18 @@ export function shownStars(L: League, p: Player): number | null {
   return ratingsHidden(L, p) ? null : p.recruit!.stars;
 }
 
-/** What high school production and word of mouth suggest before anyone ranks him (fixed per player). */
-function buzz(p: Player): number {
-  let h = Math.imul(p.id ^ 0x9e3779b9, 2654435761) >>> 0;
+/** A standard normal draw fixed by a seed, so a player's quirks never change between visits. */
+function hashNormal(seed: number): number {
+  let h = Math.imul(seed, 2654435761) >>> 0;
   const u1 = ((h % 100000) + 0.5) / 100000;
   h = Math.imul(h ^ (h >>> 15), 2246822519) >>> 0;
   const u2 = ((h % 100000) + 0.5) / 100000;
-  return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2) * 7;
+  return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+}
+
+/** What high school production and word of mouth suggest before anyone ranks him (fixed per player). */
+function buzz(p: Player): number {
+  return hashNormal(p.id ^ 0x9e3779b9) * 7;
 }
 
 // the class ranked by buzz, refreshed once a week (it only matters before the rankings come out)
@@ -245,14 +251,48 @@ function hsStl(p: Player, z: number): number {
   return Math.round(clamp(base + (p.r.stl - 50) * 0.03 + z * 0.4, 0.1, 5) * 10) / 10;
 }
 
-/** His high school per-game line (saves from before blocks and steals were tracked fill them in from his ratings). */
+// what his scoring grows from at each position: shooting and handles for guards, the post for bigs,
+// athleticism for everyone (it dominates at that level)
+const HS_SCORING: Record<Pos, Partial<Record<RatingKey, number>>> = {
+  PG: { three: 0.24, mid: 0.18, ins: 0.14, hnd: 0.2, ath: 0.2, ft: 0.04 },
+  SG: { three: 0.28, mid: 0.2, ins: 0.14, hnd: 0.14, ath: 0.2, ft: 0.04 },
+  SF: { three: 0.2, mid: 0.18, ins: 0.22, hnd: 0.1, ath: 0.22, ft: 0.03, str: 0.05 },
+  PF: { ins: 0.34, mid: 0.14, three: 0.08, str: 0.16, ath: 0.2, ft: 0.03, hnd: 0.05 },
+  C: { ins: 0.42, mid: 0.08, three: 0.04, str: 0.2, ath: 0.2, ft: 0.03, hnd: 0.03 },
+};
+// a typical recruit's rebounding and playmaking at each position, so a line reflects how he compares to his peers
+const HS_REB_MID: Record<Pos, number> = { PG: 28.8, SG: 33.9, SF: 40.2, PF: 43.2, C: 43 };
+const HS_AST_MID: Record<Pos, number> = { PG: 44.2, SG: 40.4, SF: 39.4, PF: 34.1, C: 28.5 };
+
+function blend(p: Player, w: Partial<Record<RatingKey, number>>): number {
+  let s = 0;
+  let tw = 0;
+  for (const [k, v] of Object.entries(w) as [RatingKey, number][]) {
+    s += v * p.r[k];
+    tw += v;
+  }
+  return s / tw;
+}
+
+/**
+ * His high school per-game line, from the skills behind each number: points from his scoring, rebounds
+ * from his rebounding, assists from his playmaking, plus a little luck that's his for good.
+ */
 export function hsLine(p: Player): { pts: number; reb: number; ast: number; blk: number; stl: number } | null {
   const hs = p.recruit?.hs;
   if (!hs) return null;
+  const tall = (p.hgt - POS_HEIGHT[p.pos]) * 0.8;
+  const big = p.pos === "PF" || p.pos === "C";
+  const guard = p.pos === "PG" || p.pos === "SG";
+  const scoring = blend(p, HS_SCORING[p.pos]) + tall;
+  // top prospects mostly average 20-30; the best few get past 30
+  let pts = (9 + (scoring - 28) * 0.6 + hashNormal(p.faceSeed ^ 0x2c1b3c6d) * 2) * 0.75 + 2;
+  if (pts > 27) pts = 27 + (pts - 27) * 0.5;
+  const reb = (big ? 8 : guard ? 3.5 : 5.5) + (blend(p, { reb: 0.6, str: 0.2, ath: 0.2 }) + tall - HS_REB_MID[p.pos]) * 0.17 + hashNormal(p.faceSeed ^ 0x5bd1e995) * 1.1;
+  const ast = (p.pos === "PG" ? 5.5 : guard ? 3 : big ? 1.2 : 2.2) + (blend(p, { pas: 0.45, hnd: 0.35, iq: 0.2 }) - HS_AST_MID[p.pos]) * 0.1 + hashNormal(p.faceSeed ^ 0x1b873593) * 0.7;
   const z = ((p.faceSeed % 1000) / 1000 - 0.5) * 2;
-  // stored scoring runs hot; scaled to what prospects really average (top recruits mostly 20-30)
-  const pts = Math.round((hs.pts * 0.75 + 2) * 10) / 10;
-  return { pts, reb: hs.reb, ast: hs.ast, blk: hs.blk ?? hsBlk(p, z), stl: hs.stl ?? hsStl(p, -z) };
+  const one = (x: number) => Math.round(x * 10) / 10;
+  return { pts: one(clamp(pts, 4, 36)), reb: one(clamp(reb, 1, 18)), ast: one(clamp(ast, 0.3, 11)), blk: hs.blk ?? hsBlk(p, z), stl: hs.stl ?? hsStl(p, -z) };
 }
 
 export const OFFICIAL_VISITS = 12;

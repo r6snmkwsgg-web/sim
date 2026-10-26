@@ -190,6 +190,17 @@ export function RecruitTable({ L, rows, kind, limit = 50, showActions = false, v
       : view === "stats"
         ? [
             { key: "ht", label: "Ht", render: (p: Player) => heightStr(p.hgt), sort: (p: Player) => p.hgt, num: true },
+            {
+              key: "yr",
+              label: "Season",
+              title: "The season these numbers are from: his junior year until he's 6 games into his senior year",
+              render: (p: Player) => {
+                const h = hsNow(L, p);
+                return h ? <span className="faint nowrap">{h.year === "Senior" ? "Sr" : "Jr"} · {h.g} G</span> : "-";
+              },
+              sort: (p: Player) => hsNow(L, p)?.g ?? 0,
+              num: true,
+            },
             ...HS_STATS.map(([k, label, title]) => ({
               key: k,
               label,
@@ -220,7 +231,7 @@ export function RecruitTable({ L, rows, kind, limit = 50, showActions = false, v
               },
             ]
           : [
-          { key: "hs", label: "HS PPG", title: "High school points per game this season (last season until his senior year starts)", render: (p: Player) => hsNow(L, p)?.pts.toFixed(1) ?? "-", sort: (p: Player) => hsPts(p), num: true },
+          { key: "hs", label: "HS PPG", title: "High school points per game this season (last season until he's 6 games into his senior year)", render: (p: Player) => hsNow(L, p)?.pts.toFixed(1) ?? "-", sort: (p: Player) => hsPts(p), num: true },
           { key: "ovr", label: "OVR", title: "Scout 4 of his 7 categories to estimate it", render: (p: Player) => <KnownOvr p={p} />, sort: (p: Player) => (seenOf(p).length >= 4 ? scoutedOvr(p) : unrated ? 0 : p.recruit!.stars * 10), num: true },
           { key: "pot", label: "POT", title: "Talk to his coach to find out", render: (p: Player) => <KnownPot p={p} />, sort: (p: Player) => (talkedTo(p) ? p.pot : unrated ? 0 : p.recruit!.stars * 10), num: true },
           { key: "sc", label: "Scouted", title: "Categories scouted out of 7 (+ = talked to his coach)", render: (p: Player) => <ScoutDots p={p} />, sort: (p: Player) => seenOf(p).length, center: true },

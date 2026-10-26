@@ -153,9 +153,9 @@ export function hsGameLog(L: League, p: Player): HsGame[] {
   const out: HsGame[] = [];
   for (let i = 0; i < played; i++) {
     const r = seeded(p.faceSeed * 31 + i * 7919 + 17);
-    const min = Math.round(clamp(pr.min * (0.85 + r() * 0.3), 8, 32));
+    const min = Math.round(clamp(pr.min * (0.9 + r() * 0.2), 8, 32));
     const mf = min / pr.min;
-    const fga = Math.max(0, Math.round(pr.fga * mf * (0.75 + r() * 0.5)));
+    const fga = Math.max(0, Math.round(pr.fga * mf * (0.82 + r() * 0.36)));
     const tpa = binomial(r, fga, pr.tr);
     const tpm = binomial(r, tpa, pr.p3);
     const fgm = tpm + binomial(r, fga - tpa, pr.p2);
@@ -248,13 +248,16 @@ export function hsSeasons(L: League, p: Player): HsSeason[] {
 // the board sorts the whole class by these, so each player's current line is kept for the day
 const nowCache = new Map<number, { key: string; s: HsSeason | null }>();
 
-/** The season he's playing (or last played): his senior year once it starts, his junior year before. */
+/** Games into his senior year before it stands for him: a hot first week shouldn't top the board. */
+export const HS_MIN_GAMES = 6;
+
+/** The season he's playing (or last played): his senior year once he's a few games in, his junior year before. */
 export function hsNow(L: League, p: Player): HsSeason | null {
   const key = `${L.id}:${L.season}:${L.phase}:${L.day}`;
   const c = nowCache.get(p.id);
   if (c && c.key === key) return c.s;
   const ss = hsSeasons(L, p);
-  const s = [...ss].reverse().find((x) => x.g > 0) ?? null;
+  const s = [...ss].reverse().find((x) => x.g >= (x.live ? HS_MIN_GAMES : 1)) ?? null;
   nowCache.set(p.id, { key, s });
   return s;
 }
