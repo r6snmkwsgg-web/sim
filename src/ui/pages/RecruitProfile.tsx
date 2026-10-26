@@ -6,7 +6,7 @@ import { distanceMiles } from "../../engine/rng";
 import { regionOf } from "../../engine/data/cities";
 import {
   ACTIONS, actionMult, canAct, CAT_KEYS, CATS, catValue, doAction, factorScores, fit, heatOf, HOT, levelStars, RATINGS_DAY, ratingsHidden, NIL_VALUE, nilCommitted, OFFICIAL_VISITS, openSpots, PREF_LABELS, pullOffer, recruitingOpen,
-  SCOUT_COST, scoutedOvr, scoutGame, seenOf, setNilOffer, scoutedThisWeek, talkedTo, talkToCoach, watchFilm, weeksToDecide, type ActionKey,
+  SCOUT_COST, recruitWeekLabel, scoutedOvr, scoutGame, seenOf, setNilOffer, scoutedThisWeek, talkedTo, talkToCoach, watchFilm, weeksToDecide, type ActionKey,
 } from "../../engine/recruiting";
 import type { CatKey, League, Player, PrefKey } from "../../engine/types";
 import { PREF_KEYS } from "../../engine/types";
@@ -120,7 +120,7 @@ function WhosAfterHim({ L, p }: { L: League; p: Player }) {
           </div>
         </div>
       ) : (
-        <div className="muted small">{L.phase === "preseason" && r.kind === "hs" ? "Recruiting opens when the season tips off." : "Be the first: a call or a visit gets you on his list."}</div>
+        <div className="muted small">Be the first: a call or a visit gets you on his list.</div>
       )}
     </Card>
   );
@@ -616,7 +616,7 @@ function Timeline({ p }: { p: Player }) {
     <div className="timeline">
       {r.history.slice(0, 8).map((h, i) => (
         <div key={i} className="tl-row">
-          <span className="tl-wk">Wk {h.week}</span>
+          <span className="tl-wk">{recruitWeekLabel(h.week)}</span>
           <span className="tl-dot" />
           <span>{h.text}</span>
         </div>

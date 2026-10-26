@@ -64,11 +64,10 @@ export function talkedTo(p: Player): boolean {
   return !!r && (r.talked ?? (r.reveals ?? (["film", "live", "coach"] as RevealKey[]).slice(0, r.scout)).includes("coach"));
 }
 
-/** Recruiting high schoolers opens when the college season tips off. */
+/** Recruiting goes on year-round: the summer is simulated when a class arrives, and the preseason is the fall week. */
 export function recruitingOpen(L: League, p: Player): { ok: boolean; why?: string } {
   const r = p.recruit;
   if (!r || r.stage === "signed" || r.stage === "unsigned") return { ok: false, why: "No longer available" };
-  if (r.kind === "hs" && L.phase === "preseason") return { ok: false, why: "Recruiting opens when the season tips off" };
   return { ok: true };
 }
 
@@ -149,9 +148,33 @@ export function shownStars(L: League, p: Player): number | null {
   return ratingsHidden(L, p) ? null : p.recruit!.stars;
 }
 
-/** What high school production and word of mouth suggest before anyone ranks him (fixed per player). */
+export type Circuit = "National" | "Regional" | "International";
+
+function isOverseas(p: Player): boolean {
+  // US hometowns carry a two-letter state, international ones the country
+  return p.state.length > 2;
+}
+
+export function summerCircuit(p: Player, label: "16U" | "17U" = "17U"): Circuit | null {
+  const r = p.recruit;
+  if (!r || r.kind !== "hs") return null;
+  // mostly the best prospects, but some get overlooked and some get in on a name; a kid can move up a level between summers
+  const z = hashNormal(p.faceSeed ^ 0x3c6ef372);
+  const zz = label === "16U" ? 0.8 * z + 0.6 * hashNormal(p.faceSeed ^ 0x1f83d9ab) : z;
+  const x = r.rank * Math.exp(0.55 * zz) * (label === "16U" ? 1.15 : 1);
+  if (isOverseas(p)) return x <= 700 ? "International" : null;
+  return x <= 330 ? "National" : x <= 1100 ? "Regional" : null;
+}
+
+/**
+ * What high school production and word of mouth suggest before anyone ranks him (fixed per player). College
+ * staffs watched the national circuit in person, so they have a good read on those kids; the ones who
+ * stayed off it are the real unknowns.
+ */
 function buzz(p: Player): number {
-  return hashNormal(p.id ^ 0x9e3779b9) * 7;
+  const c = summerCircuit(p);
+  const sd = c === "National" ? 3.5 : c === "Regional" || c === "International" ? 7 : 9;
+  return hashNormal(p.id ^ 0x9e3779b9) * sd;
 }
 
 // the class ranked by buzz, refreshed once a week (it only matters before the rankings come out)
@@ -194,16 +217,25 @@ export function commitBar(L: League, p: Player, stars = levelStars(L, p)): numbe
   return COMMIT_THRESHOLD[stars] * (r.kind === "portal" ? 0.6 : 1) * patience;
 }
 
-/** The rankings come out: schools already Hot with a recruit keep that relationship, however big he turns out to be. */
+/**
+ * The rankings come out: when a recruit turns out bigger than his buzz, schools that offered him and were
+ * already Hot with him keep that relationship. They took the risk before anyone knew.
+ */
 export function releaseRatings(L: League) {
   const cls = L.players.filter((p) => p.status === "recruit" && p.recruit?.kind === "hs");
   if (!cls.length) return;
   for (const p of cls) {
     const r = p.recruit!;
+    const was = buzzStars(L, p);
+    // only a kid who turns out bigger than everyone thought: for the ones whose level was plain to see, nothing changes
+    if (r.stars <= was) {
+      r.early = [];
+      continue;
+    }
     // Hot as it stood before the rankings: measured against his buzz, not the stars just revealed
-    const hot = HOT * commitBar(L, p, buzzStars(L, p));
+    const hot = HOT * commitBar(L, p, was);
     r.early = Object.entries(r.interest)
-      .filter(([, v]) => v >= hot)
+      .filter(([k, v]) => v >= hot && r.offers.includes(Number(k)))
       .map(([k]) => Number(k));
   }
   const top = cls.reduce((a, b) => (b.recruit!.rank < a.recruit!.rank ? b : a));
@@ -454,6 +486,40 @@ export function generateRecruitClass(L: League) {
   }
   rankAndStar(L, made, "hs", L.season + 1);
   for (const p of made) addPlayer(L, p);
+  summerRecruiting(L);
+}
+
+/** Weeks of recruiting that happen over the summer, before a class reaches the preseason. */
+export const SUMMER_WEEKS = 4;
+let inSummer = false;
+
+/** Recruit timeline label for a week: summer weeks are negative, the fall week (preseason) is 0. */
+export function recruitWeekLabel(week: number): string {
+  return week < 0 ? "Summer" : week === 0 ? "Fall" : `Wk ${week}`;
+}
+
+/**
+ * The summer before the season: everyone has been recruiting these kids on the circuit for months. AI programs
+ * build interest, offer and host visits, though nobody gets past Hot and nobody commits before the fall. The
+ * user's staff lays groundwork with realistic targets (calls and visits from the assistants and head coach) but
+ * leaves offers, NIL and official visits to the head coach.
+ */
+function summerRecruiting(L: League) {
+  const week = L.week;
+  inSummer = true;
+  try {
+    for (let w = -SUMMER_WEEKS; w < 0; w++) {
+      L.week = w;
+      aiRecruitWeek(L, "hs");
+      recruitDecisions(L, "hs");
+    }
+  } finally {
+    inSummer = false;
+    L.week = week;
+  }
+  const mine = L.players.filter((p) => p.status === "recruit" && p.recruit?.kind === "hs" && (p.recruit.interest[L.userTid] ?? 0) > 0);
+  const warm = mine.filter((p) => heatOf(L, p, L.userTid).level >= 1).length;
+  if (mine.length && !L.settings.autoRecruit) addNews(L, "recruit", `Summer recruiting: your staff got to know ${mine.length} prospects in the new class (${warm} already warming to you). Offers and official visits are your call: recruiting is open now.`, { tid: L.userTid, user: true });
 }
 
 export function rankAndStar(L: League, ps: Player[], kind: "hs" | "portal", classSeason: number) {
@@ -594,13 +660,16 @@ export function actionMult(L: League, t: Team, p: Player): number {
 function addInterest(L: League, p: Player, tid: number, amount: number) {
   const r = p.recruit!;
   if ((r.stage === "top5" || r.stage === "committed") && !r.top5.includes(tid)) amount *= 0.25;
-  r.interest[tid] = (r.interest[tid] ?? 0) + amount;
+  const cur = r.interest[tid] ?? 0;
+  // summer contact can get a school as far as Hot; nobody gets past that before the fall
+  if (inSummer) amount = Math.min(amount, Math.max(0, HOT * commitBar(L, p) - cur));
+  r.interest[tid] = cur + amount;
 }
 
 // ---------- actions ----------
-/** The user spends the points in the top bar; with auto recruiting on, the staff works from the team's own pool like the AI. */
+/** The user spends the points in the top bar; with auto recruiting on (and over the summer), the staff works from the team's own pool like the AI. */
 function spendsUserPoints(L: League, tid: number): boolean {
-  return tid === L.userTid && !L.settings.autoRecruit;
+  return tid === L.userTid && !L.settings.autoRecruit && !inSummer;
 }
 
 export function canAct(L: League, tid: number, p: Player, a: ActionKey): { ok: boolean; why?: string } {
@@ -611,7 +680,6 @@ export function canAct(L: League, tid: number, p: Player, a: ActionKey): { ok: b
   if (r.committedTo !== null && r.committedTo !== tid && a !== "scout") {
     // can still try to flip a verbal commitment, but not a signed one
   }
-  if (r.kind === "hs" && L.phase === "preseason") return { ok: false, why: "Opens at tip-off" };
   const def = ACTIONS[a];
   const t = team(L, tid);
   const pts = spendsUserPoints(L, tid) ? L.recruitPts : t.recruitPoints;
@@ -691,7 +759,6 @@ export function setNilOffer(L: League, tid: number, p: Player, amount: number): 
   if (!L.settings.nil) return { ok: false, msg: "NIL is disabled" };
   const r = p.recruit;
   if (!r || r.stage === "signed") return { ok: false, msg: "Not available" };
-  if (r.kind === "hs" && L.phase === "preseason") return { ok: false, msg: "Recruiting opens when the season tips off" };
   const t = team(L, tid);
   const current = r.nil[tid] ?? 0;
   const committed = nilCommitted(L, tid) - current;
@@ -802,10 +869,12 @@ export function aiRecruitWeek(L: League, kind: "hs" | "portal" | "both" = "both"
   const buzzRank = unrated ? buzzRanks(L).rank : null;
   const view: View = (p) => (buzzRank && p.recruit!.kind === "hs" ? { rank: buzzRank.get(p.id) ?? p.recruit!.rank, value: recruitValue(p) + buzz(p) } : { rank: p.recruit!.rank, value: recruitValue(p) });
   for (const t of L.teams) {
-    if (t.id === L.userTid && !L.settings.autoRecruit) continue;
+    // over the summer the user's staff lays groundwork with realistic targets; offers, NIL and official visits are the head coach's call
+    const staffOnly = t.id === L.userTid && !L.settings.autoRecruit;
+    if (staffOnly && !inSummer) continue;
     const needs = openSpots(L, t.id);
     if (needs <= 0) continue;
-    t.recruitPoints = Math.round(staffPoints(L, t) * diff);
+    t.recruitPoints = Math.round(staffPoints(L, t) * (staffOnly ? 1 : diff));
     let targets = tc!.targets.get(t.id);
     const lost = targets
       ? targets.filter((id) => {
@@ -850,13 +919,13 @@ export function aiRecruitWeek(L: League, kind: "hs" | "portal" | "both" = "both"
       if (t.recruitPoints < 3) break;
       const r = p.recruit!;
       if (mode === "commit" || mode === "lead") {
-        if (!r.offers.includes(t.id) && canAct(L, t.id, p, "offer").ok) doAction(L, t.id, p, "offer");
+        if (!staffOnly && !r.offers.includes(t.id) && canAct(L, t.id, p, "offer").ok) doAction(L, t.id, p, "offer");
         if (canAct(L, t.id, p, "call").ok) doAction(L, t.id, p, "call");
         if (mode === "lead") i++;
         continue;
       }
       if (mode === "drop") continue;
-      if (i < needs * 2.5 && canAct(L, t.id, p, "offer").ok) {
+      if (!staffOnly && i < needs * 2.5 && canAct(L, t.id, p, "offer").ok) {
         doAction(L, t.id, p, "offer");
         if (L.settings.nil && t.nilBudget > 0) {
           const amt = Math.round(NIL_VALUE[levelStars(L, p)] * Math.min(1.3, t.nilBudget / 2500) * rng.uniform(0.6, 1.1));
@@ -868,8 +937,8 @@ export function aiRecruitWeek(L: League, kind: "hs" | "portal" | "both" = "both"
         }
       }
       // once he's Hot on us, bring him to campus to close; until then the head coach does the selling
-      if (i < needs * 2 && r.offers.includes(t.id) && canAct(L, t.id, p, "visit").ok && rng.chance(0.75)) doAction(L, t.id, p, "visit");
-      else if (i < needs * 1.2 && L.week >= 2 && canAct(L, t.id, p, "coach").ok) doAction(L, t.id, p, "coach");
+      if (!staffOnly && i < needs * 2 && r.offers.includes(t.id) && canAct(L, t.id, p, "visit").ok && rng.chance(0.75)) doAction(L, t.id, p, "visit");
+      else if (i < needs * 1.2 && (L.week >= 2 || L.week < 0) && canAct(L, t.id, p, "coach").ok) doAction(L, t.id, p, "coach");
       if (canAct(L, t.id, p, "assistant").ok) doAction(L, t.id, p, "assistant");
       else if (canAct(L, t.id, p, "call").ok) doAction(L, t.id, p, "call");
       i++;
@@ -939,7 +1008,8 @@ export function recruitDecisions(L: League, kind: "hs" | "portal" | "both" = "bo
     if (!sorted.length) continue;
     const top = sorted[0][1];
     const wk = r.kind === "portal" ? L.portalRound : L.week;
-    if (r.stage === "open" && top >= 18 && wk >= r.commitWeek - 3 && r.offers.length > 0) {
+    // nobody narrows his list before the rankings show him how big his market really is
+    if (r.stage === "open" && top >= 18 && wk >= r.commitWeek - 3 && r.offers.length > 0 && !ratingsHidden(L, p)) {
       // schools that offered come first, then the most interested others
       const offering = sorted.filter(([tid]) => r.offers.includes(tid));
       const others = sorted.filter(([tid]) => !r.offers.includes(tid));

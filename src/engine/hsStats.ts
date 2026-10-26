@@ -5,7 +5,8 @@
 import type { League, Player } from "./types";
 import { REG_DAYS } from "./core";
 import { clamp, distanceMiles, hashNormal } from "./rng";
-import { hsLine, hsSituation, hsSkill, scaledPts } from "./recruiting";
+import { hsLine, hsSituation, hsSkill, scaledPts, summerCircuit, type Circuit } from "./recruiting";
+export type { Circuit };
 import { CITIES } from "./data/cities";
 
 /** Per-game averages for one high school season. */
@@ -281,7 +282,6 @@ export function hsNow(L: League, p: Player): HsSeason | null {
 // bounce around more. Lots of kids never play on a circuit at all. Prospects from overseas play for their
 // country's youth national team instead: strong competition, only a handful of games.
 
-export type Circuit = "National" | "Regional" | "International";
 
 export interface SummerSeason extends Omit<HsSeason, "year" | "live"> {
   label: "16U" | "17U";
@@ -292,22 +292,6 @@ export interface SummerSeason extends Omit<HsSeason, "year" | "live"> {
 const SUMMER_NICKS = ["Elite", "Express", "All-Stars", "Select", "Legends", "Warriors", "Lightning", "Hoops", "Rise", "Prime", "Titans", "Stars"];
 
 /** The circuit he played on that summer, or null if he didn't play on one. */
-function isOverseas(p: Player): boolean {
-  // US hometowns carry a two-letter state, international ones the country
-  return p.state.length > 2;
-}
-
-export function summerCircuit(p: Player, label: "16U" | "17U" = "17U"): Circuit | null {
-  const r = p.recruit;
-  if (!r || r.kind !== "hs") return null;
-  // mostly the best prospects, but some get overlooked and some get in on a name; a kid can move up a level between summers
-  const z = hashNormal(p.faceSeed ^ 0x3c6ef372);
-  const zz = label === "16U" ? 0.8 * z + 0.6 * hashNormal(p.faceSeed ^ 0x1f83d9ab) : z;
-  const x = r.rank * Math.exp(0.55 * zz) * (label === "16U" ? 1.15 : 1);
-  if (isOverseas(p)) return x <= 700 ? "International" : null;
-  return x <= 330 ? "National" : x <= 1100 ? "Regional" : null;
-}
-
 /** His summer seasons, per game (none for transfers or kids who never played on a circuit). */
 export function summerSeasons(p: Player): SummerSeason[] {
   const r0 = p.recruit;

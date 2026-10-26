@@ -25,6 +25,14 @@ export function RecruitingSummary() {
           </span>
         </div>
       )}
+      {L.phase === "preseason" && !L.settings.autoRecruit && (
+        <div className="callout mb-16 small">
+          <Icon name="recruit" size={18} />
+          <span>
+            <b>Fall recruiting week.</b> The class spent the summer on the circuit, and programs have already been calling and offering. Your staff made some contacts (see My Targets); offers and official visits are up to you. The other programs make their fall moves when the season tips off.
+          </span>
+        </div>
+      )}
       <div className="tiles g5 mb-16" style={{ display: "grid" }}>
         <Tile label="Coaching points" icon="bolt" value={<>{L.recruitPts}<small>/ {L.recruitPtsMax}</small></>}>
           <div style={{ marginTop: 7 }}>

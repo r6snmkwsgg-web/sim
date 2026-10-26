@@ -26,7 +26,7 @@ export function Guide() {
         <Card title="The season">
           <ol className="small" style={{ margin: 0, paddingLeft: 18, lineHeight: 1.7 }}>
             <li>
-              <b>Preseason:</b> set your <Link to={`${b}/rotation`}>rotation</Link>, <Link to={`${b}/tactics`}>tactics</Link> and redshirts. Recruiting opens when the season tips off.
+              <b>Preseason:</b> set your <Link to={`${b}/rotation`}>rotation</Link>, <Link to={`${b}/tactics`}>tactics</Link> and redshirts. It's also the fall recruiting week: offers and official visits are open.
             </li>
             <li>
               <b>Regular season:</b> about 31 games: non-conference from November, including a Thanksgiving-week event (Maui, Battle 4 Atlantis and more) where you play three games (two in a four-team event), then the conference schedule. Home court matters.
@@ -52,8 +52,8 @@ export function Guide() {
             <li>
               <b>Scout</b> to see his ratings in seven categories (shooting, finishing, playmaking, perimeter D, interior D, rebounding, athleticism). Game film (2 pts) shows one at random and scouting a game (5 pts) shows the one you pick, each once a week per recruit; talking to his coach (3 pts, once) tells you his work ethic and potential. Star ratings are noisy, so there are hidden gems (and busts).
             </li>
-            <li>Recruiting opens when the season tips off: the high school season starts with yours, and nobody (you or the AI) can contact recruits in the preseason.</li>
-            <li>The new class is unrated for the first two weeks: no stars or national rankings for anyone, so go by high school stats and your own scouting. Obvious studs still know they're good, but an under-the-radar kid will listen to anyone. If you're Hot on a recruit when the rankings come out (start of week 3), he keeps taking you seriously even if he turns out to be a 4★ or 5★: bigger programs will still come after him, but you're in the race.</li>
+            <li>Recruiting goes year-round. Each new class arrives after a summer on the circuit: programs have already called, visited and offered the kids they like, and your staff has made contact with some realistic targets (offers, NIL and official visits are left to you). Summer contact gets a school as far as Hot; nobody commits before the season. The preseason is the fall recruiting week, then the high school season tips off with yours.</li>
+            <li>The new class is unrated until the start of week 3: no stars or national rankings for anyone, so go by high school and summer stats and your own scouting. Recruits don't narrow their lists until the rankings show them their market. If a kid turns out bigger than his buzz and you'd already offered him and were Hot with him, he keeps taking you seriously: bigger programs will still come after him, but you're in the race.</li>
             <li>
               Reading the numbers: high school stats say who can score, not who the five-stars are. A star on a loaded prep team might average 14 while a small-town kid in a weak league puts up 30, and a weak league pads field-goal percentage too. Free-throw percentage is the honest one. The summer circuit (the board's Summer view) is better evidence: the national circuit puts the best prospects against each other, so numbers there run lower but mean more, while regional numbers come easier. Summers are short, so their percentages bounce around.
             </li>
