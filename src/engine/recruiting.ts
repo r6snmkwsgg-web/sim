@@ -276,7 +276,9 @@ function blend(p: Player, w: Partial<Record<RatingKey, number>>): number {
 
 /**
  * His high school per-game line, from the skills behind each number: points from his scoring, rebounds
- * from his rebounding, assists from his playmaking, plus a little luck that's his for good.
+ * from his rebounding, assists from his playmaking. How much he puts up also depends on his situation,
+ * which stays with him: a star on a loaded prep team might average 14, a small-town kid in a weak league 30.
+ * So the numbers say who can score, not who the five-stars are (his shooting percentages are the tell).
  */
 export function hsLine(p: Player): { pts: number; reb: number; ast: number; blk: number; stl: number } | null {
   const hs = p.recruit?.hs;
@@ -285,11 +287,14 @@ export function hsLine(p: Player): { pts: number; reb: number; ast: number; blk:
   const big = p.pos === "PF" || p.pos === "C";
   const guard = p.pos === "PG" || p.pos === "SG";
   const scoring = blend(p, HS_SCORING[p.pos]) + tall;
-  // top prospects mostly average 20-30; the best few get past 30
-  let pts = (9 + (scoring - 28) * 0.6 + hashNormal(p.faceSeed ^ 0x2c1b3c6d) * 2) * 0.75 + 2;
-  if (pts > 27) pts = 27 + (pts - 27) * 0.5;
-  const reb = (big ? 8 : guard ? 3.5 : 5.5) + (blend(p, { reb: 0.6, str: 0.2, ath: 0.2 }) + tall - HS_REB_MID[p.pos]) * 0.17 + hashNormal(p.faceSeed ^ 0x5bd1e995) * 1.1;
-  const ast = (p.pos === "PG" ? 5.5 : guard ? 3 : big ? 1.2 : 2.2) + (blend(p, { pas: 0.45, hnd: 0.35, iq: 0.2 }) - HS_AST_MID[p.pos]) * 0.1 + hashNormal(p.faceSeed ^ 0x1b873593) * 0.7;
+  // how strong his league is and how big his role: the same every season
+  const situation = hashNormal(p.faceSeed ^ 0x6a09e667);
+  let pts = ((9 + (scoring - 28) * 0.6) * Math.exp(0.25 * situation) + hashNormal(p.faceSeed ^ 0x2c1b3c6d) * 1.5) * 0.75 + 2;
+  // past 27 it gets harder and harder to add more: the very best land in the low-to-mid 30s
+  if (pts > 27) pts = 27 + 10 * (1 - Math.exp(-(pts - 27) / 14));
+  const role = Math.exp(0.12 * situation);
+  const reb = ((big ? 8 : guard ? 3.5 : 5.5) + (blend(p, { reb: 0.6, str: 0.2, ath: 0.2 }) + tall - HS_REB_MID[p.pos]) * 0.17 + hashNormal(p.faceSeed ^ 0x5bd1e995) * 1.1) * role;
+  const ast = ((p.pos === "PG" ? 5.5 : guard ? 3 : big ? 1.2 : 2.2) + (blend(p, { pas: 0.45, hnd: 0.35, iq: 0.2 }) - HS_AST_MID[p.pos]) * 0.1 + hashNormal(p.faceSeed ^ 0x1b873593) * 0.7) * role;
   const z = ((p.faceSeed % 1000) / 1000 - 0.5) * 2;
   const one = (x: number) => Math.round(x * 10) / 10;
   return { pts: one(clamp(pts, 4, 36)), reb: one(clamp(reb, 1, 18)), ast: one(clamp(ast, 0.3, 11)), blk: hs.blk ?? hsBlk(p, z), stl: hs.stl ?? hsStl(p, -z) };
