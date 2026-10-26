@@ -411,7 +411,6 @@ function SubNav({ L, rest, search }: { L: League; rest: string; search: string }
           <Icon name="back" size={15} /> Back
         </button>
       )}
-      <span className="subnav-hub">{hub.label}</span>
       <div className="subnav-tabs">
         {pages.map((p) => (
           <Link key={p.to} to={`/l/${L.id}/${p.to}`} className={`subnav-tab${spot.page === p ? " active" : ""}`}>
