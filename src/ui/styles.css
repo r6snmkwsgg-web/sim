@@ -1342,3 +1342,4 @@ div.rec-act { cursor: default; }
 
 .board-views { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 10px 14px 0; }
 .board-views .tabs { margin: 0; }
+.tbl-scroll { overflow-x: auto; }

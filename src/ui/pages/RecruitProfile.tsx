@@ -5,7 +5,7 @@ import { classLabel, heightStr } from "../../engine/ratings";
 import { distanceMiles } from "../../engine/rng";
 import { regionOf } from "../../engine/data/cities";
 import {
-  ACTIONS, actionMult, canAct, CAT_KEYS, CATS, catValue, doAction, factorScores, fit, heatOf, HOT, hsCareer, levelStars, RATINGS_DAY, ratingsHidden, NIL_VALUE, nilCommitted, OFFICIAL_VISITS, openSpots, PREF_LABELS, pullOffer, recruitingOpen,
+  ACTIONS, actionMult, canAct, CAT_KEYS, CATS, catValue, doAction, factorScores, fit, heatOf, HOT, levelStars, RATINGS_DAY, ratingsHidden, NIL_VALUE, nilCommitted, OFFICIAL_VISITS, openSpots, PREF_LABELS, pullOffer, recruitingOpen,
   SCOUT_COST, scoutedOvr, scoutGame, seenOf, setNilOffer, scoutedThisWeek, talkedTo, talkToCoach, watchFilm, weeksToDecide, type ActionKey,
 } from "../../engine/recruiting";
 import type { CatKey, League, Player, PrefKey } from "../../engine/types";
@@ -14,6 +14,7 @@ import { Card, Grade, heroStyle, Logo, Stars, Tabs } from "../components/common"
 import { Face } from "../components/Face";
 import { Icon } from "../components/Icons";
 import { confirmSpend, pickAndConfirm } from "../components/Confirm";
+import { hsGameLog, hsNow, hsSeasons, type HsSeason } from "../../engine/hsStats";
 import { inkOn, money } from "../util";
 
 const IMPORTANCE = ["", "Doesn't care", "Minor", "Nice to have", "Important", "Must have"];
@@ -384,9 +385,11 @@ function RatingsTab({ L, p }: { L: League; p: Player }) {
   );
 }
 
-/** High school career; the senior year plays out alongside the college season. */
+const made = (m: number, a: number) => `${m.toFixed(1)}-${a.toFixed(1)}`;
+const pctOf = (m: number, a: number) => (a > 0 ? `${((100 * m) / a).toFixed(1)}%` : "-");
+
+/** High school career; the senior year plays out alongside the college season, game by game. */
 function HsStatsTab({ L, p }: { L: League; p: Player }) {
-  const rows = hsCareer(L, p);
   const last = p.stats[p.stats.length - 1];
   if (p.recruit?.kind === "portal")
     return (
@@ -400,37 +403,147 @@ function HsStatsTab({ L, p }: { L: League; p: Player }) {
         )}
       </Card>
     );
+  const rows = hsSeasons(L, p);
+  const games = hsGameLog(L, p).slice().reverse();
+  const year = (x: HsSeason) => (
+    <td className="nowrap">
+      <b>{x.year}</b> {x.live && <span className="badge gold">{x.g ? "In progress" : "Starts with your season"}</span>}
+    </td>
+  );
+  const v = (x: HsSeason, s: string) => (x.g ? s : "-");
   return (
-    <Card title="High school career" sub={`${p.city}, ${p.state}`} flush>
-      <table className="tbl">
-        <thead>
-          <tr>
-            <th>Year</th>
-            <th className="n">G</th>
-            <th className="n">PTS</th>
-            <th className="n">REB</th>
-            <th className="n">AST</th>
-            <th className="n">BLK</th>
-            <th className="n">STL</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((x) => (
-            <tr key={x.year}>
-              <td>
-                <b>{x.year}</b> {x.live && <span className="badge gold">{x.g ? "In progress" : "Starts with your season"}</span>}
-              </td>
-              <td className="n">{x.g || "-"}</td>
-              <td className="n">{x.g ? x.pts.toFixed(1) : "-"}</td>
-              <td className="n">{x.g ? x.reb.toFixed(1) : "-"}</td>
-              <td className="n">{x.g ? x.ast.toFixed(1) : "-"}</td>
-              <td className="n">{x.g ? x.blk.toFixed(1) : "-"}</td>
-              <td className="n">{x.g ? x.stl.toFixed(1) : "-"}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </Card>
+    <div className="col gap-16">
+      <Card title="High school career" sub={`${p.city}, ${p.state} · per game`} flush>
+        <div className="tbl-scroll">
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th>Year</th>
+                <th className="n">G</th>
+                <th className="n">PPG</th>
+                <th className="n">FG</th>
+                <th className="n">FG%</th>
+                <th className="n">3PT</th>
+                <th className="n">3P%</th>
+                <th className="n">FT</th>
+                <th className="n">FT%</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((x) => (
+                <tr key={x.year}>
+                  {year(x)}
+                  <td className="n">{x.g || "-"}</td>
+                  <td className="n">
+                    <b>{v(x, x.pts.toFixed(1))}</b>
+                  </td>
+                  <td className="n">{v(x, made(x.fgm, x.fga))}</td>
+                  <td className="n">{v(x, pctOf(x.fgm, x.fga))}</td>
+                  <td className="n">{v(x, made(x.tpm, x.tpa))}</td>
+                  <td className="n">{v(x, pctOf(x.tpm, x.tpa))}</td>
+                  <td className="n">{v(x, made(x.ftm, x.fta))}</td>
+                  <td className="n">{v(x, pctOf(x.ftm, x.fta))}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="tbl-scroll" style={{ borderTop: "1px solid var(--border)" }}>
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th>Year</th>
+                <th className="n">GS</th>
+                <th className="n">MIN</th>
+                <th className="n">OREB</th>
+                <th className="n">REB</th>
+                <th className="n">AST</th>
+                <th className="n">STL</th>
+                <th className="n">BLK</th>
+                <th className="n">TO</th>
+                <th className="n">PF</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((x) => (
+                <tr key={x.year}>
+                  {year(x)}
+                  <td className="n">{v(x, String(x.gs))}</td>
+                  <td className="n">{v(x, x.min.toFixed(1))}</td>
+                  <td className="n">{v(x, x.orb.toFixed(1))}</td>
+                  <td className="n">{v(x, x.reb.toFixed(1))}</td>
+                  <td className="n">{v(x, x.ast.toFixed(1))}</td>
+                  <td className="n">{v(x, x.stl.toFixed(1))}</td>
+                  <td className="n">{v(x, x.blk.toFixed(1))}</td>
+                  <td className="n">{v(x, x.tov.toFixed(1))}</td>
+                  <td className="n">{v(x, x.pf.toFixed(1))}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+      {rows.some((x) => x.year === "Senior") && (
+        <Card title="Senior season game log" sub={games.length ? `${games.length} games so far, latest first` : "His senior season tips off with yours"} flush>
+          {games.length ? (
+            <div className="tbl-scroll">
+              <table className="tbl">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Opponent</th>
+                    <th>Result</th>
+                    <th className="n">MIN</th>
+                    <th className="n">PTS</th>
+                    <th className="n">FG</th>
+                    <th className="n">3PT</th>
+                    <th className="n">FT</th>
+                    <th className="n">REB</th>
+                    <th className="n">AST</th>
+                    <th className="n">STL</th>
+                    <th className="n">BLK</th>
+                    <th className="n">TO</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {games.map((gm, i) => (
+                    <tr key={i}>
+                      <td className="muted nowrap">{shortDayLabel(L.season, gm.day)}</td>
+                      <td className="nowrap">
+                        <span className="muted">{gm.home ? "vs" : "at"}</span> {gm.opp}
+                      </td>
+                      <td className="nowrap">
+                        <span className={`res-wl ${gm.won ? "w" : "l"}`}>{gm.won ? "W" : "L"}</span> {gm.us}-{gm.them}
+                      </td>
+                      <td className="n">{gm.min}</td>
+                      <td className="n">
+                        <b>{gm.pts}</b>
+                      </td>
+                      <td className="n">
+                        {gm.fgm}-{gm.fga}
+                      </td>
+                      <td className="n">
+                        {gm.tpm}-{gm.tpa}
+                      </td>
+                      <td className="n">
+                        {gm.ftm}-{gm.fta}
+                      </td>
+                      <td className="n">{gm.reb}</td>
+                      <td className="n">{gm.ast}</td>
+                      <td className="n">{gm.stl}</td>
+                      <td className="n">{gm.blk}</td>
+                      <td className="n">{gm.tov}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="card-b muted">No games yet.</div>
+          )}
+        </Card>
+      )}
+    </div>
   );
 }
 
@@ -464,8 +577,7 @@ export function RecruitProfile({ p }: { p: Player }) {
   const colors = (committed ?? from)?.colors ?? ["#273449", "#f2b631"];
   const onBoard = L.board.includes(p.id);
   const last = p.stats[p.stats.length - 1];
-  const career = hsCareer(L, p);
-  const hsNow = career.length ? (career[career.length - 1].g ? career[career.length - 1] : career[career.length - 2]) : null;
+  const hsCur = hsNow(L, p);
   const heat = heatOf(L, p, L.userTid);
   return (
     <div className="col gap-16">
@@ -527,19 +639,19 @@ export function RecruitProfile({ p }: { p: Player }) {
           </div>
         </div>
         <div className="hero-stats">
-          {r.kind === "hs" && hsNow ? (
+          {r.kind === "hs" && hsCur ? (
             <>
               <div>
-                <div className="label">{hsNow.year} PPG</div>
-                <div className="value">{hsNow.pts.toFixed(1)}</div>
+                <div className="label">{hsCur.year} PPG</div>
+                <div className="value">{hsCur.pts.toFixed(1)}</div>
               </div>
               <div>
                 <div className="label">RPG</div>
-                <div className="value">{hsNow.reb.toFixed(1)}</div>
+                <div className="value">{hsCur.reb.toFixed(1)}</div>
               </div>
               <div>
                 <div className="label">APG</div>
-                <div className="value">{hsNow.ast.toFixed(1)}</div>
+                <div className="value">{hsCur.ast.toFixed(1)}</div>
               </div>
             </>
           ) : last ? (

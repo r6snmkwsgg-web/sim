@@ -1,7 +1,7 @@
 import type { CatKey, League, Player, PrefKey, RatingKey, RecruitInfo, RevealKey, Team } from "./types";
 import { PREF_KEYS } from "./types";
 import { Rng, clamp, distanceMiles } from "./rng";
-import { addNews, addPlayer, coachOf, nextPid, playerName, REG_DAYS, roster, rngOf, rostersDirty, rosterVersion, team } from "./core";
+import { addNews, addPlayer, coachOf, nextPid, playerName, roster, rngOf, rostersDirty, rosterVersion, team } from "./core";
 import { generatePlayer } from "./gen/player";
 import { powerRanks } from "./rankings";
 
@@ -248,38 +248,9 @@ export function hsLine(p: Player): { pts: number; reb: number; ast: number; blk:
   const hs = p.recruit?.hs;
   if (!hs) return null;
   const z = ((p.faceSeed % 1000) / 1000 - 0.5) * 2;
-  return { pts: hs.pts, reb: hs.reb, ast: hs.ast, blk: hs.blk ?? hsBlk(p, z), stl: hs.stl ?? hsStl(p, -z) };
-}
-
-export function hsCareer(L: League, p: Player): { year: string; g: number; pts: number; reb: number; ast: number; blk: number; stl: number; live?: boolean }[] {
-  const r = p.recruit;
-  const line = hsLine(p);
-  if (!r || !line || r.kind !== "hs") return [];
-  let h = (p.faceSeed ^ 0x9e3779b9) >>> 0;
-  const rnd = () => {
-    h = Math.imul(h ^ (h >>> 15), 0x2c1b3c6d) >>> 0;
-    h = Math.imul(h ^ (h >>> 12), 0x297a2d39) >>> 0;
-    return ((h ^ (h >>> 15)) >>> 0) / 4294967296;
-  };
-  // blocks and steals get their own sequence, so the scoring lines don't change for older saves
-  let h2 = (p.faceSeed ^ 0x85ebca6b) >>> 0;
-  const rnd2 = () => {
-    h2 = Math.imul(h2 ^ (h2 >>> 15), 0x2c1b3c6d) >>> 0;
-    h2 = Math.imul(h2 ^ (h2 >>> 12), 0x297a2d39) >>> 0;
-    return ((h2 ^ (h2 >>> 15)) >>> 0) / 4294967296;
-  };
-  const row = (year: string, f: number, g: number, live = false) => {
-    const j = () => 0.9 + rnd() * 0.2;
-    const v = (x: number) => Math.round(x * f * j() * 10) / 10;
-    const v2 = (x: number) => Math.round(x * f * (0.9 + rnd2() * 0.2) * 10) / 10;
-    return { year, g, pts: v(line.pts), reb: v(line.reb), ast: v(line.ast), blk: v2(line.blk), stl: v2(line.stl), live };
-  };
-  const rows = [row("Freshman", 0.45, 22 + Math.floor(rnd() * 6)), row("Sophomore", 0.66, 23 + Math.floor(rnd() * 6)), row("Junior", 0.86, 24 + Math.floor(rnd() * 6))];
-  // senior year: games so far track the college calendar
-  const full = 26 + Math.floor(rnd() * 5);
-  const g = L.phase === "preseason" ? 0 : L.phase === "regular" ? Math.min(full, Math.round((L.day / REG_DAYS) * full)) : full;
-  if (L.season + 1 === r.classSeason) rows.push(row("Senior", 1, g, L.phase === "preseason" || L.phase === "regular"));
-  return rows;
+  // stored scoring runs hot; scaled to what prospects really average (top recruits mostly 20-30)
+  const pts = Math.round((hs.pts * 0.75 + 2) * 10) / 10;
+  return { pts, reb: hs.reb, ast: hs.ast, blk: hs.blk ?? hsBlk(p, z), stl: hs.stl ?? hsStl(p, -z) };
 }
 
 export const OFFICIAL_VISITS = 12;

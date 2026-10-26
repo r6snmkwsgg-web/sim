@@ -2,8 +2,9 @@ import { useNavigate } from "react-router-dom";
 import type { League, Player } from "../../engine/types";
 import { team } from "../../engine/core";
 import { heightStr, classLabel } from "../../engine/ratings";
-import { ACTIONS, actionMult, canAct, doAction, heatOf, hsLine, openSpots, ratingsHidden, scoutedOvr, seenOf, talkedTo, type ActionKey } from "../../engine/recruiting";
+import { ACTIONS, actionMult, canAct, doAction, heatOf, openSpots, ratingsHidden, scoutedOvr, seenOf, talkedTo, type ActionKey } from "../../engine/recruiting";
 import { distanceMiles } from "../../engine/rng";
+import { hsNow } from "../../engine/hsStats";
 import { mutate } from "../store";
 import { Grade, Logo, PlayerLink, Pos, Stars, Table, type Col } from "./common";
 import { Icon } from "./Icons";
@@ -138,7 +139,7 @@ export function RecruitTable({ L, rows, kind, limit = 50, showActions = false, v
   const nav = useNavigate();
   // until the rankings come out there's no rank to sort by: high school scoring is the best public guide
   const unrated = kind === "hs" && rows.length > 0 && ratingsHidden(L, rows[0]);
-  const hsPts = (p: Player) => p.recruit!.hs?.pts ?? 0;
+  const hsPts = (p: Player) => hsNow(L, p)?.pts ?? 0;
   const ut = team(L, L.userTid);
   const milesFrom = (p: Player) => Math.round(distanceMiles(p.lat, p.lon, ut.lat, ut.lon));
   const cols: Col<Player>[] = [
@@ -194,10 +195,10 @@ export function RecruitTable({ L, rows, kind, limit = 50, showActions = false, v
               label,
               title,
               render: (p: Player) => {
-                const h = hsLine(p);
+                const h = hsNow(L, p);
                 return h ? h[k].toFixed(1) : "-";
               },
-              sort: (p: Player) => hsLine(p)?.[k] ?? 0,
+              sort: (p: Player) => hsNow(L, p)?.[k] ?? 0,
               num: true,
             })),
           ]
@@ -219,7 +220,7 @@ export function RecruitTable({ L, rows, kind, limit = 50, showActions = false, v
               },
             ]
           : [
-          { key: "hs", label: "HS PPG", title: "High school points per game", render: (p: Player) => (p.recruit!.hs ? p.recruit!.hs.pts.toFixed(1) : "-"), sort: (p: Player) => p.recruit!.hs?.pts ?? 0, num: true },
+          { key: "hs", label: "HS PPG", title: "High school points per game this season (last season until his senior year starts)", render: (p: Player) => hsNow(L, p)?.pts.toFixed(1) ?? "-", sort: (p: Player) => hsPts(p), num: true },
           { key: "ovr", label: "OVR", title: "Scout 4 of his 7 categories to estimate it", render: (p: Player) => <KnownOvr p={p} />, sort: (p: Player) => (seenOf(p).length >= 4 ? scoutedOvr(p) : unrated ? 0 : p.recruit!.stars * 10), num: true },
           { key: "pot", label: "POT", title: "Talk to his coach to find out", render: (p: Player) => <KnownPot p={p} />, sort: (p: Player) => (talkedTo(p) ? p.pot : unrated ? 0 : p.recruit!.stars * 10), num: true },
           { key: "sc", label: "Scouted", title: "Categories scouted out of 7 (+ = talked to his coach)", render: (p: Player) => <ScoutDots p={p} />, sort: (p: Player) => seenOf(p).length, center: true },

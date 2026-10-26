@@ -14,6 +14,7 @@ import { offseasonDevelopment } from "./development";
 import { generatePlayer, assignJersey } from "./gen/player";
 import { talentLevel } from "./gen/roster";
 import { generateSchedule } from "./schedule";
+import { hsNow } from "./hsStats";
 import { chooseStrategy, aiRedshirts } from "./ai";
 import { emptyLine, emptyTeamSeason } from "./stats";
 import { applyRealignment } from "./realignment";
@@ -429,7 +430,9 @@ export function rollover(L: League) {
     p.year = 1;
     p.eligUsed = 0;
     p.nilDeal = r.nil[tid] ?? 0;
-    p.recruitedBy = { tid, season: L.season, stars: r.stars, rank: r.rank, kind: "hs", hs: r.hs };
+    // remember the senior season he actually had, as shown while he was being recruited
+    const sr = hsNow(L, p);
+    p.recruitedBy = { tid, season: L.season, stars: r.stars, rank: r.rank, kind: "hs", hs: sr ? { pts: sr.pts, reb: sr.reb, ast: sr.ast } : r.hs };
     p.recruit = null;
     const used = new Set(roster(L, tid).map((q) => q.jersey));
     p.jersey = assignJersey(rng, used);
