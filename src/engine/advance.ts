@@ -38,9 +38,28 @@ export function isDayPhase(L: League): boolean {
   return L.phase === "regular" || L.phase === "confTourney" || L.phase === "ncaa";
 }
 
+/** The days a new recruiting week starts: points reset, AI programs move, recruits decide. */
+function weekStartsToday(L: League): boolean {
+  if (L.phase === "regular") return L.day > 0 && L.day % 7 === 0;
+  if (L.phase === "confTourney") return L.day === CT_START;
+  if (L.phase === "ncaa") return L.day === 140 || L.day === 147;
+  return false;
+}
+
+/** Start the week as soon as its first day arrives, so the user lands on Monday with fresh points. Runs once per day. */
+function startWeekIfDue(L: League) {
+  const key = `${L.season}:${L.day}`;
+  if (!weekStartsToday(L) || L.weekStarted === key) return;
+  L.weekStarted = key;
+  weekTick(L, L.phase !== "ncaa");
+}
+
 /** Simulate one day. Returns whether the user's team played. */
 export function simDay(L: League): { userPlayed: boolean } {
+  // saves from before the week started at the end of the previous day still start it here
+  startWeekIfDue(L);
   const out = simDayInner(L);
+  startWeekIfDue(L);
   checkGoals(L);
   return out;
 }
@@ -51,7 +70,6 @@ function simDayInner(L: League): { userPlayed: boolean } {
     for (const g of games) if (g.home === L.userTid || g.away === L.userTid) userPlayed = true;
   };
   if (L.phase === "regular") {
-    if (L.day > 0 && L.day % 7 === 0) weekTick(L, true);
     const games = L.games.filter((g) => g.day === L.day && !g.played);
     for (const g of games) playGame(L, g);
     play(games);
@@ -65,7 +83,6 @@ function simDayInner(L: League): { userPlayed: boolean } {
       addNews(L, "league", "Conference tournament week has arrived.", { user: false });
     }
   } else if (L.phase === "confTourney") {
-    if (L.day === CT_START) weekTick(L, true);
     const games = createBracketGames(L, L.day);
     for (const g of games) {
       playGame(L, g);
@@ -81,7 +98,6 @@ function simDayInner(L: League): { userPlayed: boolean } {
       runSelection(L);
     }
   } else if (L.phase === "ncaa") {
-    if (L.day === 140 || L.day === 147) weekTick(L, false);
     const games = createBracketGames(L, L.day);
     for (const g of games) {
       playGame(L, g);

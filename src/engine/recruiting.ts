@@ -83,13 +83,20 @@ function markSeen(L: League, p: Player, add: CatKey[], talked = false) {
 }
 
 /** Watch game film: cheap, reveals one category you haven't seen, chosen at random. */
+/** Film and game scouting are once a week each, per recruit. */
+export function scoutedThisWeek(L: League, p: Player, how: "film" | "game"): boolean {
+  return p.recruit!.lastAction[`${L.userTid}:${how}`] === L.week;
+}
+
 export function watchFilm(L: League, p: Player): { ok: boolean; msg: string } {
   const open = recruitingOpen(L, p);
   if (!open.ok) return { ok: false, msg: open.why! };
+  if (scoutedThisWeek(L, p, "film")) return { ok: false, msg: "Already watched film this week" };
   const left = CAT_KEYS.filter((k) => !seenOf(p).includes(k));
   if (!left.length) return { ok: false, msg: "You've seen everything on film" };
   if (L.recruitPts < SCOUT_COST.film) return { ok: false, msg: `Needs ${SCOUT_COST.film} points` };
   L.recruitPts -= SCOUT_COST.film;
+  p.recruit!.lastAction[`${L.userTid}:film`] = L.week;
   const k = rngOf(L).pick(left);
   markSeen(L, p, [k]);
   return { ok: true, msg: `Film shows his ${CATS[k].label.toLowerCase()}` };
@@ -100,8 +107,10 @@ export function scoutGame(L: League, p: Player, k: CatKey): { ok: boolean; msg: 
   const open = recruitingOpen(L, p);
   if (!open.ok) return { ok: false, msg: open.why! };
   if (seenOf(p).includes(k)) return { ok: false, msg: "Already scouted" };
+  if (scoutedThisWeek(L, p, "game")) return { ok: false, msg: "Already scouted a game this week" };
   if (L.recruitPts < SCOUT_COST.game) return { ok: false, msg: `Needs ${SCOUT_COST.game} points` };
   L.recruitPts -= SCOUT_COST.game;
+  p.recruit!.lastAction[`${L.userTid}:game`] = L.week;
   markSeen(L, p, [k]);
   return { ok: true, msg: `You scouted his ${CATS[k].label.toLowerCase()}` };
 }

@@ -6,7 +6,7 @@ import { distanceMiles } from "../../engine/rng";
 import { regionOf } from "../../engine/data/cities";
 import {
   ACTIONS, actionMult, canAct, CAT_KEYS, CATS, catValue, doAction, factorScores, fit, heatOf, HOT, hsCareer, NIL_VALUE, nilCommitted, OFFICIAL_VISITS, openSpots, PREF_LABELS, pullOffer, recruitingOpen,
-  SCOUT_COST, scoutedOvr, scoutGame, seenOf, setNilOffer, talkedTo, talkToCoach, watchFilm, weeksToDecide, type ActionKey,
+  SCOUT_COST, scoutedOvr, scoutGame, seenOf, setNilOffer, scoutedThisWeek, talkedTo, talkToCoach, watchFilm, weeksToDecide, type ActionKey,
 } from "../../engine/recruiting";
 import type { CatKey, League, Player, PrefKey } from "../../engine/types";
 import { PREF_KEYS } from "../../engine/types";
@@ -216,6 +216,8 @@ function RecruitPanel({ L, p }: { L: League; p: Player }) {
     if (ok) mutate((LL) => setMsg(setNilOffer(LL, LL.userTid, p, o.v)));
   };
   const unseen = CAT_KEYS.filter((k) => !seen.includes(k));
+  const filmed = scoutedThisWeek(L, p, "film");
+  const gameScouted = scoutedThisWeek(L, p, "game");
   const film = async () => {
     if (await confirmSpend({ title: `Watch game film on ${name}?`, body: "Shows one rating category you haven't seen yet, picked at random.", cost: cost(SCOUT_COST.film), ok: "Watch film" }))
       mutate((LL) => setMsg(watchFilm(LL, p)));
@@ -261,8 +263,8 @@ function RecruitPanel({ L, p }: { L: League; p: Player }) {
       {hs && (
         <Card title="Scout him" sub={`${seen.length} of 7 categories scouted${talked ? " · talked to his coach" : ""}`}>
           <div className="col" style={{ gap: 8 }}>
-            {scoutRow("tv", "Watch game film", unseen.length ? "Reveals one category you haven't seen, at random." : "You've seen everything.", SCOUT_COST.film, film, !open.ok || !unseen.length || L.recruitPts < SCOUT_COST.film)}
-            {scoutRow("eye", "Scout a game", unseen.length ? "Go see him play and pick what to watch for." : "You've seen everything.", SCOUT_COST.game, game, !open.ok || !unseen.length || L.recruitPts < SCOUT_COST.game)}
+            {scoutRow("tv", "Watch game film", !unseen.length ? "You've seen everything." : filmed ? "Done this week. You can watch more film next week." : "Reveals one category you haven't seen, at random. Once a week.", SCOUT_COST.film, film, !open.ok || !unseen.length || filmed || L.recruitPts < SCOUT_COST.film, filmed && unseen.length > 0)}
+            {scoutRow("eye", "Scout a game", !unseen.length ? "You've seen everything." : gameScouted ? "Done this week. You can scout another game next week." : "Go see him play and pick what to watch for. Once a week.", SCOUT_COST.game, game, !open.ok || !unseen.length || gameScouted || L.recruitPts < SCOUT_COST.game, gameScouted && unseen.length > 0)}
             {scoutRow("phone", "Talk to his coach", "His work ethic and how good he can become.", SCOUT_COST.coach, coach, !open.ok || talked || L.recruitPts < SCOUT_COST.coach, talked)}
           </div>
         </Card>
@@ -336,9 +338,10 @@ function RatingsTab({ L, p }: { L: League; p: Player }) {
   const seen = seenOf(p);
   const talked = talkedTo(p);
   const open = recruitingOpen(L, p);
-  const scoutable = r.kind === "hs" && open.ok;
+  const gameScouted = scoutedThisWeek(L, p, "game");
+  const scoutable = r.kind === "hs" && open.ok && !gameScouted;
   return (
-    <Card title="Ratings" sub={r.kind === "portal" ? "He's played college ball, so his ratings are known." : `${seen.length} of 7 scouted. Tap a ? to scout that category (${SCOUT_COST.game} pts).`}>
+    <Card title="Ratings" sub={r.kind === "portal" ? "He's played college ball, so his ratings are known." : gameScouted && seen.length < 7 ? `${seen.length} of 7 scouted. You've scouted one of his games this week; tap a ? next week to scout another.` : `${seen.length} of 7 scouted. Tap a ? to scout that category (${SCOUT_COST.game} pts, once a week).`}>
       <div className="cat-grid">
         {CAT_KEYS.map((k) => {
           const known = seen.includes(k);
@@ -351,7 +354,7 @@ function RatingsTab({ L, p }: { L: League; p: Player }) {
               {known ? (
                 <Grade v={catValue(p, k)} md />
               ) : (
-                <button className="unknown big" disabled={!scoutable || L.recruitPts < SCOUT_COST.game} title={scoutable ? `Scout a game for his ${CATS[k].label.toLowerCase()} (${SCOUT_COST.game} pts)` : open.why} onClick={async () => {
+                <button className="unknown big" disabled={!scoutable || L.recruitPts < SCOUT_COST.game} title={scoutable ? `Scout a game for his ${CATS[k].label.toLowerCase()} (${SCOUT_COST.game} pts)` : gameScouted ? "Already scouted a game this week" : open.why} onClick={async () => {
                     if (await confirmSpend({ title: `Scout his ${CATS[k].label.toLowerCase()}?`, body: `Go see ${p.first} play and watch for it. ${CATS[k].desc}.`, cost: { pts: SCOUT_COST.game, have: L.recruitPts }, ok: "Scout it" }))
                       mutate((LL) => void scoutGame(LL, p, k));
                   }}>

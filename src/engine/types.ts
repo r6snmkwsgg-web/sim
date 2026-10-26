@@ -607,6 +607,8 @@ export interface League {
   goals?: { season: number; list: Goal[] };
   /** extra weekly coaching points earned from goals this season */
   pointsBonus?: number;
+  /** `${season}:${day}` of the last recruiting week started, so each one runs once */
+  weekStarted?: string;
   /** goals completed across every season */
   goalsDone?: number;
   /** game prep bought for the user's next game; `weekPaid` is the part paid this week (refundable) */
