@@ -172,6 +172,21 @@ export function setWatchGuard(g: WatchGuard | null) {
 export function getWatchGuard(): WatchGuard | null {
   return watchGuard;
 }
+
+// where each replay was left, so stepping out to a player's page and back picks up from there
+const replayAt = new Map<number, number>();
+export function replayPosition(gid: number): number {
+  return replayAt.get(gid) ?? 0;
+}
+export function setReplayPosition(gid: number, i: number | null) {
+  if (i === null) replayAt.delete(gid);
+  else replayAt.set(gid, i);
+}
+
+/** Pages you can look at mid-game without the result being revealed. */
+export function isWatchDetour(path: string): boolean {
+  return /\/player\/\d+$/.test(path);
+}
 export function useWatchGuard(): WatchGuard | null {
   useSyncExternalStore(
     (fn) => {

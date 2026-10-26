@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { mutate, useLeague } from "../store";
+import { mutate, useLeague, useWatchGuard } from "../store";
 import { seasonLabel, teamMaybe, shortDayLabel } from "../../engine/core";
 import { classLabel, grade, heightStr, RATING_LABELS, CLASS_LABELS } from "../../engine/ratings";
 import type { BoxLine, Game, League, Player, PlayerSeasonStats, RatingKey, Tendencies } from "../../engine/types";
+import { STAT_KEYS } from "../../engine/types";
 import { careerLine } from "../../engine/stats";
 import { FOCUS_LABELS } from "../../engine/development";
 import { Card, Empty, Gauge, Grade, heroStyle, Logo, Rating, RatingBar, Stars, Tabs, TeamLink } from "../components/common";
@@ -90,12 +91,14 @@ function StatsTable({ L, p, mode }: { L: League; p: Player; mode: "pg" | "tot" }
 function GameLog({ L, p }: { L: League; p: Player }) {
   const seasons = [...new Set(p.stats.map((s) => s.season))].sort((a, b) => b - a);
   const [season, setSeason] = useState<number>(seasons[0] ?? L.season);
+  // a game still being watched stays out of the log until its replay is over
+  const hidden = useWatchGuard()?.gid;
   const { data, loading } = useAsync(async () => {
     const tids = new Set(p.stats.filter((s) => s.season === season).map((s) => s.tid));
     let games: Game[];
     if (season === L.season) games = L.games;
     else games = (await fetchSeason(L, season))?.games ?? [];
-    const mine = games.filter((g) => g.played && g.hasBox && (tids.has(g.home) || tids.has(g.away))).sort((a, b) => a.day - b.day);
+    const mine = games.filter((g) => g.played && g.hasBox && g.id !== hidden && (tids.has(g.home) || tids.has(g.away))).sort((a, b) => a.day - b.day);
     const boxes = await Promise.all(mine.map((g) => getBox(L.id, g.id)));
     const out: { g: Game; line: BoxLine; tid: number }[] = [];
     boxes.forEach((b, i) => {
@@ -106,7 +109,7 @@ function GameLog({ L, p }: { L: League; p: Player }) {
       }
     });
     return out;
-  }, [p.id, season, L.games.length, L.season]);
+  }, [p.id, season, L.games.length, L.season, hidden]);
   if (!seasons.length) return <Empty>No games yet.</Empty>;
   return (
     <div>
@@ -250,11 +253,28 @@ function Instructions({ p }: { p: Player }) {
   );
 }
 
+function withoutGame(st: PlayerSeasonStats, line: BoxLine): PlayerSeasonStats {
+  const out = { ...st, g: Math.max(0, st.g - 1), gs: Math.max(0, st.gs - (line.starter ? 1 : 0)) };
+  for (const k of STAT_KEYS) if (k !== "g" && k !== "gs") out[k] = Math.max(0, st[k] - line[k]);
+  return out;
+}
+
 export function PlayerPage() {
   const L = useLeague();
   const { pid } = useParams();
   const id = Number(pid);
-  const { data: p, loading } = useAsync(() => fetchPlayer(L, id), [id, L.id]);
+  const { data: raw, loading } = useAsync(() => fetchPlayer(L, id), [id, L.id]);
+  // while one of his games is being watched, his numbers leave that game out (no spoilers)
+  const guard = useWatchGuard();
+  const { data: watched } = useAsync(async () => (guard ? await getBox(L.id, guard.gid) : undefined), [guard?.gid, L.id]);
+  const p = useMemo(() => {
+    if (!raw || !guard || !watched || watched.gid !== guard.gid) return raw;
+    for (const side of [watched.home, watched.away]) {
+      const line = side.lines.find((l) => l.pid === raw.id);
+      if (line) return { ...raw, stats: raw.stats.map((st) => (st.season === watched.season && st.tid === side.tid ? withoutGame(st, line) : st)) };
+    }
+    return raw;
+  }, [raw, guard, watched]);
   const [tab, setTab] = useState<"overview" | "stats" | "log" | "ratings" | "instr">("overview");
   const colors = useMemo<[string, string]>(() => {
     const tid = p?.tid ?? p?.stats[p.stats.length - 1]?.tid ?? p?.recruit?.committedTo ?? null;
@@ -340,7 +360,17 @@ export function PlayerPage() {
           </div>
         </div>
         <div className="hero-stats">
-          {cur && cur.g > 0 ? (
+          {p !== raw && !(cur && cur.g > 0) ? (
+            // his first game is the one being watched: nothing to show yet without giving it away
+            (["Points", "Rebounds", "Assists", "Minutes", "FG%", "3P%"] as const).map((k) => (
+              <div key={k}>
+                <div className="label">
+                  {seasonLabel(L.season)} {k}
+                </div>
+                <div className="value">-</div>
+              </div>
+            ))
+          ) : cur && cur.g > 0 ? (
             (
               [
                 ["Points", f1(cur.pts / cur.g)],

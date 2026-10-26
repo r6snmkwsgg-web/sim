@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import type { BoxScore, League, PbpEvent, Team } from "../../engine/types";
 import { team } from "../../engine/core";
 import { clockOf, hasStructuredPbp, liveState, periodLabel, type LiveLine } from "../../engine/pbp";
-import { setWatchGuard } from "../store";
+import { replayPosition, setReplayPosition, setWatchGuard } from "../store";
 import { cls, heroColors, hexToRgb, inkOn } from "../util";
 import { Logo, Seg } from "./common";
 import { Icon } from "./Icons";
@@ -310,7 +310,7 @@ function LiveBox({ L, lines, on, starters, tid, names }: { L: League; lines: Liv
 export function GameViewer({ L, box, onDone }: { L: League; box: BoxScore; onDone: () => void }) {
   const ev = box.pbp ?? [];
   const structured = hasStructuredPbp(ev);
-  const [i, setI] = useState(0);
+  const [i, setI] = useState(() => Math.min(replayPosition(box.gid), Math.max(0, ev.length - 1)));
   const [speed, setSpeed] = useState<number>(() => {
     try {
       return Number(localStorage.getItem("hd-watch-speed")) || 2;
@@ -348,10 +348,11 @@ export function GameViewer({ L, box, onDone }: { L: League; box: BoxScore; onDon
     return () => clearTimeout(t);
   }, [i, paused, speed, ev, done]);
 
-  // the result is revealed once the replay ends (leaving the page also clears it; see Layout)
+  // the result is revealed once the replay ends (leaving for anything but a player's page also clears it; see Layout)
   useEffect(() => {
+    setReplayPosition(box.gid, done ? null : i);
     if (done) setWatchGuard(null);
-  }, [done]);
+  }, [done, i, box.gid]);
 
   // space bar pauses
   useEffect(() => {
@@ -459,6 +460,7 @@ export function GameViewer({ L, box, onDone }: { L: League; box: BoxScore; onDon
         <button
           className="btn"
           onClick={() => {
+            setReplayPosition(box.gid, null);
             setWatchGuard(null);
             onDone();
           }}

@@ -1334,3 +1334,8 @@ div.rec-act { cursor: default; }
 .event-place { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 8px; background: var(--panel-2); border: 1px solid var(--border); color: var(--text) !important; min-width: 0; font-size: 13.5px; }
 .event-place b { width: 16px; text-align: right; font-variant-numeric: tabular-nums; flex: none; }
 .event-place.me { border-color: var(--accent-ink); }
+
+/* while a game is being watched and you've stepped out to a player's page */
+.back-to-game { position: fixed; right: 20px; bottom: 20px; z-index: 90; display: inline-flex; align-items: center; gap: 8px; height: 42px; padding: 0 18px; border-radius: 999px; background: var(--primary-bg); color: var(--primary-fg) !important; font-weight: 700; box-shadow: var(--shadow-lg); }
+.back-to-game:hover { filter: brightness(0.95); }
+@media (max-width: 760px) { .back-to-game { right: 12px; bottom: calc(76px + env(safe-area-inset-bottom)); } }

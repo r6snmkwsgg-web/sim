@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
-import { useLeague, useSim, runSim, stopSim, getWatchGuard, setWatchGuard, useWatchGuard, type SimTarget } from "../store";
+import { useLeague, useSim, runSim, stopSim, getWatchGuard, isWatchDetour, setWatchGuard, useWatchGuard, type SimTarget } from "../store";
 import { currentDateLabel, PHASE_LABEL, seasonLabel, team } from "../../engine/core";
 import { currentRank } from "../../engine/rankings";
 import { curSeason } from "../../engine/play";
@@ -433,10 +433,12 @@ export function Layout({ children }: { children: ReactNode }) {
   // hide the result of a game that's being watched
   const guard = useWatchGuard();
   const loc = useLocation();
-  // leaving the game being watched reveals the result (checked only when the page changes)
+  // leaving the game being watched reveals the result (checked only when the page changes);
+  // a look at a player's page is just a detour, and the replay waits where it was
+  const onWatchPage = !!guard && loc.pathname.endsWith(`/game/${guard.gid}`) && loc.search.includes("watch=1");
   useEffect(() => {
     const g = getWatchGuard();
-    if (g && !(loc.pathname.endsWith(`/game/${g.gid}`) && loc.search.includes("watch=1"))) setWatchGuard(null);
+    if (g && !(loc.pathname.endsWith(`/game/${g.gid}`) && loc.search.includes("watch=1")) && !isWatchDetour(loc.pathname)) setWatchGuard(null);
   }, [loc]);
   // each new screen starts at the top
   const contentRef = useRef<HTMLElement>(null);
@@ -530,6 +532,11 @@ export function Layout({ children }: { children: ReactNode }) {
       <ResultToast />
       <MomentOverlay />
       <ConfirmHost />
+      {guard && !onWatchPage && (
+        <Link to={`/l/${L.id}/game/${guard.gid}?watch=1`} className="back-to-game">
+          <Icon name="play" size={13} /> Back to the game
+        </Link>
+      )}
     </div>
   );
 }
