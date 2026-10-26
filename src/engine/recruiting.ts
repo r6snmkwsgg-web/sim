@@ -495,6 +495,8 @@ export function generateRecruitClass(L: League) {
 
 /** Weeks of recruiting that happen over the summer, before a class reaches the preseason. */
 export const SUMMER_WEEKS = 4;
+/** How far summer contact can get a school with a kid (share of his bar): Warm, not Hot. */
+const SUMMER_CAP = 0.3;
 let inSummer = false;
 
 /** Recruit timeline label for a week: summer weeks are negative, the fall week (preseason) is 0. */
@@ -504,9 +506,9 @@ export function recruitWeekLabel(week: number): string {
 
 /**
  * The summer before the season: everyone has been recruiting these kids on the circuit for months. AI programs
- * build interest, offer and host visits, though nobody gets past Hot and nobody commits before the fall. The
- * user's staff lays groundwork with realistic targets (calls and visits from the assistants and head coach) but
- * leaves offers, NIL and official visits to the head coach.
+ * build interest and offer, though nobody gets past Warm and nobody commits before the fall. The
+ * user's staff lays groundwork with realistic targets (calls and assistant visits) but leaves offers, NIL and the
+ * head coach's own visits to the user.
  */
 function summerRecruiting(L: League) {
   const week = L.week;
@@ -661,13 +663,36 @@ export function actionMult(L: League, t: Team, p: Player): number {
   return Math.max(0.1, (0.3 + 1.4 * f) * Math.max(0.15, 1 - reach * 1.8));
 }
 
+/** Most a high schooler warms to one school in a week, as a share of his bar: about three weeks from nothing to Ready. */
+export const WEEKLY_CAP = 0.4;
+
+function gainedThisWeek(L: League, p: Player, tid: number): number {
+  const r = p.recruit!;
+  return r.lastAction[`${tid}:gain`] === L.week ? (r.lastAction[`${tid}:gained`] ?? 0) : 0;
+}
+
+/** How much more interest a school can still build with a high schooler this week. */
+export function weekRoom(L: League, p: Player, tid: number): number {
+  return Math.max(0, WEEKLY_CAP * commitBar(L, p) - gainedThisWeek(L, p, tid));
+}
+
 function addInterest(L: League, p: Player, tid: number, amount: number) {
   const r = p.recruit!;
   if ((r.stage === "top5" || r.stage === "committed") && !r.top5.includes(tid)) amount *= 0.25;
   const cur = r.interest[tid] ?? 0;
-  // summer contact can get a school as far as Hot; nobody gets past that before the fall
-  if (inSummer) amount = Math.min(amount, Math.max(0, HOT * commitBar(L, p) - cur));
+  const bar = commitBar(L, p);
+  // summer contact is a head start, not half the job: it gets a school as far as Warm
+  if (inSummer) amount = Math.min(amount, Math.max(0, SUMMER_CAP * bar - cur));
+  // and a relationship takes time: only so much from one school in a week
+  if (r.kind === "hs") {
+    const soFar = gainedThisWeek(L, p, tid);
+    amount = Math.min(amount, Math.max(0, WEEKLY_CAP * bar - soFar));
+    r.lastAction[`${tid}:gain`] = L.week;
+    r.lastAction[`${tid}:gained`] = soFar + amount;
+  }
   r.interest[tid] = cur + amount;
+  // the week he turns Hot on a school; the official visit gets set up for the week after
+  if (cur < HOT * bar && cur + amount >= HOT * bar) r.lastAction[`${tid}:hot`] = L.week;
 }
 
 // ---------- actions ----------
@@ -708,10 +733,13 @@ export function canAct(L: League, tid: number, p: Player, a: ActionKey): { ok: b
     if (r.visits.includes(tid)) return { ok: false, why: "Already visited" };
     if (t.officialVisitsUsed >= OFFICIAL_VISITS) return { ok: false, why: "No official visits left" };
     if (heatOf(L, p, tid).v < HOT) return { ok: false, why: "Opens once he's Hot on you (halfway to committing)" };
+    if (r.lastAction[`${tid}:hot`] === L.week) return { ok: false, why: "He just got Hot: the visit can be set up for next week" };
+    if (r.kind === "hs" && weekRoom(L, p, tid) < 0.5) return { ok: false, why: "He's heard enough from you this week" };
     return { ok: true };
   }
   const last = r.lastAction[`${tid}:${a}`];
   if (last !== undefined && L.week - last < def.cooldown) return { ok: false, why: def.cooldown > 1 ? `Available in ${def.cooldown - (L.week - last)} wk` : "Done this week" };
+  if (r.kind === "hs" && weekRoom(L, p, tid) < 0.5) return { ok: false, why: "He's heard enough from you this week" };
   return { ok: true };
 }
 
@@ -747,9 +775,11 @@ export function doAction(L: League, tid: number, p: Player, a: ActionKey): { ok:
     if (s && s.streak >= 3) amt *= 1.15;
     if (isUser) r.history.unshift({ week: L.week, text: `Took an official visit to ${t.name}` });
   }
+  const before = r.interest[tid] ?? 0;
   addInterest(L, p, tid, amt);
   if (isUser && !L.board.includes(p.id)) L.board.push(p.id);
-  return { ok: true, msg: `+${amt.toFixed(1)} interest` };
+  const got = (r.interest[tid] ?? 0) - before;
+  return { ok: true, msg: got < amt - 0.05 ? `+${got.toFixed(1)} interest: that's all he'll take from you this week` : `+${got.toFixed(1)} interest` };
 }
 
 /** NIL dollars already promised: returning players' deals plus live offers and commitments. */
@@ -873,7 +903,7 @@ export function aiRecruitWeek(L: League, kind: "hs" | "portal" | "both" = "both"
   const buzzRank = unrated ? buzzRanks(L).rank : null;
   const view: View = (p) => (buzzRank && p.recruit!.kind === "hs" ? { rank: buzzRank.get(p.id) ?? p.recruit!.rank, value: recruitValue(p) + buzz(p) } : { rank: p.recruit!.rank, value: recruitValue(p) });
   for (const t of L.teams) {
-    // over the summer the user's staff lays groundwork with realistic targets; offers, NIL and official visits are the head coach's call
+    // over the summer the user's staff lays groundwork with realistic targets; offers, NIL and visits from the head coach himself are the user's call
     const staffOnly = t.id === L.userTid && !L.settings.autoRecruit;
     if (staffOnly && !inSummer) continue;
     const needs = openSpots(L, t.id);
@@ -942,7 +972,8 @@ export function aiRecruitWeek(L: League, kind: "hs" | "portal" | "both" = "both"
       }
       // once he's Hot on us, bring him to campus to close; until then the head coach does the selling
       if (!staffOnly && i < needs * 2 && r.offers.includes(t.id) && canAct(L, t.id, p, "visit").ok && rng.chance(0.75)) doAction(L, t.id, p, "visit");
-      else if (i < needs * 1.2 && (L.week >= 2 || L.week < 0) && canAct(L, t.id, p, "coach").ok) doAction(L, t.id, p, "coach");
+      // the head coach visit is the user's own to make
+      else if (!staffOnly && i < needs * 1.2 && (L.week >= 2 || L.week < 0) && canAct(L, t.id, p, "coach").ok) doAction(L, t.id, p, "coach");
       if (canAct(L, t.id, p, "assistant").ok) doAction(L, t.id, p, "assistant");
       else if (canAct(L, t.id, p, "call").ok) doAction(L, t.id, p, "call");
       i++;

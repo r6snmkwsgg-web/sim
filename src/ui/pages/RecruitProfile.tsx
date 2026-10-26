@@ -6,7 +6,7 @@ import { distanceMiles } from "../../engine/rng";
 import { regionOf } from "../../engine/data/cities";
 import {
   ACTIONS, actionMult, canAct, CAT_KEYS, CATS, catValue, doAction, factorScores, fit, heatOf, HOT, levelStars, RATINGS_DAY, ratingsHidden, NIL_VALUE, nilCommitted, OFFICIAL_VISITS, openSpots, PREF_LABELS, pullOffer, recruitingOpen,
-  SCOUT_COST, recruitWeekLabel, scoutedOvr, scoutGame, seenOf, setNilOffer, scoutedThisWeek, talkedTo, talkToCoach, watchFilm, weeksToDecide, type ActionKey,
+  SCOUT_COST, recruitWeekLabel, scoutedOvr, scoutGame, weekRoom, WEEKLY_CAP, commitBar, seenOf, setNilOffer, scoutedThisWeek, talkedTo, talkToCoach, watchFilm, weeksToDecide, type ActionKey,
 } from "../../engine/recruiting";
 import type { CatKey, League, Player, PrefKey, RatingKey } from "../../engine/types";
 import { PREF_KEYS } from "../../engine/types";
@@ -132,7 +132,7 @@ function WhosAfterHim({ L, p }: { L: League; p: Player }) {
               const w = weeksToDecide(L, p);
               return w > 0 ? `He starts deciding in about ${w} week${w === 1 ? "" : "s"}. ` : "He's deciding now, and the longer he waits the less it takes. ";
             })()}
-            Hot (halfway) opens an official visit. When he decides, he picks among schools that offered him and are Ready to commit, usually the one furthest ahead.
+            Hot (halfway) opens an official visit, starting the week after. When he decides, he picks among schools that offered him and are Ready to commit, usually the one furthest ahead.
           </div>
         </div>
       ) : (
@@ -187,6 +187,14 @@ function WhatHeWants({ L, p }: { L: League; p: Player }) {
 }
 
 /** Everything that costs points: scouting him and recruiting him. Every spend asks first. */
+/** How much more he can warm up to you this week: relationships take time. */
+function WeekRoom({ L, p }: { L: League; p: Player }) {
+  const room = weekRoom(L, p, L.userTid) / commitBar(L, p);
+  if (room < 0.01) return <>He's heard enough from you this week. More next week.</>;
+  if (room >= WEEKLY_CAP - 0.005) return <>He can warm up to you by up to {Math.round(WEEKLY_CAP * 100)}% of the way each week.</>;
+  return <>He can warm up another {Math.round(room * 100)}% of the way to you this week.</>;
+}
+
 function RecruitPanel({ L, p }: { L: League; p: Player }) {
   const r = p.recruit!;
   const ut = team(L, L.userTid);
@@ -200,10 +208,15 @@ function RecruitPanel({ L, p }: { L: League; p: Player }) {
   const spots = openSpots(L, ut.id);
   const act = async (a: ActionKey) => {
     const txt = ACTION_TEXT[a];
+    // warn before spending on a week he's nearly maxed out on
+    const bar = commitBar(L, p);
+    const usual = (ACTIONS[a].value * actionMult(L, ut, p)) / bar;
+    const room = hs ? weekRoom(L, p, L.userTid) / bar : 1;
+    const short = room < usual * 0.85 ? ` He can only warm up another ${Math.round(room * 100)}% to you this week, so this would land for about that (normally about ${Math.round(usual * 100)}%).` : "";
     const ok = await confirmSpend(
       a === "offer"
         ? { title: `Offer ${name} a scholarship?`, body: `He can only commit to schools that offered him. You have ${spots} open spot${spots === 1 ? "" : "s"} next season.`, ok: "Offer scholarship" }
-        : { title: `${txt.label}: ${name}?`, body: txt.desc, cost: cost(ACTIONS[a].cost), ok: txt.label },
+        : { title: `${txt.label}: ${name}?`, body: txt.desc + short, cost: cost(ACTIONS[a].cost), ok: txt.label },
     );
     if (ok) mutate((LL) => setMsg(doAction(LL, LL.userTid, p, a)));
   };
@@ -286,7 +299,7 @@ function RecruitPanel({ L, p }: { L: League; p: Player }) {
           </div>
         </Card>
       )}
-      <Card title="Recruit him">
+      <Card title="Recruit him" sub={hs && r.stage !== "signed" ? <WeekRoom L={L} p={p} /> : undefined}>
         {r.stage === "signed" ? (
           <div className="muted">He has signed. Recruiting is over.</div>
         ) : (
