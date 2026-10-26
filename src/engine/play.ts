@@ -28,7 +28,7 @@ const rotCache = new Map<string, { starters: number[]; minutes: Record<number, n
 export function buildSimTeam(L: League, t: Team): SimTeam {
   const avail = availablePlayers(L, t.id);
   let rot;
-  if (t.id === L.userTid && !t.rotation.auto) rot = resolveRotation(avail, t.rotation);
+  if (t.id === L.userTid && !t.rotation.auto) rot = resolveRotation(avail, t.rotation, roster(L, t.id));
   else {
     const key = `${t.id}:${avail.map((p) => p.id * 100 + p.ovr).join(",")}`;
     rot = rotCache.get(key);

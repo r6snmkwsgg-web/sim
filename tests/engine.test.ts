@@ -3,6 +3,7 @@ import { createLeague } from "../src/engine/league";
 import { advancePhase, isDayPhase, simDay } from "../src/engine/advance";
 import { getMemorySink, roster } from "../src/engine/core";
 import type { League } from "../src/engine/types";
+import { resolveRotation } from "../src/engine/sim/rotation";
 
 function newLeague(seed = 101): League {
   return createLeague({ name: "Test", teamSlug: "duke", coachFirst: "T", coachLast: "C", seed });
@@ -128,5 +129,25 @@ describe("a full season", () => {
     }
     expect(L.players.filter((p) => p.status === "recruit").length).toBeGreaterThan(1000);
     expect(() => structuredClone(L)).not.toThrow();
+  });
+});
+
+describe("rotation", () => {
+  const L = newLeague(7);
+  const all = roster(L, L.userTid);
+  it("puts the next man at his position into the lineup when a starter is out", () => {
+    const order = all.map((p) => p.id);
+    const starters = order.slice(0, 5);
+    const hurt = all[0];
+    const group = (pos: string) => (pos === "PG" || pos === "SG" ? "G" : pos === "SF" ? "W" : "B");
+    const minutes = Object.fromEntries(all.map((p, i) => [p.id, i < 5 ? 32 : i < 9 ? 10 : 0]));
+    const avail = all.filter((p) => p.id !== hurt.id);
+    const r = resolveRotation(avail, { auto: false, starters, minutes, order }, all);
+    const expected = all.slice(5).find((p) => group(p.pos) === group(hurt.pos)) ?? all[5];
+    expect(r.starters).toHaveLength(5);
+    expect(r.starters).not.toContain(hurt.id);
+    expect(r.starters).toContain(expected.id);
+    // his minutes are shared out, so the game still has 200
+    expect(Object.values(r.minutes).reduce((a, b) => a + b, 0)).toBe(200);
   });
 });

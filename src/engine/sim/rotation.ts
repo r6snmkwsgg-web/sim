@@ -68,13 +68,27 @@ export function autoRotation(avail: Player[], depth = 9): { starters: number[]; 
 }
 
 /** Resolve a team's saved rotation against who is actually available. */
+const group = (p: Player) => (p.pos === "PG" || p.pos === "SG" ? "G" : p.pos === "SF" ? "W" : "B");
+
 export function resolveRotation(
   avail: Player[],
-  rot: { auto: boolean; starters: number[]; minutes: Record<number, number> },
+  rot: { auto: boolean; starters: number[]; minutes: Record<number, number>; order?: number[] },
+  everyone: Player[] = avail,
 ): { starters: number[]; minutes: Record<number, number> } {
   if (rot.auto) return autoRotation(avail);
   const ids = new Set(avail.map((p) => p.id));
   const starters = rot.starters.filter((id) => ids.has(id));
+  if (starters.length < 5 && rot.order) {
+    // next man up: the first one down the depth chart who plays the missing starter's spot, else the first one
+    const byId = new Map(everyone.map((p) => [p.id, p]));
+    const bench = rot.order.filter((id) => ids.has(id) && !starters.includes(id));
+    for (const id of rot.starters) {
+      if (ids.has(id) || starters.length >= 5 || !bench.length) continue;
+      const missing = byId.get(id);
+      const i = missing ? bench.findIndex((b) => group(byId.get(b)!) === group(missing)) : -1;
+      starters.push(bench.splice(Math.max(0, i), 1)[0]);
+    }
+  }
   const minutes: Record<number, number> = {};
   let total = 0;
   for (const p of avail) {

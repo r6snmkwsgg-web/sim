@@ -460,6 +460,7 @@ export function rollover(L: League) {
       // keep the user's rotation valid
       const ids = new Set(roster(L, t.id).map((p) => p.id));
       t.rotation.starters = t.rotation.starters.filter((id) => ids.has(id));
+      if (t.rotation.order) t.rotation.order = t.rotation.order.filter((id) => ids.has(id));
       for (const k of Object.keys(t.rotation.minutes)) if (!ids.has(Number(k))) delete t.rotation.minutes[Number(k)];
       if (t.rotation.starters.length < 5) t.rotation.auto = true;
       for (const p of roster(L, t.id)) p.redshirt = false;

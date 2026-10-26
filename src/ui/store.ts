@@ -106,14 +106,18 @@ export function mutate(fn: (L: League) => void) {
   saveSoon();
 }
 
-// make sure pending edits are written when the tab closes
+// make sure pending edits are written when the tab closes, or the app goes to the background on a phone
 if (typeof window !== "undefined") {
-  window.addEventListener("beforeunload", () => {
+  const flush = () => {
     if (saveTimer) {
       clearTimeout(saveTimer);
+      saveTimer = null;
       void save();
     }
-  });
+  };
+  window.addEventListener("beforeunload", flush);
+  window.addEventListener("pagehide", flush);
+  document.addEventListener("visibilitychange", () => document.visibilityState === "hidden" && flush());
 }
 
 // ---------------- sim runner ----------------

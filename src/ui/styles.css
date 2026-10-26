@@ -1348,3 +1348,35 @@ div.rec-act { cursor: default; }
 .tabs-row .tabs { flex: 1; min-width: 0; border-bottom: 0; margin-bottom: 0; }
 .tabs-row > .select { margin-bottom: 6px; flex: none; }
 .log-event { display: block; font-size: 11px; color: var(--muted); margin-top: 1px; }
+
+/* rotation: drag-and-drop depth chart */
+.rot-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; align-items: start; }
+@media (max-width: 1100px) { .rot-layout { grid-template-columns: minmax(0, 1fr); } }
+.rot-list { position: relative; }
+.rot-sec { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; padding: 9px 16px 8px; font-size: 12px; border-bottom: 1px solid var(--border); background: var(--panel-2); }
+.rot-sec b { font-size: 11px; font-weight: 750; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-2); }
+.rot-row { display: grid; grid-template-columns: 28px 20px minmax(0, 1fr) 44px minmax(90px, 170px) auto; align-items: center; gap: 10px; padding: 7px 14px 7px 8px; border-bottom: 1px solid var(--border); background: var(--panel); position: relative; }
+.rot-row.starter { box-shadow: inset 3px 0 0 var(--accent-ink); }
+.rot-row.dnp .rot-player, .rot-row.dnp .rot-ovr { opacity: 0.55; }
+.rot-row.dragging { z-index: 5; background: var(--panel-raised); box-shadow: var(--shadow-lg), inset 3px 0 0 var(--accent-ink); border-radius: 10px; }
+.rot-row.out { opacity: 0.75; }
+.rot-grip { width: 28px; height: 36px; display: inline-flex; align-items: center; justify-content: center; border: 0; padding: 0; background: none; color: var(--faint); border-radius: 7px; cursor: grab; touch-action: none; }
+.rot-grip:hover { background: var(--hover); color: var(--text-2); }
+.rot-grip:focus-visible { outline: 2px solid var(--accent-ink); outline-offset: 1px; }
+body.dragging-row, body.dragging-row * { cursor: grabbing !important; user-select: none; -webkit-user-select: none; }
+.rot-n { font-size: 11px; font-weight: 700; color: var(--faint); text-align: right; font-variant-numeric: tabular-nums; }
+.rot-player { min-width: 0; display: flex; align-items: center; gap: 4px 8px; flex-wrap: wrap; }
+.rot-player .player-cell { min-width: 0; }
+.rot-ovr { text-align: center; }
+.rot-step { display: inline-flex; align-items: center; border: 1px solid var(--border-strong); border-radius: 9px; overflow: hidden; background: var(--input-bg); }
+.rot-step button { width: 30px; height: 30px; border: 0; background: none; color: var(--text-2); font-size: 16px; font-weight: 600; cursor: pointer; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+.rot-step button:hover:not(:disabled) { background: var(--hover); }
+.rot-step button:disabled { color: var(--faint); cursor: default; }
+.rot-step .num { min-width: 26px; text-align: center; font-weight: 750; font-size: 13.5px; }
+.rot-drop { position: absolute; left: 8px; right: 8px; height: 3px; border-radius: 2px; background: var(--accent-ink); box-shadow: 0 0 0 3px var(--accent-soft); pointer-events: none; z-index: 6; }
+.rot-out .rot-row { grid-template-columns: 28px 20px minmax(0, 1fr) 44px; }
+@media (max-width: 640px) {
+  .rot-row { grid-template-columns: 26px minmax(0, 1fr) 36px auto; gap: 8px; padding-right: 10px; }
+  .rot-n, .rot-slider { display: none; }
+  .rot-out .rot-row { grid-template-columns: 26px minmax(0, 1fr) 36px; }
+}

@@ -37,6 +37,7 @@ export function releasePlayer(L: League, p: Player) {
   rostersDirty(L);
   if (t.rotation.minutes[p.id] !== undefined) delete t.rotation.minutes[p.id];
   t.rotation.starters = t.rotation.starters.filter((x) => x !== p.id);
+  if (t.rotation.order) t.rotation.order = t.rotation.order.filter((x) => x !== p.id);
   addNews(L, "team", `${playerName(p)} was released from the roster.`, { tid: t.id, user: true });
 }
 
@@ -281,7 +282,7 @@ export function Roster() {
   const ps = roster(L, t.id);
   const incoming = commitsFor(L, t.id);
   const nilUsed = ps.reduce((a, p) => a + p.nilDeal, 0);
-  const starterIds = resolveRotation(availablePlayers(L, t.id), t.rotation).starters;
+  const starterIds = resolveRotation(availablePlayers(L, t.id), t.rotation, roster(L, t.id)).starters;
   const starters = new Set(starterIds);
   const lineup = ps.filter((p) => starters.has(p.id)).sort((a, b) => POS_ORDER.indexOf(a.pos) - POS_ORDER.indexOf(b.pos));
   const bench = ps

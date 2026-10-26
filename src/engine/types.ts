@@ -190,6 +190,8 @@ export interface Rotation {
   auto: boolean;
   starters: number[]; // player ids (5)
   minutes: Record<number, number>; // pid -> target minutes
+  /** the whole depth chart, top to bottom (saves from before it existed don't have one) */
+  order?: number[];
 }
 
 export type PracticeFocus = "balanced" | "shooting" | "inside" | "playmaking" | "defense" | "rebounding" | "conditioning";
