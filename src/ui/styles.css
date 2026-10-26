@@ -1401,3 +1401,5 @@ body.dragging-row, body.dragging-row * { cursor: grabbing !important; user-selec
 .cat-parts b { font-weight: 750; }
 /* a percentage from only a handful of shots */
 .small-sample { color: var(--faint); text-decoration: underline dotted; text-underline-offset: 3px; cursor: help; }
+
+.confirm-cost.short { color: var(--bad); background: var(--bad-bg); }

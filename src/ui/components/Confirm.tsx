@@ -66,7 +66,9 @@ export function ConfirmHost() {
 
 function ConfirmModal({ a }: { a: Ask }) {
   const [pick, setPick] = useState<string | null>(null);
-  const ready = !a.choices || pick !== null;
+  // never let a spend through that the points can't cover
+  const short = !!a.cost && a.cost.pts > a.cost.have;
+  const ready = (!a.choices || pick !== null) && !short;
   const confirm = () => ready && close(a.choices ? pick : "yes");
   // focus moves into the popup (so Enter confirms it, instead of re-pressing the button that opened it)
   useEffect(() => {
@@ -96,10 +98,18 @@ function ConfirmModal({ a }: { a: Ask }) {
             </div>
           )}
           {a.cost && a.cost.pts > 0 && (
-            <div className="confirm-cost">
+            <div className={`confirm-cost${short ? " short" : ""}`}>
               <Icon name="bolt" size={14} />
               <span>
-                Costs <b>{a.cost.pts}</b> coaching points. You'll have {a.cost.have - a.cost.pts} left this week.
+                {short ? (
+                  <>
+                    Costs <b>{a.cost.pts}</b> coaching points, but you only have {a.cost.have} left this week.
+                  </>
+                ) : (
+                  <>
+                    Costs <b>{a.cost.pts}</b> coaching points. You'll have {a.cost.have - a.cost.pts} left this week.
+                  </>
+                )}
               </span>
             </div>
           )}
