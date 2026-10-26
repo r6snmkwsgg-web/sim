@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { mutate, useLeague, useWatchGuard } from "../store";
 import { seasonLabel, teamMaybe, shortDayLabel } from "../../engine/core";
 import { classLabel, grade, heightStr, RATING_LABELS, CLASS_LABELS } from "../../engine/ratings";
@@ -88,9 +88,7 @@ function StatsTable({ L, p, mode }: { L: League; p: Player; mode: "pg" | "tot" }
   );
 }
 
-function GameLog({ L, p }: { L: League; p: Player }) {
-  const seasons = [...new Set(p.stats.map((s) => s.season))].sort((a, b) => b - a);
-  const [season, setSeason] = useState<number>(seasons[0] ?? L.season);
+function GameLog({ L, p, season }: { L: League; p: Player; season: number }) {
   // a game still being watched stays out of the log until its replay is over
   const hidden = useWatchGuard()?.gid;
   const { data, loading } = useAsync(async () => {
@@ -110,19 +108,13 @@ function GameLog({ L, p }: { L: League; p: Player }) {
     });
     return out;
   }, [p.id, season, L.games.length, L.season, hidden]);
-  if (!seasons.length) return <Empty>No games yet.</Empty>;
+  if (!p.stats.length) return <Empty>No games yet.</Empty>;
+  const rows = data ?? [];
+  const n = rows.length;
+  const avg = (f: (l: BoxLine) => number) => (n ? (rows.reduce((a, x) => a + f(x.line), 0) / n).toFixed(1) : "-");
   return (
     <div>
-      <div className="row card-b">
-        <select className="select" value={season} onChange={(e) => setSeason(Number(e.target.value))}>
-          {seasons.map((s) => (
-            <option key={s} value={s}>
-              {seasonLabel(s)}
-            </option>
-          ))}
-        </select>
-        {loading && <span className="muted small">Loading…</span>}
-      </div>
+      {loading && <div className="card-b muted small">Loading…</div>}
       <div className="tbl-wrap">
         <table className="tbl compact">
           <thead>
@@ -151,10 +143,11 @@ function GameLog({ L, p }: { L: League; p: Player }) {
               const them = home ? g.as : g.hs;
               return (
                 <tr key={g.id}>
-                  <td className="muted">{shortDayLabel(g.season, g.day)}</td>
-                  <td>
+                  <td className="muted nowrap">{shortDayLabel(g.season, g.day)}</td>
+                  <td className="nowrap">
                     <span className="muted small">{g.neutral ? "vs " : home ? "vs " : "@ "}</span>
                     <TeamLink L={L} tid={home ? g.away : g.home} short size={16} />
+                    {g.event && <span className="log-event">{g.event}</span>}
                   </td>
                   <td>
                     <Link to={`/l/${L.id}/game/${g.id}`} className={us > them ? "good" : "bad"}>
@@ -182,14 +175,41 @@ function GameLog({ L, p }: { L: League; p: Player }) {
                 </tr>
               );
             })}
-            {!loading && !(data ?? []).length && (
+            {!loading && !n && (
               <tr>
                 <td colSpan={15} className="empty">
-                  No box scores stored for this season.
+                  {L.settings.keepAllBoxScores ? "No games this season." : "Only your games and the postseason keep box scores. Turn on \"Keep box scores for every game\" in Settings to log every game."}
                 </td>
               </tr>
             )}
           </tbody>
+          {n > 0 && (
+            <tfoot>
+              <tr>
+                <td colSpan={3}>
+                  <b>Per game</b> <span className="muted small">({n} games)</span>
+                </td>
+                <td className="n">{avg((l) => l.min)}</td>
+                <td className="n bold">{avg((l) => l.pts)}</td>
+                <td className="n">
+                  {avg((l) => l.fgm)}-{avg((l) => l.fga)}
+                </td>
+                <td className="n">
+                  {avg((l) => l.tpm)}-{avg((l) => l.tpa)}
+                </td>
+                <td className="n">
+                  {avg((l) => l.ftm)}-{avg((l) => l.fta)}
+                </td>
+                <td className="n">{avg((l) => l.orb + l.drb)}</td>
+                <td className="n">{avg((l) => l.ast)}</td>
+                <td className="n">{avg((l) => l.stl)}</td>
+                <td className="n">{avg((l) => l.blk)}</td>
+                <td className="n">{avg((l) => l.tov)}</td>
+                <td className="n">{avg((l) => l.pf)}</td>
+                <td className="n">{avg((l) => l.pm)}</td>
+              </tr>
+            </tfoot>
+          )}
         </table>
       </div>
     </div>
@@ -253,6 +273,14 @@ function Instructions({ p }: { p: Player }) {
   );
 }
 
+/** One line for a season, adding up stints with more than one team. */
+function seasonTotal(rows: PlayerSeasonStats[]): PlayerSeasonStats | undefined {
+  if (!rows.length) return undefined;
+  const out = { ...rows[0] };
+  for (const r of rows.slice(1)) for (const k of STAT_KEYS) out[k] += r[k];
+  return out;
+}
+
 function withoutGame(st: PlayerSeasonStats, line: BoxLine): PlayerSeasonStats {
   const out = { ...st, g: Math.max(0, st.g - 1), gs: Math.max(0, st.gs - (line.starter ? 1 : 0)) };
   for (const k of STAT_KEYS) if (k !== "g" && k !== "gs") out[k] = Math.max(0, st[k] - line[k]);
@@ -275,7 +303,8 @@ export function PlayerPage() {
     }
     return raw;
   }, [raw, guard, watched]);
-  const [tab, setTab] = useState<"overview" | "stats" | "log" | "ratings" | "instr">("overview");
+  const [sp, setSp] = useSearchParams();
+  const [tab, setTab] = useState<"overview" | "stats" | "log" | "ratings" | "instr">(sp.get("tab") === "log" ? "log" : "overview");
   const colors = useMemo<[string, string]>(() => {
     const tid = p?.tid ?? p?.stats[p.stats.length - 1]?.tid ?? p?.recruit?.committedTo ?? null;
     return teamMaybe(L, tid)?.colors ?? ["#4b5563", "#e5e7eb"];
@@ -285,7 +314,15 @@ export function PlayerPage() {
   if ((p.status === "recruit" || p.status === "portal") && p.recruit) return <RecruitProfile p={p} />;
   const t = teamMaybe(L, p.tid);
   const isUser = p.tid === L.userTid && p.status === "active";
-  const cur = p.stats.find((s) => s.season === L.season && s.tid === p.tid);
+  // any season he played can be picked; the header numbers and game log follow it
+  const seasons = [...new Set(p.stats.filter((s) => s.g > 0 || s.season === L.season).map((s) => s.season))].sort((a, b) => b - a);
+  const season = Number(sp.get("season")) || seasons[0] || L.season;
+  const pick = (s: number) => setSp((prev) => {
+    const next = new URLSearchParams(prev);
+    next.set("season", String(s));
+    return next;
+  }, { replace: true });
+  const cur = seasonTotal(p.stats.filter((s) => s.season === season));
   const lastTid = p.stats[p.stats.length - 1]?.tid;
   const pot = p.pot + p.potErr;
   const statusLine =
@@ -365,7 +402,7 @@ export function PlayerPage() {
             (["Points", "Rebounds", "Assists", "Minutes", "FG%", "3P%"] as const).map((k) => (
               <div key={k}>
                 <div className="label">
-                  {seasonLabel(L.season)} {k}
+                  {seasonLabel(season)} {k}
                 </div>
                 <div className="value">-</div>
               </div>
@@ -383,7 +420,7 @@ export function PlayerPage() {
             ).map(([k, v]) => (
               <div key={k}>
                 <div className="label">
-                  {seasonLabel(L.season)} {k}
+                  {seasonLabel(season)} {k}
                 </div>
                 <div className="value">{v}</div>
               </div>
@@ -410,17 +447,28 @@ export function PlayerPage() {
           )}
         </div>
       </div>
-      <Tabs
-        tabs={[
-          { key: "overview", label: "Overview" },
-          { key: "stats", label: "Career Stats" },
-          { key: "log", label: "Game Log" },
-          { key: "ratings", label: "Ratings History" },
-          ...(isUser ? [{ key: "instr" as const, label: "Instructions" }] : []),
-        ]}
-        value={tab}
-        onChange={setTab}
-      />
+      <div className="tabs-row">
+        <Tabs
+          tabs={[
+            { key: "overview", label: "Overview" },
+            { key: "log", label: "Game Log" },
+            { key: "stats", label: "Career Stats" },
+            { key: "ratings", label: "Ratings History" },
+            ...(isUser ? [{ key: "instr" as const, label: "Instructions" }] : []),
+          ]}
+          value={tab}
+          onChange={setTab}
+        />
+        {seasons.length > 0 && (
+          <select className="select" value={season} onChange={(e) => pick(Number(e.target.value))} title="Season">
+            {seasons.map((s) => (
+              <option key={s} value={s}>
+                {seasonLabel(s)}
+              </option>
+            ))}
+          </select>
+        )}
+      </div>
       {tab === "overview" && (
         <div className="grid g-main">
           <div className="col gap-16">
@@ -497,7 +545,7 @@ export function PlayerPage() {
       )}
       {tab === "log" && (
         <div className="card">
-          <GameLog L={L} p={p} />
+          <GameLog L={L} p={p} season={season} />
         </div>
       )}
       {tab === "ratings" && (
