@@ -63,6 +63,15 @@ export class Rng {
 }
 
 export const clamp = (x: number, lo: number, hi: number) => (x < lo ? lo : x > hi ? hi : x);
+
+/** A standard normal draw fixed by a seed, so a player's quirks never change between visits. */
+export function hashNormal(seed: number): number {
+  let h = Math.imul(seed, 2654435761) >>> 0;
+  const u1 = ((h % 100000) + 0.5) / 100000;
+  h = Math.imul(h ^ (h >>> 15), 2246822519) >>> 0;
+  const u2 = ((h % 100000) + 0.5) / 100000;
+  return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+}
 export const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 export const sigmoid = (x: number) => 1 / (1 + Math.exp(-x));
 

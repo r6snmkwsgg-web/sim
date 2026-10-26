@@ -1,6 +1,6 @@
 import type { CatKey, League, Player, Pos, PrefKey, RatingKey, RecruitInfo, RevealKey, Team } from "./types";
 import { PREF_KEYS } from "./types";
-import { Rng, clamp, distanceMiles } from "./rng";
+import { Rng, clamp, distanceMiles, hashNormal } from "./rng";
 import { addNews, addPlayer, coachOf, nextPid, playerName, roster, rngOf, rostersDirty, rosterVersion, team } from "./core";
 import { generatePlayer } from "./gen/player";
 import { powerRanks } from "./rankings";
@@ -149,15 +149,6 @@ export function shownStars(L: League, p: Player): number | null {
   return ratingsHidden(L, p) ? null : p.recruit!.stars;
 }
 
-/** A standard normal draw fixed by a seed, so a player's quirks never change between visits. */
-function hashNormal(seed: number): number {
-  let h = Math.imul(seed, 2654435761) >>> 0;
-  const u1 = ((h % 100000) + 0.5) / 100000;
-  h = Math.imul(h ^ (h >>> 15), 2246822519) >>> 0;
-  const u2 = ((h % 100000) + 0.5) / 100000;
-  return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
-}
-
 /** What high school production and word of mouth suggest before anyone ranks him (fixed per player). */
 function buzz(p: Player): number {
   return hashNormal(p.id ^ 0x9e3779b9) * 7;
@@ -274,30 +265,48 @@ function blend(p: Player, w: Partial<Record<RatingKey, number>>): number {
   return s / tw;
 }
 
+/** How strong his high school league is and how big his role there (+ means a weak league and the ball in his hands). Fixed for good. */
+export function hsSituation(p: Player): number {
+  return hashNormal(p.faceSeed ^ 0x6a09e667);
+}
+
 /**
- * His high school per-game line, from the skills behind each number: points from his scoring, rebounds
- * from his rebounding, assists from his playmaking. How much he puts up also depends on his situation,
- * which stays with him: a star on a loaded prep team might average 14, a small-town kid in a weak league 30.
- * So the numbers say who can score, not who the five-stars are (his shooting percentages are the tell).
+ * What his skills produce before his situation comes in: points from his scoring, rebounds from his
+ * rebounding, assists from his playmaking. Points are raw (see scaledPts).
+ */
+export function hsSkill(p: Player): { pts: number; reb: number; ast: number } {
+  const tall = (p.hgt - POS_HEIGHT[p.pos]) * 0.8;
+  const big = p.pos === "PF" || p.pos === "C";
+  const guard = p.pos === "PG" || p.pos === "SG";
+  return {
+    pts: 9 + (blend(p, HS_SCORING[p.pos]) + tall - 28) * 0.6,
+    reb: (big ? 8 : guard ? 3.5 : 5.5) + (blend(p, { reb: 0.6, str: 0.2, ath: 0.2 }) + tall - HS_REB_MID[p.pos]) * 0.17 + hashNormal(p.faceSeed ^ 0x5bd1e995) * 1.1,
+    ast: (p.pos === "PG" ? 5.5 : guard ? 3 : big ? 1.2 : 2.2) + (blend(p, { pas: 0.45, hnd: 0.35, iq: 0.2 }) - HS_AST_MID[p.pos]) * 0.1 + hashNormal(p.faceSeed ^ 0x1b873593) * 0.7,
+  };
+}
+
+/** Raw points on the scale prospects really average; past `soft` it gets harder and harder to add more. */
+export function scaledPts(raw: number, soft: number): number {
+  const x = raw * 0.75 + 2;
+  return x > soft ? soft + 10 * (1 - Math.exp(-(x - soft) / 14)) : x;
+}
+
+/**
+ * His high school per-game line. How much he puts up depends on his situation as much as his skill:
+ * a star on a loaded prep team might average 14, a small-town kid in a weak league 30. So the numbers
+ * say who can score, not who the five-stars are (his free-throw shooting is the tell).
  */
 export function hsLine(p: Player): { pts: number; reb: number; ast: number; blk: number; stl: number } | null {
   const hs = p.recruit?.hs;
   if (!hs) return null;
-  const tall = (p.hgt - POS_HEIGHT[p.pos]) * 0.8;
-  const big = p.pos === "PF" || p.pos === "C";
-  const guard = p.pos === "PG" || p.pos === "SG";
-  const scoring = blend(p, HS_SCORING[p.pos]) + tall;
-  // how strong his league is and how big his role: the same every season
-  const situation = hashNormal(p.faceSeed ^ 0x6a09e667);
-  let pts = ((9 + (scoring - 28) * 0.6) * Math.exp(0.25 * situation) + hashNormal(p.faceSeed ^ 0x2c1b3c6d) * 1.5) * 0.75 + 2;
-  // past 27 it gets harder and harder to add more: the very best land in the low-to-mid 30s
-  if (pts > 27) pts = 27 + 10 * (1 - Math.exp(-(pts - 27) / 14));
+  const sk = hsSkill(p);
+  const situation = hsSituation(p);
+  // top prospects mostly average 20-30; the very best land in the low-to-mid 30s
+  const pts = scaledPts(sk.pts * Math.exp(0.25 * situation) + hashNormal(p.faceSeed ^ 0x2c1b3c6d) * 1.5, 27);
   const role = Math.exp(0.12 * situation);
-  const reb = ((big ? 8 : guard ? 3.5 : 5.5) + (blend(p, { reb: 0.6, str: 0.2, ath: 0.2 }) + tall - HS_REB_MID[p.pos]) * 0.17 + hashNormal(p.faceSeed ^ 0x5bd1e995) * 1.1) * role;
-  const ast = ((p.pos === "PG" ? 5.5 : guard ? 3 : big ? 1.2 : 2.2) + (blend(p, { pas: 0.45, hnd: 0.35, iq: 0.2 }) - HS_AST_MID[p.pos]) * 0.1 + hashNormal(p.faceSeed ^ 0x1b873593) * 0.7) * role;
   const z = ((p.faceSeed % 1000) / 1000 - 0.5) * 2;
   const one = (x: number) => Math.round(x * 10) / 10;
-  return { pts: one(clamp(pts, 4, 36)), reb: one(clamp(reb, 1, 18)), ast: one(clamp(ast, 0.3, 11)), blk: hs.blk ?? hsBlk(p, z), stl: hs.stl ?? hsStl(p, -z) };
+  return { pts: one(clamp(pts, 4, 36)), reb: one(clamp(sk.reb * role, 1, 18)), ast: one(clamp(sk.ast * role, 0.3, 11)), blk: hs.blk ?? hsBlk(p, z), stl: hs.stl ?? hsStl(p, -z) };
 }
 
 export const OFFICIAL_VISITS = 12;

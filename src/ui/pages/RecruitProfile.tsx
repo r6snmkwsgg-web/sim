@@ -10,11 +10,11 @@ import {
 } from "../../engine/recruiting";
 import type { CatKey, League, Player, PrefKey } from "../../engine/types";
 import { PREF_KEYS } from "../../engine/types";
-import { Card, Grade, heroStyle, Logo, Stars, Tabs } from "../components/common";
+import { Card, CircuitBadge, Grade, heroStyle, Logo, Stars, Tabs } from "../components/common";
 import { Face } from "../components/Face";
 import { Icon } from "../components/Icons";
 import { confirmSpend, pickAndConfirm } from "../components/Confirm";
-import { hsGameLog, hsNow, hsSeasons, type HsSeason } from "../../engine/hsStats";
+import { hsGameLog, hsNow, hsSeasons, summerSeasons, type HsSeason } from "../../engine/hsStats";
 import { inkOn, money } from "../util";
 
 const IMPORTANCE = ["", "Doesn't care", "Minor", "Nice to have", "Important", "Must have"];
@@ -389,6 +389,68 @@ const made = (m: number, a: number) => `${m.toFixed(1)}-${a.toFixed(1)}`;
 const pctOf = (m: number, a: number) => (a > 0 ? `${((100 * m) / a).toFixed(1)}%` : "-");
 
 /** High school career; the senior year plays out alongside the college season, game by game. */
+/** Summer ball: tougher competition than his high school games, but fewer of them. */
+function SummerCard({ p }: { p: Player }) {
+  const ss = summerSeasons(p);
+  return (
+    <Card title="Summer circuit" sub={ss.length ? "Per game" : undefined} flush={ss.length > 0}>
+      {ss.length ? (
+        <>
+          <div className="tbl-scroll">
+            <table className="tbl">
+              <thead>
+                <tr>
+                  <th>Summer</th>
+                  <th>Team</th>
+                  <th>Circuit</th>
+                  <th className="n">G</th>
+                  <th className="n">MIN</th>
+                  <th className="n">PPG</th>
+                  <th className="n">RPG</th>
+                  <th className="n">APG</th>
+                  <th className="n">FG%</th>
+                  <th className="n">3P%</th>
+                  <th className="n">FT%</th>
+                  <th className="n">STL</th>
+                  <th className="n">BLK</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ss.map((x) => (
+                  <tr key={x.label}>
+                    <td>
+                      <b>{x.label}</b>
+                    </td>
+                    <td className="nowrap">{x.team}</td>
+                    <td>
+                      <CircuitBadge c={x.circuit} />
+                    </td>
+                    <td className="n">{x.g}</td>
+                    <td className="n">{x.min.toFixed(1)}</td>
+                    <td className="n">
+                      <b>{x.pts.toFixed(1)}</b>
+                    </td>
+                    <td className="n">{x.reb.toFixed(1)}</td>
+                    <td className="n">{x.ast.toFixed(1)}</td>
+                    <td className="n">{pctOf(x.fgm, x.fga)}</td>
+                    <td className="n">{pctOf(x.tpm, x.tpa)}</td>
+                    <td className="n">{pctOf(x.ftm, x.fta)}</td>
+                    <td className="n">{x.stl.toFixed(1)}</td>
+                    <td className="n">{x.blk.toFixed(1)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="card-b faint small">The national circuit (and youth national teams overseas) puts the best prospects against each other, so the numbers run lower than in high school but say more. Regional numbers come easier. Fewer games than a high school season, so percentages bounce around.</div>
+        </>
+      ) : (
+        <div className="muted small">He didn't play on a summer circuit. All there is to go on is his high school numbers and your own scouting.</div>
+      )}
+    </Card>
+  );
+}
+
 function HsStatsTab({ L, p }: { L: League; p: Player }) {
   const last = p.stats[p.stats.length - 1];
   if (p.recruit?.kind === "portal")
@@ -483,6 +545,7 @@ function HsStatsTab({ L, p }: { L: League; p: Player }) {
           </table>
         </div>
       </Card>
+      <SummerCard p={p} />
       {rows.some((x) => x.year === "Senior") && (
         <Card title="Senior season game log" sub={games.length ? `${games.length} games so far, latest first` : "His senior season tips off with yours"} flush>
           {games.length ? (

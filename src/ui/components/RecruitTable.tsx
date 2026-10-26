@@ -4,9 +4,9 @@ import { team } from "../../engine/core";
 import { heightStr, classLabel } from "../../engine/ratings";
 import { ACTIONS, actionMult, canAct, doAction, heatOf, openSpots, ratingsHidden, scoutedOvr, seenOf, talkedTo, type ActionKey } from "../../engine/recruiting";
 import { distanceMiles } from "../../engine/rng";
-import { hsNow } from "../../engine/hsStats";
+import { hsNow, summerNow } from "../../engine/hsStats";
 import { mutate } from "../store";
-import { Grade, Logo, PlayerLink, Pos, Stars, Table, type Col } from "./common";
+import { CircuitBadge, Grade, Logo, PlayerLink, Pos, Stars, Table, type Col } from "./common";
 import { Icon } from "./Icons";
 import { confirmSpend } from "./Confirm";
 import { chanceOf, stageText } from "../pages/RecruitProfile";
@@ -133,7 +133,7 @@ export function RecruitStars({ L, p, lg }: { L: League; p: Player; lg?: boolean 
 }
 
 /** The board's views of the high school class: the recruiting picture, his high school numbers, or how close he lives. */
-export type BoardView = "overview" | "stats" | "near";
+export type BoardView = "overview" | "stats" | "summer" | "near";
 
 export function RecruitTable({ L, rows, kind, limit = 50, showActions = false, view = "overview" }: { L: League; rows: Player[]; kind: "hs" | "portal"; limit?: number; showActions?: boolean; view?: BoardView }) {
   const nav = useNavigate();
@@ -213,6 +213,44 @@ export function RecruitTable({ L, rows, kind, limit = 50, showActions = false, v
               num: true,
             })),
           ]
+        : view === "summer"
+          ? [
+              { key: "ht", label: "Ht", render: (p: Player) => heightStr(p.hgt), sort: (p: Player) => p.hgt, num: true },
+              {
+                key: "circuit",
+                label: "Circuit",
+                title: "Where he played last summer (17U): the national circuit and youth national teams are the best competition, regional numbers come easier",
+                render: (p: Player) => {
+                  const s = summerNow(p);
+                  return s ? <CircuitBadge c={s.circuit} /> : <span className="faint">None</span>;
+                },
+                sort: (p: Player) => {
+                  const c = summerNow(p)?.circuit;
+                  return c === "National" ? 3 : c === "International" ? 2 : c === "Regional" ? 1 : 0;
+                },
+              },
+              { key: "sg", label: "G", render: (p: Player) => summerNow(p)?.g ?? "-", sort: (p: Player) => summerNow(p)?.g ?? 0, num: true },
+              ...(["pts", "reb", "ast"] as const).map((k) => ({
+                key: `s${k}`,
+                label: { pts: "PPG", reb: "RPG", ast: "APG" }[k],
+                render: (p: Player) => summerNow(p)?.[k].toFixed(1) ?? "-",
+                sort: (p: Player) => summerNow(p)?.[k] ?? -1,
+                num: true,
+              })),
+              ...([["fg", "FG%", "fgm", "fga"], ["tp", "3P%", "tpm", "tpa"], ["ft", "FT%", "ftm", "fta"]] as const).map(([key, label, m, a]) => ({
+                key,
+                label,
+                render: (p: Player) => {
+                  const s = summerNow(p);
+                  return s && s[a] > 0 ? ((100 * s[m]) / s[a]).toFixed(0) : "-";
+                },
+                sort: (p: Player) => {
+                  const s = summerNow(p);
+                  return s && s[a] > 0 ? s[m] / s[a] : -1;
+                },
+                num: true,
+              })),
+            ]
         : view === "near"
           ? [
               { key: "ht", label: "Ht", render: (p: Player) => heightStr(p.hgt), sort: (p: Player) => p.hgt, num: true },
@@ -289,7 +327,7 @@ export function RecruitTable({ L, rows, kind, limit = 50, showActions = false, v
   ];
   // the stats and status columns that only fit the overview
   const shown = view === "overview" ? cols : cols.filter((c) => !["status", "lead"].includes(c.key));
-  const [initialSort, initialDesc] = view === "stats" ? ["pts", true] : view === "near" ? ["dist", false] : ["stars", true];
+  const [initialSort, initialDesc] = view === "stats" ? ["pts", true] : view === "summer" ? ["spts", true] : view === "near" ? ["dist", false] : ["stars", true];
   return (
     <Table
       key={view}

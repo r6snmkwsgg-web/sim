@@ -54,6 +54,9 @@ export function Guide() {
             </li>
             <li>Recruiting opens when the season tips off: the high school season starts with yours, and nobody (you or the AI) can contact recruits in the preseason.</li>
             <li>The new class is unrated for the first two weeks: no stars or national rankings for anyone, so go by high school stats and your own scouting. Obvious studs still know they're good, but an under-the-radar kid will listen to anyone. If you're Hot on a recruit when the rankings come out (start of week 3), he keeps taking you seriously even if he turns out to be a 4★ or 5★: bigger programs will still come after him, but you're in the race.</li>
+            <li>
+              Reading the numbers: high school stats say who can score, not who the five-stars are. A star on a loaded prep team might average 14 while a small-town kid in a weak league puts up 30, and a weak league pads field-goal percentage too. Free-throw percentage is the honest one. The summer circuit (the board's Summer view) is better evidence: the national circuit puts the best prospects against each other, so numbers there run lower but mean more, while regional numbers come easier. Summers are short, so their percentages bounce around.
+            </li>
             <li>The heat meter shows how close a recruit is to committing to each school: Cold, Warm, Hot, Ready to commit. NIL offers ask you to confirm before they go out.</li>
             <li>Each recruit has his own decision week (shown on his profile). From then on he commits to a school that offered him and is Ready to commit, usually the one furthest ahead; several schools can be Ready at once. The longer he waits, the less it takes.</li>
             <li>The AI programs recruit under the same rules and points. Their moves (and recruits' decisions) happen at the start of each week, so what you do during the week counts before they decide.</li>

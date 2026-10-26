@@ -6,6 +6,7 @@ import { cls, contrast, luminance, heroColors } from "../util";
 import { Icon } from "./Icons";
 import { Face } from "./Face";
 import { teamMaybe } from "../../engine/core";
+import type { Circuit } from "../../engine/hsStats";
 
 // ---------------- team visuals ----------------
 const SHAPES = ["circle", "shield", "round", "hex", "circle", "shield"] as const;
@@ -101,6 +102,11 @@ export function PlayerLink({ L, p, face = false, size = 30, colors, meta }: { L:
       </span>
     </span>
   );
+}
+
+/** The level a recruit played summer ball at. */
+export function CircuitBadge({ c }: { c: Circuit }) {
+  return <span className={`badge${c === "National" ? " gold" : c === "International" ? " accent" : ""}`}>{c}</span>;
 }
 
 // ---------------- ratings ----------------

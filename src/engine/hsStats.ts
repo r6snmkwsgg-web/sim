@@ -4,8 +4,8 @@
 
 import type { League, Player } from "./types";
 import { REG_DAYS } from "./core";
-import { clamp, distanceMiles } from "./rng";
-import { hsLine } from "./recruiting";
+import { clamp, distanceMiles, hashNormal } from "./rng";
+import { hsLine, hsSituation, hsSkill, scaledPts } from "./recruiting";
 import { CITIES } from "./data/cities";
 
 /** Per-game averages for one high school season. */
@@ -92,19 +92,31 @@ function poisson(r: () => number, lambda: number): number {
 
 const one = (x: number) => Math.round(x * 10) / 10;
 
-/** How he plays: shooting percentages and shot diet from his ratings, volume from his senior-year line. */
-function profile(p: Player) {
-  const line = hsLine(p)!;
+/** His shooting as a player: percentages and shot diet from his ratings, with his own quirks. */
+function shooting(p: Player) {
   const R = p.r;
   const r = seeded(p.faceSeed ^ 0x51ed270b);
   const big = p.pos === "PF" || p.pos === "C";
-  const guard = p.pos === "PG" || p.pos === "SG";
   const p3 = clamp(0.3 + (R.three - 40) * 0.0042 + gauss(r) * 0.02, 0.18, 0.5);
   const p2 = clamp(0.46 + ((R.ins + R.mid) / 2 - 40) * 0.0035 + (big ? 0.04 : 0) + gauss(r) * 0.02, 0.37, 0.68);
   const pft = clamp(0.69 + (R.ft - 45) * 0.005 + gauss(r) * 0.03, 0.48, 0.93);
   // share of his shots from three, and free throws per shot
   const tr = clamp(0.14 + (R.three - 35) * 0.008 + (big ? -0.1 : 0.05), 0, 0.65);
   const ftr = clamp(0.28 + (R.ath - 50) * 0.003 + (R.ins - 50) * 0.003 + (big ? 0.06 : 0), 0.12, 0.6);
+  return { p2, p3, pft, tr, ftr, r };
+}
+
+/** How he plays in high school: his shooting, with volume from his senior-year line. */
+function profile(p: Player) {
+  const line = hsLine(p)!;
+  const R = p.r;
+  const { p2: p2Skill, p3: p3Skill, pft, tr, ftr, r } = shooting(p);
+  const big = p.pos === "PF" || p.pos === "C";
+  const guard = p.pos === "PG" || p.pos === "SG";
+  // a weak league makes for easy buckets (and a loaded prep schedule for hard ones); free throws are the same anywhere
+  const sit = hsSituation(p);
+  const p2 = clamp(p2Skill + 0.025 * sit, 0.35, 0.72);
+  const p3 = clamp(p3Skill + 0.012 * sit, 0.16, 0.52);
   const fga = line.pts / ((1 - tr) * 2 * p2 + tr * 3 * p3 + ftr * pft);
   return {
     line,
@@ -259,5 +271,110 @@ export function hsNow(L: League, p: Player): HsSeason | null {
   const ss = hsSeasons(L, p);
   const s = [...ss].reverse().find((x) => x.g >= (x.live ? HS_MIN_GAMES : 1)) ?? null;
   nowCache.set(p.id, { key, s });
+  return s;
+}
+
+// ---------------- summer circuit ----------------
+// Grassroots ball the summers before his junior (16U) and senior (17U) years. The best prospects play on
+// the national circuit, against each other on stacked teams: fewer shots, real defense, so the numbers are
+// lower but honest. Regional circuits are softer. Fewer games than a high school season, so percentages
+// bounce around more. Lots of kids never play on a circuit at all. Prospects from overseas play for their
+// country's youth national team instead: strong competition, only a handful of games.
+
+export type Circuit = "National" | "Regional" | "International";
+
+export interface SummerSeason extends Omit<HsSeason, "year" | "live"> {
+  label: "16U" | "17U";
+  circuit: Circuit;
+  team: string;
+}
+
+const SUMMER_NICKS = ["Elite", "Express", "All-Stars", "Select", "Legends", "Warriors", "Lightning", "Hoops", "Rise", "Prime", "Titans", "Stars"];
+
+/** The circuit he played on that summer, or null if he didn't play on one. */
+function isOverseas(p: Player): boolean {
+  // US hometowns carry a two-letter state, international ones the country
+  return p.state.length > 2;
+}
+
+export function summerCircuit(p: Player, label: "16U" | "17U" = "17U"): Circuit | null {
+  const r = p.recruit;
+  if (!r || r.kind !== "hs") return null;
+  // mostly the best prospects, but some get overlooked and some get in on a name; a kid can move up a level between summers
+  const z = hashNormal(p.faceSeed ^ 0x3c6ef372);
+  const zz = label === "16U" ? 0.8 * z + 0.6 * hashNormal(p.faceSeed ^ 0x1f83d9ab) : z;
+  const x = r.rank * Math.exp(0.55 * zz) * (label === "16U" ? 1.15 : 1);
+  if (isOverseas(p)) return x <= 700 ? "International" : null;
+  return x <= 330 ? "National" : x <= 1100 ? "Regional" : null;
+}
+
+/** His summer seasons, per game (none for transfers or kids who never played on a circuit). */
+export function summerSeasons(p: Player): SummerSeason[] {
+  const r0 = p.recruit;
+  const line = hsLine(p);
+  if (!r0 || r0.kind !== "hs" || !line) return [];
+  const sk = hsSkill(p);
+  const sh = shooting(p);
+  const big = p.pos === "PF" || p.pos === "C";
+  const club = `${p.city} ${SUMMER_NICKS[p.faceSeed % SUMMER_NICKS.length]}`;
+  const out: SummerSeason[] = [];
+  for (const [label, f, salt] of [["16U", 0.88, 16], ["17U", 1, 17]] as const) {
+    const circuit = summerCircuit(p, label);
+    if (!circuit) continue;
+    // the national circuit and youth national teams are the top competition
+    const nat = circuit !== "Regional";
+    const r = seeded(p.faceSeed * 131 + salt * 7919);
+    // his role on that team: some stars share the ball, some kids get the keys
+    const role = hashNormal(p.faceSeed ^ (0x5f3759df + salt));
+    const g = circuit === "International" ? 6 + Math.floor(r() * 3) : (nat ? 14 : 10) + Math.floor(r() * 6);
+    const ptsPg = scaledPts(sk.pts * f * Math.exp(0.15 * role), 26) * (nat ? 0.7 : 0.8);
+    const p2 = clamp(sh.p2 + (nat ? -0.035 : 0.01) - (1 - f) * 0.04, 0.3, 0.7);
+    const p3 = clamp(sh.p3 + (nat ? -0.02 : 0.005) - (1 - f) * 0.03, 0.14, 0.5);
+    const pft = clamp(sh.pft - (1 - f) * 0.03, 0.45, 0.93);
+    const fga = Math.round((ptsPg / ((1 - sh.tr) * 2 * p2 + sh.tr * 3 * p3 + sh.ftr * pft)) * g * (0.92 + r() * 0.16));
+    const tpa = binomial(r, fga, sh.tr);
+    const tpm = binomial(r, tpa, p3);
+    const fgm = tpm + binomial(r, fga - tpa, p2);
+    const fta = Math.round(fga * sh.ftr * (0.85 + r() * 0.3));
+    const ftm = binomial(r, fta, pft);
+    const level = (nat ? 0.72 : 0.88) * f * Math.exp(0.1 * role);
+    const reb = poisson(r, sk.reb * level * g);
+    const per = (n: number) => one(n / g);
+    out.push({
+      label,
+      circuit,
+      team: circuit === "International" ? `${p.state} ${label === "16U" ? "U16" : "U17"}` : club,
+      g,
+      gs: Math.round(g * clamp(0.45 + 0.25 * role + (ptsPg - 12) * 0.04, 0.05, 1)),
+      min: one(clamp((nat ? 14 : 17) + ptsPg * 0.42 + role * 1.5, 8, 32)),
+      pts: per(2 * (fgm - tpm) + 3 * tpm + ftm),
+      fgm: per(fgm),
+      fga: per(fga),
+      tpm: per(tpm),
+      tpa: per(tpa),
+      ftm: per(ftm),
+      fta: per(fta),
+      orb: per(binomial(r, reb, big ? 0.36 : 0.22)),
+      reb: per(reb),
+      ast: per(poisson(r, sk.ast * level * g)),
+      stl: per(poisson(r, line.stl * level * g)),
+      blk: per(poisson(r, line.blk * level * g)),
+      tov: per(poisson(r, (0.6 + ptsPg * 0.08 + (55 - p.r.hnd) * 0.03) * g)),
+      pf: per(poisson(r, (1.8 + (big ? 0.6 : 0)) * g)),
+    });
+  }
+  return out;
+}
+
+// the board sorts the whole class by these
+const summerCache = new Map<number, { key: string; s: SummerSeason | null }>();
+
+/** His most recent summer (17U), or null if he didn't play on a circuit. */
+export function summerNow(p: Player): SummerSeason | null {
+  const key = `${p.ovr}:${p.recruit?.rank}:${p.faceSeed}`;
+  const c = summerCache.get(p.id);
+  if (c && c.key === key) return c.s;
+  const s = summerSeasons(p).find((x) => x.label === "17U") ?? null;
+  summerCache.set(p.id, { key, s });
   return s;
 }

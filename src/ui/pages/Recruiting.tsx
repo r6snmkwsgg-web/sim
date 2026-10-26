@@ -84,11 +84,13 @@ export function RecruitingBoard() {
             tabs={[
               { key: "overview", label: "Overview" },
               { key: "stats", label: "HS Stats" },
+              { key: "summer", label: "Summer" },
               { key: "near", label: "Near You" },
             ]}
             value={view}
             onChange={setView}
           />
+          {view === "summer" && <span className="faint small">Last summer's circuit (17U). The national circuit is the best competition, so numbers there are lower but more honest.</span>}
           {view === "near" && <span className="faint small">Closest to {ut.name} first. Recruits who want to stay close to home lean toward nearby schools.</span>}
         </div>
         <div className="filter-bar">
