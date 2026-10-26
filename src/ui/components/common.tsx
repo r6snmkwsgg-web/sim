@@ -104,6 +104,33 @@ export function PlayerLink({ L, p, face = false, size = 30, colors, meta }: { L:
   );
 }
 
+/** Below this many attempts, a shooting percentage says more about luck than about the shooter. */
+export const SMALL_SAMPLE = 20;
+
+/**
+ * A shooting percentage from per-game made and attempted over g games. With only a handful of shots it's
+ * greyed out, and hovering shows how few there were.
+ */
+export function ShotPct({ m, a, g, when = "", digits = 0 }: { m: number; a: number; g: number; when?: string; digits?: number }) {
+  const tot = Math.round(a * g);
+  if (!tot) return <>-</>;
+  const made = Math.round(m * g);
+  const pct = ((100 * made) / tot).toFixed(digits);
+  if (tot >= SMALL_SAMPLE) return <>{pct}</>;
+  return (
+    <span className="small-sample" title={`${made} of ${tot}${when ? ` ${when}` : ""}: too few to mean much`}>
+      {pct}
+    </span>
+  );
+}
+
+/** Sort key for ShotPct: small samples go below real ones. */
+export function shotSort(m: number, a: number, g: number): number {
+  const tot = Math.round(a * g);
+  if (!tot) return -2;
+  return Math.round(m * g) / tot - (tot < SMALL_SAMPLE ? 1 : 0);
+}
+
 /** The level a recruit played summer ball at. */
 export function CircuitBadge({ c }: { c: Circuit }) {
   return <span className={`badge${c === "National" ? " gold" : c === "International" ? " accent" : ""}`}>{c}</span>;

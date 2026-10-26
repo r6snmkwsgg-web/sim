@@ -1,16 +1,16 @@
 import { useState } from "react";
 import { mutate, useLeague } from "../store";
 import { seasonLabel, shortDayLabel, team, teamMaybe } from "../../engine/core";
-import { classLabel, heightStr } from "../../engine/ratings";
+import { classLabel, grade, heightStr } from "../../engine/ratings";
 import { distanceMiles } from "../../engine/rng";
 import { regionOf } from "../../engine/data/cities";
 import {
   ACTIONS, actionMult, canAct, CAT_KEYS, CATS, catValue, doAction, factorScores, fit, heatOf, HOT, levelStars, RATINGS_DAY, ratingsHidden, NIL_VALUE, nilCommitted, OFFICIAL_VISITS, openSpots, PREF_LABELS, pullOffer, recruitingOpen,
   SCOUT_COST, recruitWeekLabel, scoutedOvr, scoutGame, seenOf, setNilOffer, scoutedThisWeek, talkedTo, talkToCoach, watchFilm, weeksToDecide, type ActionKey,
 } from "../../engine/recruiting";
-import type { CatKey, League, Player, PrefKey } from "../../engine/types";
+import type { CatKey, League, Player, PrefKey, RatingKey } from "../../engine/types";
 import { PREF_KEYS } from "../../engine/types";
-import { Card, CircuitBadge, Grade, heroStyle, Logo, Stars, Tabs } from "../components/common";
+import { Card, CircuitBadge, Grade, gradeColor, heroStyle, Logo, ShotPct, Stars, Tabs } from "../components/common";
 import { Face } from "../components/Face";
 import { Icon } from "../components/Icons";
 import { confirmSpend, pickAndConfirm } from "../components/Confirm";
@@ -35,6 +35,22 @@ export function stageText(L: League, p: Player): string {
   if (r.stage === "top5") return `Top ${r.top5.length}`;
   if (r.stage === "unsigned") return "Unsigned";
   return "Open";
+}
+
+const PART_LABEL: Partial<Record<RatingKey, string>> = { three: "3PT", mid: "Mid", ft: "FT", hnd: "Handle", pas: "Pass", iq: "IQ", perD: "On-ball", stl: "Steals", intD: "Post D", blk: "Blocks", ath: "Speed", str: "Strength", end: "Motor" };
+
+/** A scouted category's pieces, so a great free-throw shooter with no jumper reads as exactly that. */
+function CatBreakdown({ p, k }: { p: Player; k: CatKey }) {
+  return (
+    <div className="tiny cat-parts">
+      {CATS[k].keys.map((rk, i) => (
+        <span key={rk}>
+          {i > 0 && " · "}
+          {PART_LABEL[rk] ?? rk} <b style={{ color: gradeColor(p.r[rk]) }}>{grade(p.r[rk])}</b>
+        </span>
+      ))}
+    </div>
+  );
 }
 
 /** How seriously a recruit takes you: fit, plus stars against your program's level. */
@@ -351,6 +367,7 @@ function RatingsTab({ L, p }: { L: League; p: Player }) {
               <div style={{ minWidth: 0 }}>
                 <b>{CATS[k].label}</b>
                 <div className="tiny muted">{CATS[k].desc}</div>
+                {known && CATS[k].keys.length > 1 && <CatBreakdown p={p} k={k} />}
               </div>
               {known ? (
                 <Grade v={catValue(p, k)} md />
@@ -386,7 +403,6 @@ function RatingsTab({ L, p }: { L: League; p: Player }) {
 }
 
 const made = (m: number, a: number) => `${m.toFixed(1)}-${a.toFixed(1)}`;
-const pctOf = (m: number, a: number) => (a > 0 ? `${((100 * m) / a).toFixed(1)}%` : "-");
 
 /** High school career; the senior year plays out alongside the college season, game by game. */
 /** Summer ball: tougher competition than his high school games, but fewer of them. */
@@ -432,9 +448,15 @@ function SummerCard({ p }: { p: Player }) {
                     </td>
                     <td className="n">{x.reb.toFixed(1)}</td>
                     <td className="n">{x.ast.toFixed(1)}</td>
-                    <td className="n">{pctOf(x.fgm, x.fga)}</td>
-                    <td className="n">{pctOf(x.tpm, x.tpa)}</td>
-                    <td className="n">{pctOf(x.ftm, x.fta)}</td>
+                    <td className="n">
+                      <ShotPct m={x.fgm} a={x.fga} g={x.g} when="that summer" digits={1} />
+                    </td>
+                    <td className="n">
+                      <ShotPct m={x.tpm} a={x.tpa} g={x.g} when="that summer" digits={1} />
+                    </td>
+                    <td className="n">
+                      <ShotPct m={x.ftm} a={x.fta} g={x.g} when="that summer" digits={1} />
+                    </td>
                     <td className="n">{x.stl.toFixed(1)}</td>
                     <td className="n">{x.blk.toFixed(1)}</td>
                   </tr>
@@ -500,11 +522,11 @@ function HsStatsTab({ L, p }: { L: League; p: Player }) {
                     <b>{v(x, x.pts.toFixed(1))}</b>
                   </td>
                   <td className="n">{v(x, made(x.fgm, x.fga))}</td>
-                  <td className="n">{v(x, pctOf(x.fgm, x.fga))}</td>
+                  <td className="n">{x.g ? <ShotPct m={x.fgm} a={x.fga} g={x.g} when="that season" digits={1} /> : "-"}</td>
                   <td className="n">{v(x, made(x.tpm, x.tpa))}</td>
-                  <td className="n">{v(x, pctOf(x.tpm, x.tpa))}</td>
+                  <td className="n">{x.g ? <ShotPct m={x.tpm} a={x.tpa} g={x.g} when="that season" digits={1} /> : "-"}</td>
                   <td className="n">{v(x, made(x.ftm, x.fta))}</td>
-                  <td className="n">{v(x, pctOf(x.ftm, x.fta))}</td>
+                  <td className="n">{x.g ? <ShotPct m={x.ftm} a={x.fta} g={x.g} when="that season" digits={1} /> : "-"}</td>
                 </tr>
               ))}
             </tbody>

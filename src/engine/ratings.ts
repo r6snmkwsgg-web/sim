@@ -36,9 +36,11 @@ export function updateOvr(p: Player): void {
   p.ovr = calcOvr(p.r, p.pos, p.hgt);
 }
 
+// Letter grades against D1 players: C is the typical player, B a good starter, A an All-American.
+// (About 2% of D1 players grade out as an A overall, about a quarter B, half C.)
 const GRADES: [number, string][] = [
-  [80, "A+"], [75, "A"], [71, "A-"], [67, "B+"], [63, "B"], [59, "B-"],
-  [55, "C+"], [51, "C"], [47, "C-"], [43, "D+"], [39, "D"], [35, "D-"],
+  [75, "A+"], [70, "A"], [66, "A-"], [62, "B+"], [58, "B"], [54, "B-"],
+  [50, "C+"], [46, "C"], [42, "C-"], [38, "D+"], [34, "D"], [30, "D-"],
 ];
 
 export function grade(x: number): string {
@@ -47,10 +49,10 @@ export function grade(x: number): string {
 }
 
 export function gradeClass(x: number): string {
-  if (x >= 71) return "g-a";
-  if (x >= 59) return "g-b";
-  if (x >= 47) return "g-c";
-  if (x >= 35) return "g-d";
+  if (x >= 66) return "g-a";
+  if (x >= 54) return "g-b";
+  if (x >= 42) return "g-c";
+  if (x >= 30) return "g-d";
   return "g-f";
 }
 

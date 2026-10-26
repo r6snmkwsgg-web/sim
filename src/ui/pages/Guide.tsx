@@ -70,7 +70,7 @@ export function Guide() {
         </Card>
         <Card title="Players & development">
           <ul className="small" style={{ margin: 0, paddingLeft: 18, lineHeight: 1.7 }}>
-            <li>Ratings run 1-99. OVR and POT are shown as letter grades (C is a typical D1 rotation player; A is an All-American).</li>
+            <li>Ratings run 1-99 and are graded against D1 players: C is the typical player (mid 40s to low 50s), B a good starter (mid 50s to mid 60s), A an All-American (66 and up, about 2% of D1). High schoolers are still growing, so most recruits grade C or D.</li>
             <li>
               Players grow every week through <Link to={`${b}/practice`}>practice</Link> (team focus, intensity, individual focus) and jump in the offseason. Minutes, work ethic and your development skill all help.
             </li>

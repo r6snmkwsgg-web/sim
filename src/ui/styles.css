@@ -1395,3 +1395,9 @@ body.dragging-row, body.dragging-row * { cursor: grabbing !important; user-selec
   .rot-n, .rot-slider { display: none; }
   .rot-out .rot-row { grid-template-columns: 26px minmax(0, 1fr) 36px; }
 }
+
+/* a scouted category's pieces (3PT C · Mid D · FT A) */
+.cat-parts { margin-top: 4px; color: var(--muted); }
+.cat-parts b { font-weight: 750; }
+/* a percentage from only a handful of shots */
+.small-sample { color: var(--faint); text-decoration: underline dotted; text-underline-offset: 3px; cursor: help; }

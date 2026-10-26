@@ -6,7 +6,7 @@ import { ACTIONS, actionMult, canAct, doAction, heatOf, openSpots, ratingsHidden
 import { distanceMiles } from "../../engine/rng";
 import { hsNow, summerNow } from "../../engine/hsStats";
 import { mutate } from "../store";
-import { CircuitBadge, Grade, Logo, PlayerLink, Pos, Stars, Table, type Col } from "./common";
+import { CircuitBadge, Grade, Logo, PlayerLink, Pos, ShotPct, shotSort, Stars, Table, type Col } from "./common";
 import { Icon } from "./Icons";
 import { confirmSpend } from "./Confirm";
 import { chanceOf, stageText } from "../pages/RecruitProfile";
@@ -242,11 +242,11 @@ export function RecruitTable({ L, rows, kind, limit = 50, showActions = false, v
                 label,
                 render: (p: Player) => {
                   const s = summerNow(p);
-                  return s && s[a] > 0 ? ((100 * s[m]) / s[a]).toFixed(0) : "-";
+                  return s ? <ShotPct m={s[m]} a={s[a]} g={s.g} when="all summer" /> : "-";
                 },
                 sort: (p: Player) => {
                   const s = summerNow(p);
-                  return s && s[a] > 0 ? s[m] / s[a] : -1;
+                  return s ? shotSort(s[m], s[a], s.g) : -3;
                 },
                 num: true,
               })),
