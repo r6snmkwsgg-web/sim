@@ -3,9 +3,9 @@ import { useLeague } from "../store";
 import { shortDayLabel, team } from "../../engine/core";
 import { regionOf } from "../../engine/data/cities";
 import { actionMult, classRankings, classUnrated, commitsFor, OFFICIAL_VISITS, openSpots, RATINGS_DAY } from "../../engine/recruiting";
-import { Card, Meter, PageHead, Seg, Tile } from "../components/common";
+import { Card, Meter, PageHead, Seg, Tabs, Tile } from "../components/common";
 import { Icon } from "../components/Icons";
-import { RecruitTable } from "../components/RecruitTable";
+import { RecruitTable, type BoardView } from "../components/RecruitTable";
 import type { Player } from "../../engine/types";
 
 export function RecruitingSummary() {
@@ -56,6 +56,7 @@ export function RecruitingBoard() {
   const [boardOnly, setBoardOnly] = useState(false);
   // start with recruits who'd actually consider you
   const [realistic, setRealistic] = useState(true);
+  const [view, setView] = useState<BoardView>("overview");
   const ut = team(L, L.userTid);
   const all = useMemo(() => L.players.filter((p) => p.recruit?.kind === "hs" && p.status === "recruit"), [L.players, L.players.length]);
   const regions = useMemo(() => [...new Set(all.map((p) => regionOf(p.state)))].sort(), [all]);
@@ -77,6 +78,19 @@ export function RecruitingBoard() {
       <PageHead eyebrow="Recruiting" title="Recruiting Board" sub={cls ? `Class of ${cls} · ${all.length} prospects` : "No recruiting class right now"} />
       <RecruitingSummary />
       <Card flush>
+        <div className="board-views">
+          <Tabs
+            small
+            tabs={[
+              { key: "overview", label: "Overview" },
+              { key: "stats", label: "HS Stats" },
+              { key: "near", label: "Near You" },
+            ]}
+            value={view}
+            onChange={setView}
+          />
+          {view === "near" && <span className="faint small">Closest to {ut.name} first. Recruits who want to stay close to home lean toward nearby schools.</span>}
+        </div>
         <div className="filter-bar">
           <div className="search-box">
             <Icon name="search" size={14} />
@@ -108,7 +122,7 @@ export function RecruitingBoard() {
           <span className="spacer" />
           <span className="faint small">{rows.length} shown · ? = not scouted yet</span>
         </div>
-        <RecruitTable L={L} rows={rows} kind="hs" showActions />
+        <RecruitTable L={L} rows={rows} kind="hs" showActions view={view} />
       </Card>
     </div>
   );

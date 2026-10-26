@@ -68,6 +68,7 @@ Getting around: five sections (Home, My Team, Recruiting, League, History) sit o
 - Recruiting opens at tip-off: the high school season starts with the college season, so nobody recruits in the preseason
 - The class is unrated for the first two weeks (no stars or rankings for you or the AI, who go by buzz). Under-the-radar kids are open to smaller schools, and a school that's Hot with a recruit when the rankings come out keeps much of that relationship, so mid-majors can land the occasional 4★ by taking a risk early
 - Coaching points always visible in the top bar; a "Realistic for us" board filter and a plain-language chance for every recruit
+- Board views: Overview, HS Stats (height, points, rebounds, assists, blocks and steals per game, all sortable) and Near You (hometown and distance from your campus, closest first)
 - Top-five lists, verbal commitments that can flip, early and late signing periods
 - AI programs recruit under the same rules, following a realistic pecking order
 - NBA Draft with early entries and international picks (about 20 of the 58 picks go to players from overseas clubs, as in recent drafts), graduation, and a transfer portal with four windows, where you can re-recruit your own players

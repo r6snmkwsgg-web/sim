@@ -1339,3 +1339,6 @@ div.rec-act { cursor: default; }
 .back-to-game { position: fixed; right: 20px; bottom: 20px; z-index: 90; display: inline-flex; align-items: center; gap: 8px; height: 42px; padding: 0 18px; border-radius: 999px; background: var(--primary-bg); color: var(--primary-fg) !important; font-weight: 700; box-shadow: var(--shadow-lg); }
 .back-to-game:hover { filter: brightness(0.95); }
 @media (max-width: 760px) { .back-to-game { right: 12px; bottom: calc(76px + env(safe-area-inset-bottom)); } }
+
+.board-views { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 10px 14px 0; }
+.board-views .tabs { margin: 0; }

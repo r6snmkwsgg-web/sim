@@ -233,18 +233,46 @@ export function heatOf(L: League, p: Player, tid: number): { v: number; label: s
 }
 
 /** His high school career per game; the senior season plays out alongside the college season. */
-export function hsCareer(L: League, p: Player): { year: string; g: number; pts: number; reb: number; ast: number; live?: boolean }[] {
+// blocks and steals follow his shot-blocking and ball-hawking ratings
+function hsBlk(p: Player, z: number): number {
+  const base = p.pos === "C" ? 2.4 : p.pos === "PF" ? 1.5 : p.pos === "SF" ? 0.7 : 0.35;
+  return Math.round(clamp(base + (p.r.blk - 50) * 0.04 + z * 0.5, 0, 7) * 10) / 10;
+}
+function hsStl(p: Player, z: number): number {
+  const base = p.pos === "PG" || p.pos === "SG" ? 1.9 : p.pos === "SF" ? 1.4 : 0.8;
+  return Math.round(clamp(base + (p.r.stl - 50) * 0.03 + z * 0.4, 0.1, 5) * 10) / 10;
+}
+
+/** His high school per-game line (saves from before blocks and steals were tracked fill them in from his ratings). */
+export function hsLine(p: Player): { pts: number; reb: number; ast: number; blk: number; stl: number } | null {
+  const hs = p.recruit?.hs;
+  if (!hs) return null;
+  const z = ((p.faceSeed % 1000) / 1000 - 0.5) * 2;
+  return { pts: hs.pts, reb: hs.reb, ast: hs.ast, blk: hs.blk ?? hsBlk(p, z), stl: hs.stl ?? hsStl(p, -z) };
+}
+
+export function hsCareer(L: League, p: Player): { year: string; g: number; pts: number; reb: number; ast: number; blk: number; stl: number; live?: boolean }[] {
   const r = p.recruit;
-  if (!r?.hs || r.kind !== "hs") return [];
+  const line = hsLine(p);
+  if (!r || !line || r.kind !== "hs") return [];
   let h = (p.faceSeed ^ 0x9e3779b9) >>> 0;
   const rnd = () => {
     h = Math.imul(h ^ (h >>> 15), 0x2c1b3c6d) >>> 0;
     h = Math.imul(h ^ (h >>> 12), 0x297a2d39) >>> 0;
     return ((h ^ (h >>> 15)) >>> 0) / 4294967296;
   };
+  // blocks and steals get their own sequence, so the scoring lines don't change for older saves
+  let h2 = (p.faceSeed ^ 0x85ebca6b) >>> 0;
+  const rnd2 = () => {
+    h2 = Math.imul(h2 ^ (h2 >>> 15), 0x2c1b3c6d) >>> 0;
+    h2 = Math.imul(h2 ^ (h2 >>> 12), 0x297a2d39) >>> 0;
+    return ((h2 ^ (h2 >>> 15)) >>> 0) / 4294967296;
+  };
   const row = (year: string, f: number, g: number, live = false) => {
     const j = () => 0.9 + rnd() * 0.2;
-    return { year, g, pts: Math.round(r.hs!.pts * f * j() * 10) / 10, reb: Math.round(r.hs!.reb * f * j() * 10) / 10, ast: Math.round(r.hs!.ast * f * j() * 10) / 10, live };
+    const v = (x: number) => Math.round(x * f * j() * 10) / 10;
+    const v2 = (x: number) => Math.round(x * f * (0.9 + rnd2() * 0.2) * 10) / 10;
+    return { year, g, pts: v(line.pts), reb: v(line.reb), ast: v(line.ast), blk: v2(line.blk), stl: v2(line.stl), live };
   };
   const rows = [row("Freshman", 0.45, 22 + Math.floor(rnd() * 6)), row("Sophomore", 0.66, 23 + Math.floor(rnd() * 6)), row("Junior", 0.86, 24 + Math.floor(rnd() * 6))];
   // senior year: games so far track the college calendar
@@ -419,6 +447,8 @@ export function rankAndStar(L: League, ps: Player[], kind: "hs" | "portal", clas
         pts: Math.round(clamp(9 + (p.ovr - 28) * 0.6 + rng.normal(0, 3), 4, 38) * 10) / 10,
         reb: Math.round(clamp((big ? 8 : guard ? 3.5 : 5.5) + (p.ovr - 40) * 0.12 + rng.normal(0, 1.5), 1, 18) * 10) / 10,
         ast: Math.round(clamp((p.pos === "PG" ? 5.5 : guard ? 3 : big ? 1.2 : 2.2) + (p.ovr - 40) * 0.07 + rng.normal(0, 1), 0.3, 11) * 10) / 10,
+        blk: hsBlk(p, rng.normal(0, 1)),
+        stl: hsStl(p, rng.normal(0, 1)),
       };
     }
   });

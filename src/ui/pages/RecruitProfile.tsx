@@ -410,6 +410,8 @@ function HsStatsTab({ L, p }: { L: League; p: Player }) {
             <th className="n">PTS</th>
             <th className="n">REB</th>
             <th className="n">AST</th>
+            <th className="n">BLK</th>
+            <th className="n">STL</th>
           </tr>
         </thead>
         <tbody>
@@ -422,6 +424,8 @@ function HsStatsTab({ L, p }: { L: League; p: Player }) {
               <td className="n">{x.g ? x.pts.toFixed(1) : "-"}</td>
               <td className="n">{x.g ? x.reb.toFixed(1) : "-"}</td>
               <td className="n">{x.g ? x.ast.toFixed(1) : "-"}</td>
+              <td className="n">{x.g ? x.blk.toFixed(1) : "-"}</td>
+              <td className="n">{x.g ? x.stl.toFixed(1) : "-"}</td>
             </tr>
           ))}
         </tbody>

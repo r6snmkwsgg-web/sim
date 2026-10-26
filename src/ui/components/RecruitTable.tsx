@@ -2,7 +2,8 @@ import { useNavigate } from "react-router-dom";
 import type { League, Player } from "../../engine/types";
 import { team } from "../../engine/core";
 import { heightStr, classLabel } from "../../engine/ratings";
-import { ACTIONS, actionMult, canAct, doAction, heatOf, openSpots, ratingsHidden, scoutedOvr, seenOf, talkedTo, type ActionKey } from "../../engine/recruiting";
+import { ACTIONS, actionMult, canAct, doAction, heatOf, hsLine, openSpots, ratingsHidden, scoutedOvr, seenOf, talkedTo, type ActionKey } from "../../engine/recruiting";
+import { distanceMiles } from "../../engine/rng";
 import { mutate } from "../store";
 import { Grade, Logo, PlayerLink, Pos, Stars, Table, type Col } from "./common";
 import { Icon } from "./Icons";
@@ -117,16 +118,29 @@ export function HeatTag({ L, p }: { L: League; p: Player }) {
   return <span className={`heat-label l${h.level}`}>{h.label}</span>;
 }
 
+const HS_STATS: ["pts" | "reb" | "ast" | "blk" | "stl", string, string][] = [
+  ["pts", "PPG", "High school points per game"],
+  ["reb", "RPG", "High school rebounds per game"],
+  ["ast", "APG", "High school assists per game"],
+  ["blk", "BPG", "High school blocks per game"],
+  ["stl", "SPG", "High school steals per game"],
+];
+
 /** His stars, or "Unrated" until the rankings come out. */
 export function RecruitStars({ L, p, lg }: { L: League; p: Player; lg?: boolean }) {
   return ratingsHidden(L, p) ? <span className="unrated">Unrated</span> : <Stars n={p.recruit!.stars} lg={lg} />;
 }
 
-export function RecruitTable({ L, rows, kind, limit = 50, showActions = false }: { L: League; rows: Player[]; kind: "hs" | "portal"; limit?: number; showActions?: boolean }) {
+/** The board's views of the high school class: the recruiting picture, his high school numbers, or how close he lives. */
+export type BoardView = "overview" | "stats" | "near";
+
+export function RecruitTable({ L, rows, kind, limit = 50, showActions = false, view = "overview" }: { L: League; rows: Player[]; kind: "hs" | "portal"; limit?: number; showActions?: boolean; view?: BoardView }) {
   const nav = useNavigate();
   // until the rankings come out there's no rank to sort by: high school scoring is the best public guide
   const unrated = kind === "hs" && rows.length > 0 && ratingsHidden(L, rows[0]);
   const hsPts = (p: Player) => p.recruit!.hs?.pts ?? 0;
+  const ut = team(L, L.userTid);
+  const milesFrom = (p: Player) => Math.round(distanceMiles(p.lat, p.lon, ut.lat, ut.lon));
   const cols: Col<Player>[] = [
     {
       key: "rank",
@@ -172,7 +186,39 @@ export function RecruitTable({ L, rows, kind, limit = 50, showActions = false }:
           { key: "ovr", label: "OVR", render: (p: Player) => <Grade v={p.ovr} />, sort: (p: Player) => p.ovr, num: true },
           { key: "pot", label: "POT", render: (p: Player) => <Grade v={p.pot + p.potErr} />, sort: (p: Player) => p.pot, num: true },
         ]
-      : [
+      : view === "stats"
+        ? [
+            { key: "ht", label: "Ht", render: (p: Player) => heightStr(p.hgt), sort: (p: Player) => p.hgt, num: true },
+            ...HS_STATS.map(([k, label, title]) => ({
+              key: k,
+              label,
+              title,
+              render: (p: Player) => {
+                const h = hsLine(p);
+                return h ? h[k].toFixed(1) : "-";
+              },
+              sort: (p: Player) => hsLine(p)?.[k] ?? 0,
+              num: true,
+            })),
+          ]
+        : view === "near"
+          ? [
+              { key: "ht", label: "Ht", render: (p: Player) => heightStr(p.hgt), sort: (p: Player) => p.hgt, num: true },
+              { key: "home", label: "Hometown", render: (p: Player) => <span className="nowrap">{p.city}, {p.state}</span>, sort: (p: Player) => `${p.state} ${p.city}` },
+              {
+                key: "dist",
+                label: "Distance",
+                title: `Miles from ${ut.name}`,
+                render: (p: Player) => (
+                  <span className="nowrap">
+                    <b>{milesFrom(p).toLocaleString()}</b> mi{p.state === ut.state && <span className="badge" style={{ marginLeft: 6 }}>In state</span>}
+                  </span>
+                ),
+                sort: (p: Player) => milesFrom(p),
+                num: true,
+              },
+            ]
+          : [
           { key: "hs", label: "HS PPG", title: "High school points per game", render: (p: Player) => (p.recruit!.hs ? p.recruit!.hs.pts.toFixed(1) : "-"), sort: (p: Player) => p.recruit!.hs?.pts ?? 0, num: true },
           { key: "ovr", label: "OVR", title: "Scout 4 of his 7 categories to estimate it", render: (p: Player) => <KnownOvr p={p} />, sort: (p: Player) => (seenOf(p).length >= 4 ? scoutedOvr(p) : unrated ? 0 : p.recruit!.stars * 10), num: true },
           { key: "pot", label: "POT", title: "Talk to his coach to find out", render: (p: Player) => <KnownPot p={p} />, sort: (p: Player) => (talkedTo(p) ? p.pot : unrated ? 0 : p.recruit!.stars * 10), num: true },
@@ -229,5 +275,20 @@ export function RecruitTable({ L, rows, kind, limit = 50, showActions = false }:
     },
     ...(showActions ? [{ key: "act", label: "", render: (p: Player) => (p.recruit!.stage !== "signed" ? <QuickActions L={L} p={p} /> : null) }] : []),
   ];
-  return <Table cols={cols} rows={rows} rowKey={(p) => p.id} initialSort="stars" initialDesc limit={limit} onRowClick={(p) => nav(`/l/${L.id}/player/${p.id}`)} rowClass={(p) => (p.recruit!.committedTo === L.userTid ? "hl" : undefined)} />;
+  // the stats and status columns that only fit the overview
+  const shown = view === "overview" ? cols : cols.filter((c) => !["status", "lead"].includes(c.key));
+  const [initialSort, initialDesc] = view === "stats" ? ["pts", true] : view === "near" ? ["dist", false] : ["stars", true];
+  return (
+    <Table
+      key={view}
+      cols={shown}
+      rows={rows}
+      rowKey={(p) => p.id}
+      initialSort={initialSort as string}
+      initialDesc={initialDesc as boolean}
+      limit={limit}
+      onRowClick={(p) => nav(`/l/${L.id}/player/${p.id}`)}
+      rowClass={(p) => (p.recruit!.committedTo === L.userTid ? "hl" : undefined)}
+    />
+  );
 }

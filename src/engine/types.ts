@@ -99,7 +99,7 @@ export interface RecruitInfo {
   stars: number; // 1-5 (public)
   rank: number; // national rank among this class
   posRank: number;
-  hs?: { pts: number; reb: number; ast: number }; // high school per-game stats
+  hs?: { pts: number; reb: number; ast: number; blk?: number; stl?: number }; // high school per-game stats
   prefs: Record<PrefKey, number>; // 1-5 importance
   interest: Record<number, number>; // teamId -> interest (0..)
   offers: number[]; // teamIds with scholarship offers
