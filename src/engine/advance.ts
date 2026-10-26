@@ -8,7 +8,7 @@ import { computePower, makePoll } from "./rankings";
 import {
   confTourneysDone, createBracketGames, createConfTourneys, finalizeStandings, nationalDone, recordBracketResult, runSelection,
 } from "./postseason";
-import { aiRecruitWeek, RATINGS_WEEK, recruitDecisions, releaseRatings, signCommits, staffPoints } from "./recruiting";
+import { aiRecruitWeek, RATINGS_WEEK, recruitDecisions, releaseRatings, resetUserPoints, signCommits } from "./recruiting";
 import { weeklyDevelopment } from "./development";
 import { closePortal, departures, endSeason, openPortal, rollover, signingDay } from "./offseason";
 import { finishCarousel, startCarousel } from "./coaches";
@@ -17,12 +17,6 @@ export const PORTAL_ROUNDS = 4;
 export const EARLY_SIGNING_WEEK = 3;
 
 /** Weekly processing: recruiting, development, polls. */
-export function resetUserPoints(L: League) {
-  L.recruitPtsMax = staffPoints(L, userTeam(L)) + (L.pointsBonus ?? 0);
-  // with auto recruiting on, the staff spends the week's points itself
-  L.recruitPts = L.settings.autoRecruit ? 0 : L.recruitPtsMax;
-}
-
 export function weekTick(L: League, poll: boolean) {
   aiRecruitWeek(L, "hs");
   recruitDecisions(L, "hs");

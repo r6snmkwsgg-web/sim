@@ -107,7 +107,7 @@ function GameLog({ L, p, season }: { L: League; p: Player; season: number }) {
       }
     });
     return out;
-  }, [p.id, season, L.games.length, L.season, hidden]);
+  }, [p.id, season, L.games.length, L.season, L.phase, L.day, hidden]);
   if (!p.stats.length) return <Empty>No games yet.</Empty>;
   const rows = data ?? [];
   const n = rows.length;
@@ -294,7 +294,7 @@ export function PlayerPage() {
   const { data: raw, loading } = useAsync(() => fetchPlayer(L, id), [id, L.id]);
   // while one of his games is being watched, his numbers leave that game out (no spoilers)
   const guard = useWatchGuard();
-  const { data: watched } = useAsync(async () => (guard ? await getBox(L.id, guard.gid) : undefined), [guard?.gid, L.id]);
+  const { data: watched, loading: watchedLoading } = useAsync(async () => (guard ? await getBox(L.id, guard.gid) : undefined), [guard?.gid, L.id]);
   const p = useMemo(() => {
     if (!raw || !guard || !watched || watched.gid !== guard.gid) return raw;
     for (const side of [watched.home, watched.away]) {
@@ -309,7 +309,8 @@ export function PlayerPage() {
     const tid = p?.tid ?? p?.stats[p.stats.length - 1]?.tid ?? p?.recruit?.committedTo ?? null;
     return teamMaybe(L, tid)?.colors ?? ["#4b5563", "#e5e7eb"];
   }, [p, L]);
-  if (loading && !p) return <Empty>Loading…</Empty>;
+  // don't flash numbers that include the game being watched while its box score loads
+  if ((loading && !p) || (guard && (watchedLoading || (watched && watched.gid !== guard.gid)))) return <Empty>Loading…</Empty>;
   if (!p) return <Empty>Player not found.</Empty>;
   if ((p.status === "recruit" || p.status === "portal") && p.recruit) return <RecruitProfile p={p} />;
   const t = teamMaybe(L, p.tid);

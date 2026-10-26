@@ -8,7 +8,7 @@ import { computePower, makePoll } from "./rankings";
 import { computeAwards } from "./awards";
 import { recordCareer, recordSeason } from "./records";
 import { confStandings } from "./postseason";
-import { classRankings, commitsFor, dirtyRec, draftStock, finalSigning, staffPoints, generateRecruitClass, invalidateFit, NIL_VALUE, rankAndStar, recruitValue } from "./recruiting";
+import { classRankings, commitsFor, dirtyRec, draftStock, finalSigning, resetUserPoints, generateRecruitClass, invalidateFit, NIL_VALUE, rankAndStar, recruitValue } from "./recruiting";
 import { updatePrograms, nilBudgetFor } from "./coaches";
 import { offseasonDevelopment } from "./development";
 import { generatePlayer, assignJersey } from "./gen/player";
@@ -284,8 +284,7 @@ export function openPortal(L: League) {
   rostersDirty(L);
   dirtyRec(L);
   invalidateFit(L);
-  L.recruitPtsMax = staffPoints(L, userTeam(L));
-  L.recruitPts = L.recruitPtsMax;
+  resetUserPoints(L);
 }
 
 export function closePortal(L: League) {
@@ -395,6 +394,8 @@ export function finalizeRosters(L: League) {
 export function rollover(L: League) {
   const rng = rngOf(L);
   finalizeRosters(L);
+  // the senior season each signee just finished (it can only be worked out before the year turns over)
+  const senior = new Map(L.players.filter((p) => p.recruit?.kind === "hs" && p.recruit.stage === "signed").map((p) => [p.id, hsNow(L, p)]));
   L.season++;
   L.phase = "preseason";
   L.day = 0;
@@ -431,7 +432,7 @@ export function rollover(L: League) {
     p.eligUsed = 0;
     p.nilDeal = r.nil[tid] ?? 0;
     // remember the senior season he actually had, as shown while he was being recruited
-    const sr = hsNow(L, p);
+    const sr = senior.get(p.id);
     p.recruitedBy = { tid, season: L.season, stars: r.stars, rank: r.rank, kind: "hs", hs: sr ? { pts: sr.pts, reb: sr.reb, ast: sr.ast } : r.hs };
     p.recruit = null;
     const used = new Set(roster(L, tid).map((q) => q.jersey));
@@ -468,8 +469,7 @@ export function rollover(L: League) {
   L.games = generateSchedule(L);
   generateRecruitClass(L);
   L.board = [];
-  L.recruitPtsMax = staffPoints(L, userTeam(L));
-  L.recruitPts = L.recruitPtsMax;
+  resetUserPoints(L);
   computePower(L);
   makePoll(L, "Preseason");
   const ut = userTeam(L);

@@ -27,11 +27,13 @@ export const PREP_SHOT = [0, 0.006, 0.0115, 0.0145];
 
 /** The user's next opponent: the next scheduled game, or a pending bracket game. */
 export function nextOpponent(L: League): number | null {
+  // the earliest game, not the first in the list: later event rounds are added to the end mid-season
+  let next: (typeof L.games)[number] | null = null;
   for (const g of L.games) {
-    if (g.played) continue;
-    if (g.home === L.userTid) return g.away;
-    if (g.away === L.userTid) return g.home;
+    if (g.played || (g.home !== L.userTid && g.away !== L.userTid)) continue;
+    if (!next || g.day < next.day || (g.day === next.day && g.id < next.id)) next = g;
   }
+  if (next) return next.home === L.userTid ? next.away : next.home;
   for (const br of L.brackets) {
     if (br.champion !== null) continue;
     const bg = br.games.find((x) => x.winner === null && (x.a === L.userTid || x.b === L.userTid));

@@ -59,6 +59,8 @@ export function ConfirmHost() {
     },
     () => current,
   );
+  // leaving the league cancels a question still open, so it can't come back in another league
+  useEffect(() => () => close(null), []);
   return a ? <ConfirmModal key={a.id} a={a} /> : null;
 }
 

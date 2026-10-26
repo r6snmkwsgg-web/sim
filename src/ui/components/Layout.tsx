@@ -92,14 +92,8 @@ export function useWatchNext(): () => Promise<void> {
   const L = useLeague();
   const nav = useNavigate();
   return async () => {
-    const rank = currentRank(L, L.userTid);
-    const { userGameId } = await runSim("nextGame", { quiet: true });
-    if (userGameId === null) return;
-    const g = L.games.find((x) => x.id === userGameId);
-    if (!g) return;
-    const won = g.home === L.userTid ? g.hs > g.as : g.as > g.hs;
-    setWatchGuard({ gid: g.id, won, conf: g.type === "conf", rank });
-    nav(`/l/${L.id}/game/${g.id}?watch=1`);
+    const { userGameId } = await runSim("nextGame", { quiet: true, rank: currentRank(L, L.userTid) });
+    if (userGameId !== null) nav(`/l/${L.id}/game/${userGameId}?watch=1`);
   };
 }
 

@@ -60,12 +60,14 @@ export async function openLeague(lid: string): Promise<League | null> {
   migrate(L);
   reindex(L);
   ensureGoals(L);
+  forgetWatching();
   league = L;
   emit();
   return L;
 }
 
 export function setLeague(L: League | null) {
+  if (L?.id !== league?.id) forgetWatching();
   league = L;
   emit();
 }
@@ -172,6 +174,15 @@ export function setWatchGuard(g: WatchGuard | null) {
 export function getWatchGuard(): WatchGuard | null {
   return watchGuard;
 }
+/** Another league: a replay in progress, and the moments it was holding back, stay with the old one. */
+function forgetWatching() {
+  heldMoments = [];
+  replayAt.clear();
+  if (!watchGuard) return;
+  watchGuard = null;
+  watchVersion++;
+  for (const l of watchListeners) l();
+}
 
 // where each replay was left, so stepping out to a player's page and back picks up from there
 const replayAt = new Map<number, number>();
@@ -200,8 +211,11 @@ export function useWatchGuard(): WatchGuard | null {
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
-/** quiet: don't pop up the result (the game is about to be watched). */
-export async function runSim(target: SimTarget, opts: { quiet?: boolean } = {}): Promise<{ userGameId: number | null }> {
+/**
+ * quiet: don't pop up the result (the game is about to be watched). The record is hidden before
+ * anything re-renders, using the AP rank from before the game (rank).
+ */
+export async function runSim(target: SimTarget, opts: { quiet?: boolean; rank?: number | null } = {}): Promise<{ userGameId: number | null }> {
   const L = league;
   if (!L || sim.running) return { userGameId: null };
   if (saveTimer) {
@@ -261,10 +275,15 @@ export async function runSim(target: SimTarget, opts: { quiet?: boolean } = {}):
         }
       }
     }
-    emit();
     const ms = momentsSince(L, before);
-    if (opts.quiet) heldMoments = ms;
-    else pushMoments(ms);
+    const watched = opts.quiet && userGameId !== null ? L.games.find((x) => x.id === userGameId) : undefined;
+    if (watched) {
+      // moments from a replay that hasn't finished yet wait too
+      heldMoments = [...heldMoments, ...ms];
+      const won = watched.home === L.userTid ? watched.hs > watched.as : watched.as > watched.hs;
+      setWatchGuard({ gid: watched.id, won, conf: watched.type === "conf", rank: opts.rank ?? null });
+    } else pushMoments(ms);
+    emit();
     sim.label = "Saving…";
     simEmit();
     await save();

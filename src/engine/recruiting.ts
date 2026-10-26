@@ -181,18 +181,19 @@ function buzzRanks(L: League) {
  * but an under-the-radar kid is open to anyone. Afterwards it's his star rating.
  */
 export function levelStars(L: League, p: Player): number {
-  const r = p.recruit!;
-  if (!ratingsHidden(L, p)) return r.stars;
+  return ratingsHidden(L, p) ? buzzStars(L, p) : p.recruit!.stars;
+}
+
+function buzzStars(L: League, p: Player): number {
   const b = buzzRanks(L);
-  return starsForRank(b.rank.get(p.id) ?? r.rank, b.total);
+  return starsForRank(b.rank.get(p.id) ?? p.recruit!.rank, b.total);
 }
 
 /** The interest a school needs for him to commit to it. It drops the longer he waits past his decision week. */
-export function commitBar(L: League, p: Player): number {
+export function commitBar(L: League, p: Player, stars = levelStars(L, p)): number {
   const r = p.recruit!;
   const late = (r.kind === "portal" ? L.portalRound : L.week) - r.commitWeek;
   const patience = late > 0 ? Math.max(0.45, 1 - 0.07 * late) : 1;
-  const stars = levelStars(L, p);
   return COMMIT_THRESHOLD[stars] * (r.kind === "portal" ? 0.6 : 1) * patience;
 }
 
@@ -202,7 +203,8 @@ export function releaseRatings(L: League) {
   if (!cls.length) return;
   for (const p of cls) {
     const r = p.recruit!;
-    const hot = HOT * commitBar(L, p);
+    // Hot as it stood before the rankings: measured against his buzz, not the stars just revealed
+    const hot = HOT * commitBar(L, p, buzzStars(L, p));
     r.early = Object.entries(r.interest)
       .filter(([, v]) => v >= hot)
       .map(([k]) => Number(k));
@@ -542,6 +544,11 @@ function addInterest(L: League, p: Player, tid: number, amount: number) {
 }
 
 // ---------- actions ----------
+/** The user spends the points in the top bar; with auto recruiting on, the staff works from the team's own pool like the AI. */
+function spendsUserPoints(L: League, tid: number): boolean {
+  return tid === L.userTid && !L.settings.autoRecruit;
+}
+
 export function canAct(L: League, tid: number, p: Player, a: ActionKey): { ok: boolean; why?: string } {
   const r = p.recruit;
   if (!r) return { ok: false, why: "Not a recruit" };
@@ -553,7 +560,7 @@ export function canAct(L: League, tid: number, p: Player, a: ActionKey): { ok: b
   if (r.kind === "hs" && L.phase === "preseason") return { ok: false, why: "Opens at tip-off" };
   const def = ACTIONS[a];
   const t = team(L, tid);
-  const pts = tid === L.userTid ? L.recruitPts : t.recruitPoints;
+  const pts = spendsUserPoints(L, tid) ? L.recruitPts : t.recruitPoints;
   if (pts < def.cost) return { ok: false, why: "Not enough recruiting points" };
   if (a === "scout") {
     if (tid !== L.userTid) return { ok: false };
@@ -589,7 +596,7 @@ export function doAction(L: League, tid: number, p: Player, a: ActionKey): { ok:
   const def = ACTIONS[a];
   const t = team(L, tid);
   const r = p.recruit!;
-  if (tid === L.userTid) L.recruitPts -= def.cost;
+  if (spendsUserPoints(L, tid)) L.recruitPts -= def.cost;
   else t.recruitPoints -= def.cost;
   r.lastAction[`${tid}:${a}`] = L.week;
   const isUser = tid === L.userTid;
@@ -712,6 +719,13 @@ export function staffPoints(L: League, t: Team): number {
   return Math.round(BASE_POINTS * (0.85 + 0.3 * (t.prestige / 100)) * (0.94 + 0.12 * ((ch?.recruiting ?? 50) / 100)));
 }
 
+/** A fresh week's points for the user: the staff's, plus any weekly bonus earned from goals this season. */
+export function resetUserPoints(L: League) {
+  L.recruitPtsMax = staffPoints(L, team(L, L.userTid)) + (L.pointsBonus ?? 0);
+  // with auto recruiting on, the staff spends the week's points itself
+  L.recruitPts = L.settings.autoRecruit ? 0 : L.recruitPtsMax;
+}
+
 export function aiRecruitWeek(L: League, kind: "hs" | "portal" | "both" = "both") {
   const rng = rngOf(L);
   const diff = [0, 0.8, 1, 1.2][L.settings.recruitingDifficulty];
@@ -806,6 +820,8 @@ export function aiRecruitWeek(L: League, kind: "hs" | "portal" | "both" = "both"
       else if (canAct(L, t.id, p, "call").ok) doAction(L, t.id, p, "call");
       i++;
     }
+    // the staff's leftovers don't carry over to the user's own clicks
+    if (t.id === L.userTid) t.recruitPoints = 0;
   }
 }
 

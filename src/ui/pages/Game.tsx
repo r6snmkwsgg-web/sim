@@ -363,7 +363,7 @@ export function GamePage() {
         </div>
       </div>
       {watching && box?.pbp ? (
-        <GameViewer L={L} box={box} onDone={() => setSp({})} />
+        <GameViewer key={box.gid} L={L} box={box} onDone={() => setSp({})} />
       ) : !g.played ? (
         <Preview L={L} g={g} />
       ) : !box ? (
