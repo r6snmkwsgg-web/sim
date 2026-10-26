@@ -17,7 +17,7 @@ import { GamePage } from "./pages/Game";
 import { Scores } from "./pages/Scores";
 import { Standings } from "./pages/Standings";
 import { Rankings } from "./pages/Rankings";
-import { Tournaments } from "./pages/Tournaments";
+import { ConfTourneys, EarlyEvents, NitCbi, Tournaments } from "./pages/Tournaments";
 import { RecruitingBoard } from "./pages/Recruiting";
 import { Targets } from "./pages/Targets";
 import { ClassRankings } from "./pages/Classes";
@@ -92,6 +92,9 @@ export function App() {
           <Route path="standings" element={<Standings />} />
           <Route path="rankings" element={<Rankings />} />
           <Route path="tournaments" element={<Tournaments />} />
+          <Route path="conf-tourneys" element={<ConfTourneys />} />
+          <Route path="nit" element={<NitCbi />} />
+          <Route path="events" element={<EarlyEvents />} />
           <Route path="recruiting" element={<RecruitingBoard />} />
           <Route path="targets" element={<Targets />} />
           <Route path="classes" element={<ClassRankings />} />

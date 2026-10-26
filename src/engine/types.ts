@@ -219,6 +219,8 @@ export interface TeamSeason {
   confChamp: boolean; // regular season conference title (incl. ties)
   confTourney: string | null; // "Champion", "Runner-up", "Semifinals", ...
   post: { event: "ncaa" | "nit" | "cbi"; seed: number; result: string } | null;
+  /** early-season event and where the team finished in it */
+  event?: { key: string; name: string; place: number; of: number };
   apPre: number | null;
   apFinal: number | null;
   apBest: number | null;
@@ -398,10 +400,22 @@ export interface BracketGame {
   label?: string;
   /** play-in games feed a first-round slot */
   feed?: { slot: number; side: 0 | 1 };
+  /** early-season events: where the winner goes instead of the next round */
+  win?: BracketSpot;
+  /** early-season events: losers drop into a consolation game */
+  lose?: BracketSpot;
+  /** early-season events: a placement game; the winner finishes here, the loser one place lower */
+  place?: number;
+}
+
+export interface BracketSpot {
+  round: number;
+  slot: number;
+  side: 0 | 1;
 }
 
 export interface Bracket {
-  key: string; // "conf:12", "ncaa", "nit", "cbi"
+  key: string; // "conf:12", "ncaa", "nit", "cbi", "mte:3" (early-season event)
   name: string;
   rounds: string[];
   games: BracketGame[];

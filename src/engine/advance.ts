@@ -70,10 +70,16 @@ function simDayInner(L: League): { userPlayed: boolean } {
     for (const g of games) if (g.home === L.userTid || g.away === L.userTid) userPlayed = true;
   };
   if (L.phase === "regular") {
+    createBracketGames(L, L.day);
     const games = L.games.filter((g) => g.day === L.day && !g.played);
-    for (const g of games) playGame(L, g);
+    for (const g of games) {
+      playGame(L, g);
+      if (g.tourney) recordBracketResult(L, g);
+    }
     play(games);
     L.day++;
+    // early-season events: tomorrow's games go on the schedule as soon as today's results are in
+    if (L.day < REG_DAYS) createBracketGames(L, L.day);
     if (L.day >= REG_DAYS) {
       computePower(L);
       finalizeStandings(L);

@@ -1,4 +1,4 @@
-import type { Bracket, BracketGame, Game, League } from "./types";
+import type { Bracket, BracketGame, BracketSpot, Game, League } from "./types";
 import { addNews, conferenceOf, team } from "./core";
 import { curSeason } from "./play";
 import { selectionScores } from "./rankings";
@@ -112,9 +112,34 @@ function findGame(br: Bracket, round: number, slot: number): BracketGame | undef
   return br.games.find((g) => g.round === round && g.slot === slot);
 }
 
+function putIn(br: Bracket, spot: BracketSpot, tid: number, seed: number | null) {
+  const target = findGame(br, spot.round, spot.slot)!;
+  if (spot.side === 0) {
+    target.a = tid;
+    target.sa = seed;
+  } else {
+    target.b = tid;
+    target.sb = seed;
+  }
+}
+
 function advanceWinner(br: Bracket, g: BracketGame) {
   const w = g.winner!;
   const seed = w === g.a ? g.sa : g.sb;
+  // early-season events: losers play on in consolation games, and placement games end the event
+  const loser = w === g.a ? g.b : g.a;
+  if (g.lose && loser !== null) putIn(br, g.lose, loser, w === g.a ? g.sb : g.sa);
+  if (g.place !== undefined) {
+    if (g.place === 1) {
+      br.champion = w;
+      br.runnerUp = loser;
+    }
+    return;
+  }
+  if (g.win) {
+    putIn(br, g.win, w, seed);
+    return;
+  }
   if (g.round < 0 && g.feed) {
     const target = findGame(br, 0, g.feed.slot)!;
     if (g.feed.side === 0) {
@@ -144,7 +169,8 @@ function advanceWinner(br: Bracket, g: BracketGame) {
 
 // ---------------- conference tournaments ----------------
 export function createConfTourneys(L: League) {
-  L.brackets = [];
+  // the early-season events stay; everything else starts fresh
+  L.brackets = L.brackets.filter((b) => isEvent(b));
   for (const c of L.conferences) {
     const order = confStandings(L, c.id);
     const n = Math.min(order.length, c.tourneyTeams);
@@ -304,39 +330,49 @@ export function runSelection(L: League) {
   addNews(L, "league", `NCAA Tournament field announced. No. 1 seeds: ${ones.map((t) => team(L, t).name).join(", ")}.`, { user: false });
 }
 
+/** Early-season events (Maui, Battle 4 Atlantis, ...) are brackets too, played as nonconference games. */
+export function isEvent(br: Bracket): boolean {
+  return br.key.startsWith("mte:");
+}
+
 // ---------------- daily bracket games ----------------
+/** The game for a bracket slot whose teams are set. Marks the slot as scheduled; the caller adds it to the schedule. */
+export function bracketGame(L: League, br: Bracket, g: BracketGame, day: number): Game {
+  let home = g.a!;
+  let away = g.b!;
+  let neutral = br.neutral;
+  if (br.homeHigherSeedRounds && g.round < br.homeHigherSeedRounds) {
+    neutral = false;
+    if ((g.sb ?? 99) < (g.sa ?? 99)) [home, away] = [away, home];
+  }
+  const type: Game["type"] = br.key === "ncaa" ? "ncaa" : br.key === "nit" ? "nit" : br.key === "cbi" ? "cbi" : isEvent(br) ? "nc" : "ctourn";
+  const game: Game = {
+    id: L.nextGid++,
+    season: L.season,
+    day,
+    home,
+    away,
+    neutral,
+    type,
+    played: false,
+    hs: 0,
+    as: 0,
+    ot: 0,
+    tourney: { key: br.key, round: g.round, slot: g.slot },
+    event: g.round < 0 ? br.playinName : `${br.name} ${g.label ?? br.rounds[g.round]}`,
+  };
+  g.gid = game.id;
+  return game;
+}
+
 export function createBracketGames(L: League, day: number): Game[] {
   const out: Game[] = [];
   for (const br of L.brackets) {
-    if (br.champion !== null) continue;
     for (const g of br.games) {
       if (g.gid !== null || g.winner !== null || g.a === null || g.b === null) continue;
       const d = g.round < 0 ? br.playinDay : br.days[g.round];
       if (d !== day) continue;
-      let home = g.a;
-      let away = g.b;
-      let neutral = br.neutral;
-      if (br.homeHigherSeedRounds && g.round < br.homeHigherSeedRounds) {
-        neutral = false;
-        if ((g.sb ?? 99) < (g.sa ?? 99)) [home, away] = [away, home];
-      }
-      const type: Game["type"] = br.key === "ncaa" ? "ncaa" : br.key === "nit" ? "nit" : br.key === "cbi" ? "cbi" : "ctourn";
-      const game: Game = {
-        id: L.nextGid++,
-        season: L.season,
-        day,
-        home,
-        away,
-        neutral,
-        type,
-        played: false,
-        hs: 0,
-        as: 0,
-        ot: 0,
-        tourney: { key: br.key, round: g.round, slot: g.slot },
-        event: g.round < 0 ? br.playinName : `${br.name} ${br.rounds[g.round]}`,
-      };
-      g.gid = game.id;
+      const game = bracketGame(L, br, g, day);
       L.games.push(game);
       out.push(game);
     }
@@ -354,6 +390,18 @@ export function recordBracketResult(L: League, game: Game) {
   const loser = winner === game.home ? game.away : game.home;
   g.winner = winner;
   advanceWinner(br, g);
+  if (isEvent(br)) {
+    if (g.place !== undefined) {
+      const of = new Set(br.games.filter((x) => x.round === 0).flatMap((x) => [x.a, x.b])).size;
+      curSeason(team(L, winner)).event = { key: br.key, name: br.name, place: g.place, of };
+      curSeason(team(L, loser)).event = { key: br.key, name: br.name, place: g.place + 1, of };
+    }
+    if (g.place === 1) {
+      const mine = winner === L.userTid || loser === L.userTid;
+      addNews(L, mine ? "team" : "league", `${team(L, winner).name} wins the ${br.name}, beating ${team(L, loser).name} ${Math.max(game.hs, game.as)}-${Math.min(game.hs, game.as)} in the final.`, { tid: winner, gid: game.id, user: mine });
+    }
+    return;
+  }
   const maxRound = Math.max(...br.games.map((x) => x.round));
   const ls = curSeason(team(L, loser));
   const ws = curSeason(team(L, winner));
@@ -389,6 +437,6 @@ export function confTourneysDone(L: League): boolean {
   return L.brackets.filter((b) => b.key.startsWith("conf:")).every((b) => b.champion !== null);
 }
 export function nationalDone(L: League): boolean {
-  const nat = L.brackets.filter((b) => !b.key.startsWith("conf:"));
+  const nat = L.brackets.filter((b) => !b.key.startsWith("conf:") && !isEvent(b));
   return nat.length > 0 && nat.every((b) => b.champion !== null);
 }

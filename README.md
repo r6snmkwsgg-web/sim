@@ -44,7 +44,7 @@ Getting around: five sections (Home, My Team, Recruiting, League, History) sit o
 - Coaches matter: a great tactician is worth about two points a night, and a great developer grows players noticeably faster, at any level
 
 **The season**
-- About 31-game schedules shaped like real ones: Thanksgiving-week tournaments on neutral floors, December challenge games and holiday showcases against peers, and big schools hosting smaller ones
+- About 31-game schedules shaped like real ones: real Thanksgiving-week tournaments (Maui, Battle 4 Atlantis and 19 more), 8-team events over three days with consolation and placement games and 4-team events over two, all on neutral floors; December challenge games and holiday showcases against peers; big schools hosting smaller ones
 - A possession-by-possession game engine calibrated to real D1 averages (pace, shooting splits, free throws, turnovers, rebounding, blocks, steals, assists, fouls, home-court edge, overtime rate, game-to-game variance), with fatigue, foul trouble, substitutions, score effects and real end-of-game decisions (holding for the last shot, fouling when the shot clock is off, needing a three)
 - Watch your games live: a scoreboard, a shot chart on a full court, a live box score, a game-flow chart you can click to rewind, and the play-by-play, at 1x to 8x speed. The result stays hidden until the final buzzer
 - Box scores and play-by-play for your games
@@ -104,6 +104,7 @@ src/engine/        pure TypeScript simulation (no UI)
   schedule.ts      schedule generation
   rankings.ts      power ratings, polls, selection
   postseason.ts    conference tournaments, NCAA/NIT/CBI brackets
+  events.ts        early-season events: fields, Thanksgiving-week dates, 8- and 4-team brackets
   recruiting.ts    recruiting model and AI
   offseason.ts     awards, draft, portal, signing, rollover
   coaches.ts       prestige, coaching carousel

@@ -1,4 +1,4 @@
-// Navigation map: five sections ("hubs"), each with its own pages. The
+// Navigation map: six sections ("hubs"), each with its own pages. The
 // sidebar and the phone tab bar show the hubs; each page shows its hub's
 // pages as tabs, so related screens are always one click apart.
 
@@ -74,9 +74,20 @@ export const HUBS: NavHub[] = [
       { to: "scores", label: "Scores", alias: "games results today" },
       { to: "standings", label: "Standings", alias: "conference" },
       { to: "rankings", label: "Rankings", alias: "ap poll top 25 power" },
-      { to: "tournaments", label: "Tournaments", alias: "bracket ncaa march madness nit" },
       { to: "stats", label: "Stats", alias: "leaders" },
       { to: "awards", label: "Awards", alias: "player of the year all-america" },
+    ],
+  },
+  {
+    key: "tourneys",
+    label: "Tournaments",
+    short: "Tourneys",
+    icon: "bracket",
+    pages: [
+      { to: "tournaments", label: "NCAA Tournament", alias: "bracket march madness field of 68 final four" },
+      { to: "conf-tourneys", label: "Conference", alias: "conference tournaments automatic bid" },
+      { to: "nit", label: "NIT & CBI", alias: "nit cbi postseason" },
+      { to: "events", label: "Early-Season", alias: "maui invitational battle 4 atlantis thanksgiving events mte" },
     ],
   },
   {
@@ -147,5 +158,7 @@ export function hubTarget(L: League, hub: NavHub): string {
   const pages = hubPages(L, hub);
   const last = lastPage.get(hub.key);
   if (last !== undefined && pages.some((p) => p.to === last)) return last;
+  // tournaments open on whatever is being played now
+  if (hub.key === "tourneys") return L.phase === "regular" || L.phase === "preseason" ? "events" : L.phase === "confTourney" ? "conf-tourneys" : "tournaments";
   return pages[0].to;
 }

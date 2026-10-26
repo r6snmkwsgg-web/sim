@@ -26,13 +26,13 @@ export function Guide() {
         <Card title="The season">
           <ol className="small" style={{ margin: 0, paddingLeft: 18, lineHeight: 1.7 }}>
             <li>
-              <b>Preseason:</b> set your <Link to={`${b}/rotation`}>rotation</Link>, <Link to={`${b}/tactics`}>tactics</Link> and redshirts, and start recruiting.
+              <b>Preseason:</b> set your <Link to={`${b}/rotation`}>rotation</Link>, <Link to={`${b}/tactics`}>tactics</Link> and redshirts. Recruiting opens when the season tips off.
             </li>
             <li>
-              <b>Regular season:</b> about 31 games: non-conference from November, then the conference schedule. Home court matters.
+              <b>Regular season:</b> about 31 games: non-conference from November, including a Thanksgiving-week event (Maui, Battle 4 Atlantis and more) where you play three games (two in a four-team event), then the conference schedule. Home court matters.
             </li>
             <li>
-              <b>Conference tournaments:</b> the winners get automatic NCAA bids.
+              <b>Conference tournaments:</b> the winners get automatic NCAA bids. Every bracket lives under <Link to={`${b}/tournaments`}>Tournaments</Link>: the NCAA Tournament, all 32 conference tournaments, the NIT and CBI, and the early-season events.
             </li>
             <li>
               <b>Selection Sunday:</b> at-large teams are picked on power rating and resume (quality wins, bad losses). The next teams go to the NIT and CBI.

@@ -32,6 +32,7 @@ interface Snap {
   confChamp: boolean;
   confTourney: string | null;
   post: string | null;
+  event: string | null;
   recruits: Map<number, number | null>;
   goals: Set<string>;
   offers: number;
@@ -61,6 +62,7 @@ export function snapshot(L: League): Snap {
     confChamp: s.confChamp,
     confTourney: s.confTourney,
     post: s.post ? `${s.post.event}:${s.post.result}` : null,
+    event: s.event ? `${s.event.key}:${s.event.place}` : null,
     recruits: new Map(watched(L).map((p) => [p.id, p.recruit!.committedTo])),
     goals: new Set((L.goals?.season === L.season ? L.goals.list : []).filter((g) => g.done).map((g) => g.id)),
     offers: L.jobOffers.length,
@@ -129,14 +131,16 @@ export function momentsSince(L: League, b: Snap): Moment[] {
   // titles and March
   if (s.confChamp && !b.confChamp)
     out.push({ priority: 78, kicker: "Conference champions", title: `${ut.name} wins the regular season`, sub: `${s.cw}-${s.cl} in conference play.`, tid: me, logos: [me], link: { to: `${base}/standings`, label: "Standings" }, celebrate: true });
+  if (s.event?.place === 1 && b.event !== `${s.event.key}:1`)
+    out.push({ priority: 74, kicker: "Early-season title", title: `${s.event.name} champions`, sub: `${ut.name} won all ${s.event.of === 8 ? "three" : "two"} games.`, tid: me, logos: [me], link: { to: `${base}/events`, label: "Bracket" }, celebrate: true });
   if (s.confTourney === "Champion" && b.confTourney !== "Champion")
-    out.push({ priority: 86, kicker: "Cut down the nets", title: `${L.conferences[ut.cid].short} tournament champions`, sub: "Automatic bid to the NCAA Tournament.", tid: me, logos: [me], link: { to: `${base}/tournaments`, label: "Bracket" }, celebrate: true });
+    out.push({ priority: 86, kicker: "Cut down the nets", title: `${L.conferences[ut.cid].short} tournament champions`, sub: "Automatic bid to the NCAA Tournament.", tid: me, logos: [me], link: { to: `${base}/conf-tourneys`, label: "Bracket" }, celebrate: true });
   const post = s.post ? `${s.post.event}:${s.post.result}` : null;
   if (s.post && post !== b.post) {
     const p = s.post;
     if (b.post === null) {
       if (p.event === "ncaa") out.push({ priority: 89, kicker: "Selection Sunday", title: "You're dancing!", sub: `${ut.name} is a ${p.seed} seed in the NCAA Tournament.`, tid: me, logos: [me], link: { to: `${base}/tournaments`, label: "See the bracket" }, celebrate: true });
-      else out.push({ priority: 40, kicker: "Selection Sunday", title: `${p.event.toUpperCase()} bid`, sub: `A ${p.seed} seed in the ${p.event.toUpperCase()}.`, tid: me, logos: [me], link: { to: `${base}/tournaments`, label: "Bracket" } });
+      else out.push({ priority: 40, kicker: "Selection Sunday", title: `${p.event.toUpperCase()} bid`, sub: `A ${p.seed} seed in the ${p.event.toUpperCase()}.`, tid: me, logos: [me], link: { to: `${base}/nit`, label: "Bracket" } });
     } else if (p.event === "ncaa") {
       const step: Record<string, [number, string, string]> = {
         "Round of 32": [62, "Survive and advance", "On to the Round of 32"],

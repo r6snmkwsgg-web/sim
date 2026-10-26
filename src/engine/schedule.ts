@@ -1,22 +1,14 @@
 import type { Game, League, Team } from "./types";
 import { Rng } from "./rng";
 import { rngOf } from "./core";
+import { createEvents, eventCommitments } from "./events";
+import { bracketGame } from "./postseason";
 
 const CONF_START = 49;
 const CONF_END = 124;
 const NC_SLOTS = [0, 3, 7, 10, 14, 17, 21, 24, 28, 31, 35, 38, 42, 45];
-// Thanksgiving-week tournaments, played on neutral floors
-const MTE_SLOTS = new Set([17, 21, 24]);
 // early December challenge series and the holiday showcases: programs schedule their peers
 const MARQUEE_SLOTS = new Set([28, 38]);
-const MTE_NAMES = [
-  "Maui Invitational", "Battle 4 Atlantis", "Players Era Festival", "Las Vegas Invitational", "Charleston Classic",
-  "Legends Classic", "Empire Classic", "Fort Myers Tip-Off", "Arizona Tip-Off", "Baha Mar Championship", "ESPN Events Invitational",
-];
-const SMALL_MTE_NAMES = [
-  "Cancun Challenge", "Paradise Jam", "Cayman Islands Classic", "Jamaica Classic", "Myrtle Beach Invitational",
-  "Gulf Coast Showcase", "Hall of Fame Tip-Off", "Sunshine Slam", "Emerald Coast Classic", "Diamond Head Classic",
-];
 const SHOWCASE_NAMES = ["Champions Classic", "CBS Sports Classic", "Jimmy V Classic", "Holiday Hoopsgiving", "Hall of Fame Series", "Basketball Hall of Fame Showcase"];
 
 type Pair = [number, number];
@@ -151,24 +143,35 @@ export function generateSchedule(L: League): Game[] {
     });
   }
 
+  // --- early-season events: their first round is on the schedule; later rounds are added as results come in ---
+  const events = createEvents(L, rng);
+  L.brackets = events;
+  const inEvent = eventCommitments(events);
+  const played = new Set<string>();
+  for (const br of events) {
+    const field = br.games.filter((g) => g.round === 0).flatMap((g) => [g.a!, g.b!]);
+    for (const a of field) for (const b of field) if (a < b) played.add(`${a}-${b}`);
+    for (const g of br.games) if (g.round === 0) games.push(bracketGame(L, br, g, br.days[0]));
+  }
+
   // --- non-conference games ---
   const need = new Map<number, number>();
   for (const t of L.teams) {
     const target = rng.int(30, 32);
-    need.set(t.id, Math.max(8, Math.min(NC_SLOTS.length, target - (confCount.get(t.id) ?? 0))));
+    need.set(t.id, Math.max(8, Math.min(NC_SLOTS.length, target - (confCount.get(t.id) ?? 0))) - (inEvent.get(t.id)?.games ?? 0));
   }
-  const played = new Set<string>();
+  // no other games the day before, during or after a team's event
+  const offDuty = (tid: number, day: number) => {
+    const e = inEvent.get(tid);
+    return !!e && day >= e.days[0] - 1 && day <= e.days[e.days.length - 1] + 1;
+  };
   const byId = new Map(L.teams.map((t) => [t.id, t]));
-  const mteNames = rng.shuffle(MTE_NAMES.slice());
-  const smallNames = rng.shuffle(SMALL_MTE_NAMES.slice());
   const showNames = rng.shuffle(SHOWCASE_NAMES.slice());
-  let mteIdx = 0;
-  let smallIdx = 0;
   let showIdx = 0;
   NC_SLOTS.forEach((day, si) => {
     const slotsLeft = NC_SLOTS.length - si;
     const avail = L.teams
-      .filter((t) => (need.get(t.id) ?? 0) > 0)
+      .filter((t) => (need.get(t.id) ?? 0) > 0 && !offDuty(t.id, day))
       .map((t) => ({ t, urg: (need.get(t.id) ?? 0) / slotsLeft + rng.next() * 0.3 }))
       .filter((x) => x.urg >= 0.99 || rng.next() < x.urg)
       .sort((a, b) => b.urg - a.urg)
@@ -177,7 +180,7 @@ export function generateSchedule(L: League): Game[] {
     for (const a of avail) {
       if (busy.has(a.id)) continue;
       // find an opponent: different conference, not yet played, also available
-      const peerSlot = MTE_SLOTS.has(day) || (MARQUEE_SLOTS.has(day) && a.prestige >= 50);
+      const peerSlot = MARQUEE_SLOTS.has(day) && a.prestige >= 50;
       let best: Team | null = null;
       let bestScore = -Infinity;
       for (let tries = 0; tries < 18; tries++) {
@@ -203,12 +206,6 @@ export function generateSchedule(L: League): Game[] {
       const ta = byId.get(a.id)!;
       const tb = byId.get(b.id)!;
       const bothStrong = ta.prestige >= 55 && tb.prestige >= 55;
-      if (MTE_SLOTS.has(day) && rng.chance(bothStrong ? 0.95 : 0.6)) {
-        const big = Math.max(ta.prestige, tb.prestige) >= 50;
-        const ev = big ? mteNames[mteIdx++ % mteNames.length] : smallNames[smallIdx++ % smallNames.length];
-        games.push(mk(a.id, b.id, day, "nc", true, ev));
-        continue;
-      }
       if (day === 38 && bothStrong && rng.chance(0.5)) {
         games.push(mk(a.id, b.id, day, "nc", true, showNames[showIdx++ % showNames.length]));
         continue;

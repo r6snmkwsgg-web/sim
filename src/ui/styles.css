@@ -429,6 +429,8 @@ table.tbl { width: 100%; border-collapse: separate; border-spacing: 0; font-vari
 .tbl tbody tr.hl td { background: color-mix(in srgb, var(--text) 5%, transparent); }
 .tbl tbody tr.hl td:first-child { box-shadow: inset 3px 0 0 var(--accent-ink); }
 .tbl tbody tr.clickable { cursor: pointer; }
+.tbl tbody tr.sel td { background: var(--accent-soft); }
+.tbl tbody tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--accent-ink); }
 .tbl tbody tr.dim td { opacity: 0.5; }
 .tbl tr.sep td { border-top: 2px solid var(--border-strong); }
 .tbl.compact td { height: 32px; padding: 4px 9px; }
@@ -1319,3 +1321,14 @@ span.unknown.big { cursor: default; }
 div.rec-act { cursor: default; }
 @media (max-width: 960px) { .cat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 760px) { .cat-grid { grid-template-columns: minmax(0, 1fr); } }
+
+/* Early-season events */
+.event-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+.event-card { display: flex; flex-direction: column; gap: 6px; text-align: left; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border); background: var(--panel); color: var(--text); cursor: pointer; min-width: 0; }
+.event-card:hover { border-color: var(--border-strong); }
+.event-card.on { border-color: var(--accent-ink); box-shadow: inset 0 0 0 1px var(--accent-ink); }
+.event-logos { display: flex; flex-wrap: wrap; gap: 4px; margin: 2px 0; }
+.event-places { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px; }
+.event-place { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 8px; background: var(--panel-2); border: 1px solid var(--border); color: var(--text) !important; min-width: 0; font-size: 13.5px; }
+.event-place b { width: 16px; text-align: right; font-variant-numeric: tabular-nums; flex: none; }
+.event-place.me { border-color: var(--accent-ink); }

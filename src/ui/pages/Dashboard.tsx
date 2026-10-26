@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { useLeague, useSim } from "../store";
 import { canWatchNext, useWatchNext } from "../components/Layout";
 import { coach, roster, seasonLabel, shortDayLabel, team, PHASE_LABEL } from "../../engine/core";
+import { isEvent } from "../../engine/postseason";
 import { curSeason } from "../../engine/play";
 import { PREP_LEVELS, currentPrep } from "../../engine/prep";
 import { goalProgress } from "../../engine/goals";
@@ -46,7 +47,7 @@ function Guide({ L }: { L: League }) {
       { text: "Check your NCAA Tournament resume", to: `${base}/rankings`, link: "Rankings" },
     ],
     confTourney: [
-      { text: "Win your conference tournament to clinch an automatic bid", to: `${base}/tournaments`, link: "Brackets" },
+      { text: "Win your conference tournament to clinch an automatic bid", to: `${base}/conf-tourneys`, link: "Brackets" },
       { text: "Scout each opponent with your coaching points", to: `${base}/prep`, link: "Game Prep" },
     ],
     selection: [{ text: "The brackets are out. See where you landed", to: `${base}/tournaments`, link: "Tournaments" }],
@@ -245,7 +246,7 @@ function NextUp({ L }: { L: League }) {
         </div>
         <div className="row" style={{ marginTop: 12 }}>
           {watchBtn}
-          <Link to={`/l/${L.id}/tournaments`} className="btn btn-sm btn-glass">
+          <Link to={`/l/${L.id}/${isEvent(br) ? "events" : br.key.startsWith("conf:") ? "conf-tourneys" : br.key === "ncaa" ? "tournaments" : "nit"}`} className="btn btn-sm btn-glass">
             <Icon name="bracket" size={13} /> Bracket
           </Link>
           {opp && <PrepButton L={L} />}
