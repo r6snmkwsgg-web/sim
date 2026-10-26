@@ -13,7 +13,7 @@ import { classRankings, commitsFor, openSpots } from "../../engine/recruiting";
 import { Card, FormStrip, heroStyle, Logo, Meter, Stars, TeamLink } from "../components/common";
 import { Face } from "../components/Face";
 import { Icon } from "../components/Icons";
-import { gameView, KIND_COLORS, lastGames, nextGame, standingsRows, streakStr, teamLeaders } from "../helpers";
+import { gameKind, gameNumber, gameView, KIND_COLORS, lastGames, nextGame, standingsRows, streakStr, teamLeaders } from "../helpers";
 import { f1, ordinal } from "../util";
 import type { League } from "../../engine/types";
 
@@ -182,11 +182,13 @@ function NextUp({ L }: { L: League }) {
     const os = curSeason(opp);
     const or = currentRank(L, opp.id);
     const where = v.loc === "N" ? "Neutral site" : v.home ? "Home" : "Away";
-    const label = g.event ?? (g.type === "conf" ? "Conference" : g.type === "nc" ? "Non-conference" : "Postseason");
     return (
       <div className="next-panel">
         <div className="hero-kicker">
           Next game · {shortDayLabel(L.season, g.day)} · {where}
+        </div>
+        <div className="game-kind">
+          Game {gameNumber(L, g, L.userTid)} · {gameKind(L, g)}
         </div>
         <div className="row" style={{ gap: 14, marginTop: 10 }}>
           <Logo team={opp} size={60} />
@@ -197,7 +199,7 @@ function NextUp({ L }: { L: League }) {
               {opp.name}
             </div>
             <div className="small" style={{ opacity: 0.85 }}>
-              {os.w}-{os.l} · {L.conferences[opp.cid].short} · {label}
+              {os.w}-{os.l} · {L.conferences[opp.cid].short}
             </div>
           </div>
         </div>

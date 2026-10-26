@@ -22,6 +22,22 @@ export function lastGames(L: League, tid: number, n: number): Game[] {
     .reverse();
 }
 
+/** What kind of game this is, in words: "Non-conference", "Conference game · Big 12", "Maui Invitational Quarterfinals", ... */
+export function gameKind(L: League, g: Game): string {
+  if (g.event) return g.event;
+  if (g.type === "conf") {
+    const home = team(L, g.home);
+    return `Conference game · ${L.conferences[home.cid]?.short ?? "Conference"}`;
+  }
+  if (g.type === "nc") return "Non-conference";
+  return g.type === "ctourn" ? "Conference tournament" : g.type.toUpperCase();
+}
+
+/** Which of the team's games this is this season (1 for the opener). */
+export function gameNumber(L: League, g: Game, tid: number): number {
+  return teamGames(L, tid).findIndex((x) => x.id === g.id) + 1;
+}
+
 export function gameView(g: Game, tid: number) {
   const home = g.home === tid;
   const us = home ? g.hs : g.as;

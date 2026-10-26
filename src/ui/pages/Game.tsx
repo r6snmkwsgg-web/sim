@@ -11,7 +11,7 @@ import { GameViewer } from "../components/GameViewer";
 import { curSeason } from "../../engine/play";
 import { PREP_LEVELS } from "../../engine/prep";
 import { currentRank, rosterStrength } from "../../engine/rankings";
-import { teamLeaders } from "../helpers";
+import { gameKind, teamLeaders } from "../helpers";
 import { grade } from "../../engine/ratings";
 
 function totals(lines: BoxLine[]) {
@@ -312,7 +312,7 @@ export function GamePage() {
     <div className="col gap-16">
       <div className="scoreboard" style={{ ["--ca" as string]: heroColors(at.colors).h1, ["--ch" as string]: heroColors(ht.colors).h1, ...(watching && box?.pbp ? { display: "none" } : null) }}>
         <div className="sb-kicker">
-          {dayLabel(g.season, g.day)} · {g.event ?? (g.type === "conf" ? "Conference game" : g.type === "nc" ? "Non-conference" : g.type.toUpperCase())} · {g.neutral ? "Neutral site" : `at ${ht.name}`}
+          {dayLabel(g.season, g.day)} · {gameKind(L, g)} · {g.neutral ? "Neutral site" : `at ${ht.name}`}
           {g.prep ? ` · Your prep: ${PREP_LEVELS[g.prep].name}` : ""}
         </div>
         <div className="sb-main">

@@ -10,19 +10,23 @@ import type { League, Team } from "../../engine/types";
 import { Card, Empty, Grade, heroStyle, Logo, PageHead, PlayerLink } from "../components/common";
 import { Icon } from "../components/Icons";
 import { confirmSpend } from "../components/Confirm";
-import { gameView, nextGame, seasonStatsOf } from "../helpers";
+import { gameKind, gameNumber, gameView, nextGame, seasonStatsOf } from "../helpers";
 
 const TEMPO = ["", "Grind", "Slow", "Normal", "Fast", "Run & Gun"];
 const OFF = { inside: "Inside", balanced: "Balanced", perimeter: "Perimeter" } as const;
 const DEF = { man: "Man-to-Man", zone: "2-3 Zone", press: "Full-Court Press" } as const;
 const REB = { crash: "Crash the glass", balanced: "Balanced", getback: "Get back" } as const;
 
-function lineText(L: League, opp: Team, v: number): string {
-  // lines move in half points
-  const h = Math.round(Math.abs(v) * 2) / 2;
-  if (h === 0) return "Pick'em";
-  const fav = v > 0 ? team(L, L.userTid).short : opp.short;
-  return `${fav} by ${h % 1 ? h.toFixed(1) : h.toFixed(0)}`;
+/** Who's favored and by how much, in plain words. v > 0 means the user's team. */
+function favoredText(L: League, opp: Team, v: number): string {
+  const pts = Math.round(Math.abs(v));
+  if (pts === 0) return "A toss-up";
+  return v > 0 ? `You're favored by ${pts} point${pts === 1 ? "" : "s"}` : `${opp.name} favored by ${pts} point${pts === 1 ? "" : "s"}`;
+}
+
+/** Chance the user's team wins, from the projected margin (games swing about 11 points either way). */
+function winChance(v: number): number {
+  return Math.round(100 / (1 + Math.exp((-1.7 * v) / 11)));
 }
 
 /** Players to watch: their best by scoring this season, or by rating before games are played. */
@@ -82,8 +86,8 @@ export function Prep() {
           <div style={{ flex: 1, minWidth: 0 }}>
             <div className="hero-kicker">
               Next game{g && v ? ` · ${shortDayLabel(L.season, g.day)}` : ""} · {where}
-              {g?.event ? ` · ${g.event}` : ""}
             </div>
+            {g && <div className="game-kind">Game {gameNumber(L, g, L.userTid)} · {gameKind(L, g)}</div>}
             <div className="hero-title" style={{ marginTop: 6, fontSize: 38 }}>
               <span style={{ opacity: 0.7 }}>{v?.loc === "A" ? "at " : "vs "}</span>
               {or ? <span style={{ opacity: 0.8 }}>#{or} </span> : null}
@@ -94,9 +98,10 @@ export function Prep() {
             </div>
           </div>
           <div className="prep-line">
-            <div className="hero-kicker">The line</div>
-            <div className="prep-line-v">{lineText(L, opp, base)}</div>
-            {level > 0 && <div className="prep-line-s">With your prep: {lineText(L, opp, withPrep)}</div>}
+            <div className="hero-kicker">Your chance to win</div>
+            <div className="prep-line-v">{winChance(base)}%</div>
+            <div className="prep-line-s">{favoredText(L, opp, base)}</div>
+            {level > 0 && <div className="prep-line-s">With your prep: {winChance(withPrep)}%</div>}
           </div>
         </div>
       </div>

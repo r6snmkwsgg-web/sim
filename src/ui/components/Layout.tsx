@@ -10,7 +10,7 @@ import { ConfirmHost } from "./Confirm";
 import { Logo } from "./common";
 import { GlobalSearch } from "./Search";
 import { PORTAL_ROUNDS, advanceBlocker, isDayPhase } from "../../engine/advance";
-import { nextGame } from "../helpers";
+import { gameKind, nextGame } from "../helpers";
 import type { League } from "../../engine/types";
 import { HUBS, hubPages, hubTarget, locate, rememberPage, type NavHub } from "../nav";
 import { useCloudStatus } from "../cloud";
@@ -268,7 +268,7 @@ function ResultToast() {
           </div>
           <div className="small muted ellipsis">
             {g.neutral ? "vs" : userHome ? "vs" : "at"} {opp.name}
-            {g.event ? ` · ${g.event}` : ""}
+            {` · ${gameKind(L, g)}`}
           </div>
         </div>
         <Link className="btn btn-sm" to={`/l/${L.id}/game/${g.id}?watch=1`} onClick={() => setShown(null)}>
