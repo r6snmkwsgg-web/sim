@@ -4,21 +4,17 @@ import { team } from "../../engine/core";
 import { heightStr } from "../../engine/ratings";
 import { commitsFor } from "../../engine/recruiting";
 import type { League, Player } from "../../engine/types";
-import { Bar, Card, Empty, Grade, Logo, PageHead, PlayerLink, Stars } from "../components/common";
-import { KnownOvr, KnownPot, QuickActions, StageCell, interestRank, leader } from "../components/RecruitTable";
+import { Card, Empty, Grade, PageHead, PlayerLink, Stars } from "../components/common";
+import { KnownOvr, KnownPot, QuickActions, StageCell } from "../components/RecruitTable";
+import { HeatMeter } from "./RecruitProfile";
 import { RecruitingSummary } from "./Recruiting";
 import { money } from "../util";
 
 function TargetRow({ L, p }: { L: League; p: Player }) {
   const r = p.recruit!;
-  const mine = r.interest[L.userTid] ?? 0;
-  const lead = leader(p);
-  const leadV = lead !== null ? r.interest[lead] : 0;
   const rival = Object.entries(r.interest)
     .filter(([k]) => Number(k) !== L.userTid)
     .sort((a, b) => b[1] - a[1])[0];
-  const max = Math.max(10, leadV);
-  const rank = interestRank(L, p);
   return (
     <tr className={r.committedTo === L.userTid ? "hl" : ""}>
       <td>
@@ -37,29 +33,11 @@ function TargetRow({ L, p }: { L: League; p: Player }) {
       <td>
         {r.kind === "portal" ? <Grade v={p.ovr} /> : <KnownOvr p={p} />} {r.kind === "portal" ? <Grade v={p.pot + p.potErr} /> : <KnownPot p={p} />}
       </td>
-      <td style={{ width: 220 }}>
-        <div className="row" style={{ gap: 6 }}>
-          <span className="tiny muted" style={{ width: 30 }}>
-            You
-          </span>
-          <div style={{ flex: 1 }}>
-            <Bar value={mine} max={max} />
-          </div>
-          <span className="tiny bold num" style={{ width: 28 }}>
-            {rank ? `#${rank}` : "-"}
-          </span>
-        </div>
+      <td style={{ width: 300 }}>
+        <HeatMeter L={L} p={p} tid={L.userTid} compact />
         {rival && (
-          <div className="row mt-8" style={{ gap: 6 }}>
-            <span style={{ width: 30 }}>
-              <Logo team={team(L, Number(rival[0]))} size={16} />
-            </span>
-            <div style={{ flex: 1 }}>
-              <Bar value={rival[1]} max={max} thin color="#94a3b8" />
-            </div>
-            <span className="tiny muted" style={{ width: 28 }}>
-              {team(L, Number(rival[0])).abbrev}
-            </span>
+          <div style={{ marginTop: 6 }}>
+            <HeatMeter L={L} p={p} tid={Number(rival[0])} compact />
           </div>
         )}
       </td>
@@ -115,7 +93,7 @@ export function Targets() {
                   <th>Stars</th>
                   <th>Pos</th>
                   <th>OVR / POT</th>
-                  <th>Interest vs. top rival</th>
+                  <th>You vs. top rival</th>
                   <th>Status</th>
                   <th>Call 3 · Visit 8 · Offer</th>
                   <th />

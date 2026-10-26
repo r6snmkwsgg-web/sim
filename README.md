@@ -60,7 +60,10 @@ Getting around: five sections (Home, My Team, Recruiting, League, History) sit o
 **Recruiting & the offseason**
 - About 1,700 high school prospects a year, each with seven preferences: playing time, prestige, proximity, contender, coach, facilities, NIL
 - Weekly recruiting points for calls, assistant visits, head coach visits, official visits, offers and NIL deals
-- Scouting the Blue Bloods way: Watch film (skills), Watch him play (athleticism and defense), Talk to his coach (work ethic, loyalty, real potential); until then it's "?", and star ratings are noisy, so there are sleepers and busts
+- Scouting the Blue Bloods way: seven broad categories (Shooting, Finishing, Playmaking, Perimeter D, Interior D, Rebounding, Athleticism), each a letter grade averaged from the ratings underneath. Game film (2 pts) reveals one at random, Scout a game (5 pts) reveals the one you choose, Talk to his coach (3 pts) reveals work ethic and potential; until then it's "?", and star ratings are noisy, so there are sleepers and busts
+- Recruit profiles in tabs: Overview (what he wants, who's after him), Recruit (everything that costs points), Ratings, and HS Stats (his high school career, with the senior season playing out alongside yours)
+- Heat meters (Cold, Warm, Hot, Ready to commit) for you and every rival; NIL offers ask for confirmation
+- Recruiting opens at tip-off: the high school season starts with the college season, so nobody recruits in the preseason
 - Coaching points always visible in the top bar; a "Realistic for us" board filter and a plain-language chance for every recruit
 - Top-five lists, verbal commitments that can flip, early and late signing periods
 - AI programs recruit under the same rules, following a realistic pecking order

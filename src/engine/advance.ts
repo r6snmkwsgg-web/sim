@@ -125,9 +125,7 @@ export function advancePhase(L: League) {
 function advancePhaseInner(L: League) {
   switch (L.phase) {
     case "preseason": {
-      // preseason counts as recruiting week 0
-      aiRecruitWeek(L, "hs");
-      recruitDecisions(L, "hs");
+      // the high school season (and recruiting, for everyone) starts with ours
       L.week = 1;
       resetUserPoints(L);
       L.phase = "regular";

@@ -50,8 +50,10 @@ export function Guide() {
             <li>You get coaching points every week. They reset on Mondays and don't carry over, so spend them: on recruits, or on <Link to={`${b}/prep`}>Game Prep</Link> to scout your next opponent (about +1 to +2.5 points in that game).</li>
             <li>Every recruit weighs playing time, prestige, distance from home, contender status, the head coach, facilities and NIL. Your fit multiplies every action.</li>
             <li>
-              <b>Scout</b> to see true ratings. Star ratings are noisy, so there are hidden gems (and busts).
+              <b>Scout</b> to see his ratings in seven categories (shooting, finishing, playmaking, perimeter D, interior D, rebounding, athleticism). Game film (2 pts) shows one at random, scouting a game (5 pts) shows the one you pick, and talking to his coach (3 pts) tells you his work ethic and potential. Star ratings are noisy, so there are hidden gems (and busts).
             </li>
+            <li>Recruiting opens when the season tips off: the high school season starts with yours, and nobody (you or the AI) can contact recruits in the preseason.</li>
+            <li>The heat meter shows how close a recruit is to committing to each school: Cold, Warm, Hot, Ready to commit. NIL offers ask you to confirm before they go out.</li>
             <li>Recruits narrow their list to a top five, then commit to a school that has offered. Verbal commitments can flip until they sign (early signing period in week 3, or signing day).</li>
             <li>Official visits are limited each season. Use them on players you can actually land.</li>
             <li>Open roster spots depend on who's returning. Projected NBA early entries count as departures.</li>

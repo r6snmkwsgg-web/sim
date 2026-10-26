@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import type { League, Player } from "../../engine/types";
 import { team } from "../../engine/core";
 import { heightStr, classLabel } from "../../engine/ratings";
-import { ACTIONS, actionMult, canAct, doAction, revealsOf, scoutedOvr, type ActionKey } from "../../engine/recruiting";
+import { ACTIONS, actionMult, canAct, doAction, heatOf, scoutedOvr, seenOf, talkedTo, type ActionKey } from "../../engine/recruiting";
 import { mutate } from "../store";
 import { Grade, Logo, PlayerLink, Pos, Stars, Table, type Col } from "./common";
 import { Icon } from "./Icons";
@@ -80,32 +80,30 @@ export function QuickActions({ L, p, keys = ["call", "assistant", "offer"] }: { 
   );
 }
 
-/** Which of the three scouting looks you've done. */
+/** How much of him you've scouted: categories seen out of 7. */
 export function ScoutDots({ p }: { p: Player }) {
-  const done = revealsOf(p);
-  const all = [
-    ["film", "tv", "Film"],
-    ["live", "eye", "Watched him play"],
-    ["coach", "phone", "Talked to his coach"],
-  ] as const;
+  const n = seenOf(p).length;
+  const t = talkedTo(p);
   return (
-    <span className="scout-ics" title={done.length ? `Scouted: ${all.filter(([k]) => done.includes(k)).map(([, , t]) => t).join(", ")}` : "Not scouted"}>
-      {all.map(([k, ic]) => (
-        <i key={k} className={done.includes(k) ? "on" : ""}>
-          <Icon name={ic} size={11} />
-        </i>
-      ))}
+    <span className={`scout-count${n === 7 ? " full" : n ? " some" : ""}`} title={`${n} of 7 categories scouted${t ? ", talked to his coach" : ""}`}>
+      {n}/7{t ? " +" : ""}
     </span>
   );
 }
 
-/** A recruit's rating as far as you know it: "?" until you've scouted him. */
+/** A recruit's rating as far as you know it: "?" until you've scouted most of him. */
 export function KnownOvr({ p }: { p: Player }) {
-  const d = revealsOf(p);
-  return d.includes("film") || d.includes("live") ? <Grade v={scoutedOvr(p)} /> : <span className="unknown">?</span>;
+  return seenOf(p).length >= 4 ? <Grade v={scoutedOvr(p)} /> : <span className="unknown">?</span>;
 }
 export function KnownPot({ p }: { p: Player }) {
-  return revealsOf(p).includes("coach") ? <Grade v={p.pot} /> : <span className="unknown">?</span>;
+  return talkedTo(p) ? <Grade v={p.pot} /> : <span className="unknown">?</span>;
+}
+
+/** Your heat with him as a short colored label. */
+export function HeatTag({ L, p }: { L: League; p: Player }) {
+  const h = heatOf(p, L.userTid);
+  if (!(p.recruit!.interest[L.userTid] ?? 0)) return <span className="faint">-</span>;
+  return <span className={`heat-label l${h.level}`}>{h.label}</span>;
 }
 
 export function RecruitTable({ L, rows, kind, limit = 50, showActions = false }: { L: League; rows: Player[]; kind: "hs" | "portal"; limit?: number; showActions?: boolean }) {
@@ -150,9 +148,9 @@ export function RecruitTable({ L, rows, kind, limit = 50, showActions = false }:
         ]
       : [
           { key: "hs", label: "HS PPG", title: "High school points per game", render: (p: Player) => (p.recruit!.hs ? p.recruit!.hs.pts.toFixed(1) : "-"), sort: (p: Player) => p.recruit!.hs?.pts ?? 0, num: true },
-          { key: "ovr", label: "OVR", title: "Scout him to find out", render: (p: Player) => <KnownOvr p={p} />, sort: (p: Player) => (revealsOf(p).some((x) => x !== "coach") ? scoutedOvr(p) : p.recruit!.stars * 10), num: true },
-          { key: "pot", label: "POT", title: "Talk to his coach to find out", render: (p: Player) => <KnownPot p={p} />, sort: (p: Player) => (revealsOf(p).includes("coach") ? p.pot : p.recruit!.stars * 10), num: true },
-          { key: "sc", label: "Scouted", title: "Film, watched him play, talked to his coach", render: (p: Player) => <ScoutDots p={p} />, sort: (p: Player) => revealsOf(p).length, center: true },
+          { key: "ovr", label: "OVR", title: "Scout 4 of his 7 categories to estimate it", render: (p: Player) => <KnownOvr p={p} />, sort: (p: Player) => (seenOf(p).length >= 4 ? scoutedOvr(p) : p.recruit!.stars * 10), num: true },
+          { key: "pot", label: "POT", title: "Talk to his coach to find out", render: (p: Player) => <KnownPot p={p} />, sort: (p: Player) => (talkedTo(p) ? p.pot : p.recruit!.stars * 10), num: true },
+          { key: "sc", label: "Scouted", title: "Categories scouted out of 7 (+ = talked to his coach)", render: (p: Player) => <ScoutDots p={p} />, sort: (p: Player) => seenOf(p).length, center: true },
         ]),
     {
       key: "chance",
@@ -183,28 +181,24 @@ export function RecruitTable({ L, rows, kind, limit = 50, showActions = false }:
     },
     {
       key: "you",
-      label: "You",
-      title: "Your rank in his interest list",
-      render: (p) => {
-        const r = interestRank(L, p);
-        const offered = p.recruit!.offers.includes(L.userTid);
-        return (
-          <span className="row gap-4">
-            {r ? <span className={`you-rank${r === 1 ? " first" : ""}`}>#{r}</span> : <span className="faint">-</span>}
-            {offered && (
-              <span className="you-ic" title="You offered">
-                <Icon name="check" size={11} />
-              </span>
-            )}
-            {L.board.includes(p.id) && (
-              <span className="you-ic star" title="On your board">
-                <Icon name="star" size={11} />
-              </span>
-            )}
-          </span>
-        );
-      },
-      sort: (p) => -(interestRank(L, p) ?? 999),
+      label: "Your heat",
+      title: "How close you are to landing him",
+      render: (p) => (
+        <span className="row gap-4">
+          <HeatTag L={L} p={p} />
+          {p.recruit!.offers.includes(L.userTid) && (
+            <span className="you-ic" title="You offered">
+              <Icon name="check" size={11} />
+            </span>
+          )}
+          {L.board.includes(p.id) && (
+            <span className="you-ic star" title="On your board">
+              <Icon name="star" size={11} />
+            </span>
+          )}
+        </span>
+      ),
+      sort: (p) => p.recruit!.interest[L.userTid] ?? 0,
       num: true,
     },
     ...(showActions ? [{ key: "act", label: "", render: (p: Player) => (p.recruit!.stage !== "signed" ? <QuickActions L={L} p={p} /> : null) }] : []),

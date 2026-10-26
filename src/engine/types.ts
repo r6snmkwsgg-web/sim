@@ -79,6 +79,7 @@ export type PrefKey = "pt" | "prestige" | "proximity" | "contender" | "coach" | 
 export const PREF_KEYS: PrefKey[] = ["pt", "prestige", "proximity", "contender", "coach", "facilities", "nil"];
 
 export type RevealKey = "film" | "live" | "coach";
+export type CatKey = "shooting" | "finishing" | "playmaking" | "perimeterD" | "interiorD" | "rebounding" | "athleticism";
 
 export interface Goal {
   id: string;
@@ -109,8 +110,12 @@ export interface RecruitInfo {
   committedTo: number | null;
   commitWeek: number; // earliest week a decision can happen
   scout: number; // user team's scouting level 0-3 (one per reveal below)
-  /** what the user's staff has found out: film = skills, live = athleticism & defense, coach = work ethic & potential */
+  /** (older saves) what the user's staff had found out before categories */
   reveals?: RevealKey[];
+  /** rating categories the user's staff has scouted */
+  seen?: CatKey[];
+  /** the user has talked to his coach (work ethic and potential known) */
+  talked?: boolean;
   lastAction: Record<string, number>; // `${tid}:${action}` -> week
   fromTid?: number; // portal: previous team
   history: { week: number; text: string }[]; // events shown on the profile

@@ -1,19 +1,19 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import { mutate, useLeague } from "../store";
 import { seasonLabel, team, teamMaybe } from "../../engine/core";
-import { classLabel, heightStr, RATING_LABELS } from "../../engine/ratings";
+import { classLabel, heightStr } from "../../engine/ratings";
 import { distanceMiles } from "../../engine/rng";
 import { regionOf } from "../../engine/data/cities";
 import {
-  ACTIONS, actionMult, canAct, doAction, factorScores, fit, NIL_VALUE, nilCommitted, OFFICIAL_VISITS, openSpots, PREF_LABELS, pullOffer, reveal, REVEALS, revealsOf, scoutedOvr, setNilOffer, type ActionKey,
+  ACTIONS, actionMult, canAct, CAT_KEYS, CATS, catValue, doAction, factorScores, fit, heatOf, hsCareer, NIL_VALUE, nilCommitted, OFFICIAL_VISITS, openSpots, PREF_LABELS, pullOffer, recruitingOpen,
+  SCOUT_COST, scoutedOvr, scoutGame, seenOf, setNilOffer, talkedTo, talkToCoach, watchFilm, type ActionKey,
 } from "../../engine/recruiting";
-import type { League, Player, PrefKey, RevealKey } from "../../engine/types";
+import type { CatKey, League, Player, PrefKey } from "../../engine/types";
 import { PREF_KEYS } from "../../engine/types";
-import { Bar, Card, Grade, heroStyle, Logo, Stars } from "../components/common";
+import { Card, Grade, heroStyle, Logo, Stars, Tabs } from "../components/common";
 import { Face } from "../components/Face";
 import { Icon } from "../components/Icons";
-import { money } from "../util";
+import { inkOn, money } from "../util";
 
 const IMPORTANCE = ["", "Doesn't care", "Minor", "Nice to have", "Important", "Must have"];
 const ACTION_ICONS: Record<ActionKey, string> = { scout: "eye", call: "phone", assistant: "whistle", coach: "coach", visit: "plane", offer: "draft" };
@@ -25,7 +25,6 @@ const ACTION_TEXT: Record<ActionKey, { label: string; desc: string }> = {
   visit: { label: "Official visit", desc: "Bring him to campus. Huge boost. Once." },
   offer: { label: "Offer scholarship", desc: "He can only commit to schools that offered." },
 };
-const REVEAL_ICONS: Record<RevealKey, string> = { film: "tv", live: "eye", coach: "phone" };
 
 export function stageText(L: League, p: Player): string {
   const r = p.recruit!;
@@ -52,6 +51,30 @@ function fitWord(x: number): { t: string; c: string } {
   return { t: "Bad", c: "var(--bad)" };
 }
 
+/** A school's heat with a recruit: Cold, Warm, Hot, Ready to commit, in its colors. */
+export function HeatMeter({ L, p, tid, showTeam = true, compact }: { L: League; p: Player; tid: number; showTeam?: boolean; compact?: boolean }) {
+  const h = heatOf(p, tid);
+  const t = team(L, tid);
+  const dark = document.documentElement.dataset.theme !== "light";
+  const fill = inkOn(t.colors[0], dark ? "#151c2a" : "#f7f8fb", 2.2);
+  return (
+    <div className={`heat${tid === L.userTid ? " me" : ""}`}>
+      {showTeam && (
+        <span className="heat-team">
+          <Logo team={t} size={24} />
+          <span className="ellipsis">{tid === L.userTid ? (compact ? "You" : `${t.short} (you)`) : compact ? t.short : t.name}</span>
+        </span>
+      )}
+      <div className="heat-track">
+        <i style={{ width: `${Math.max(3, h.v * 100)}%`, background: fill }} />
+        <b style={{ left: "25%" }} />
+        <b style={{ left: "60%" }} />
+      </div>
+      <span className={`heat-label l${h.level}`}>{h.label}</span>
+    </div>
+  );
+}
+
 /** Who's recruiting him, and where you stand. */
 function WhosAfterHim({ L, p }: { L: League; p: Player }) {
   const r = p.recruit!;
@@ -60,7 +83,6 @@ function WhosAfterHim({ L, p }: { L: League; p: Player }) {
     .filter((x) => x.v > 0.5)
     .sort((a, b) => b.v - a.v)
     .slice(0, 6);
-  const max = Math.max(10, ...list.map((x) => x.v));
   const mine = list.findIndex((x) => x.tid === L.userTid);
   const lead = list[0] ? team(L, list[0].tid) : null;
   const sub =
@@ -76,31 +98,21 @@ function WhosAfterHim({ L, p }: { L: League; p: Player }) {
   return (
     <Card title="Who's after him" sub={sub}>
       {list.length ? (
-        <div className="col" style={{ gap: 6 }}>
-          {list.map((x, i) => {
-            const t = team(L, x.tid);
+        <div className="col" style={{ gap: 8 }}>
+          {list.map((x) => {
             const out = (r.stage === "top5" || r.stage === "committed") && !r.top5.includes(x.tid);
+            const notes = [r.committedTo === x.tid && "Committed", r.offers.includes(x.tid) && "Offered", r.visits.includes(x.tid) && "Official visit", L.settings.nil && (r.nil[x.tid] ?? 0) > 0 && "NIL offer"].filter(Boolean);
             return (
-              <div key={x.tid} className={`int-row${x.tid === L.userTid ? " me" : ""}`} style={{ opacity: out ? 0.42 : 1 }}>
-                <span className="faint bold" style={{ width: 16, textAlign: "right" }}>
-                  {i + 1}
-                </span>
-                <Logo team={t} size={28} />
-                <Link to={`/l/${L.id}/team/${t.id}`} style={{ width: 140 }} className="bold ellipsis">
-                  {t.name}
-                </Link>
-                <div style={{ flex: 1 }}>
-                  <Bar value={x.v} max={max} color={x.tid === L.userTid ? "var(--accent-ink)" : "color-mix(in srgb, var(--text) 35%, transparent)"} />
-                </div>
-                <span className="small muted" style={{ width: 92, textAlign: "right" }}>
-                  {r.committedTo === x.tid ? "Committed" : r.visits.includes(x.tid) ? "Visited" : r.offers.includes(x.tid) ? "Offered" : ""}
-                </span>
+              <div key={x.tid} style={{ opacity: out ? 0.42 : 1 }}>
+                <HeatMeter L={L} p={p} tid={x.tid} />
+                {notes.length > 0 && <div className="tiny muted heat-notes">{notes.join(" · ")}</div>}
               </div>
             );
           })}
+          <div className="tiny muted">The meter fills toward Ready to commit. He only commits to a school that offered him.</div>
         </div>
       ) : (
-        <div className="muted small">Be the first: a call or a visit gets you on his list.</div>
+        <div className="muted small">{L.phase === "preseason" && r.kind === "hs" ? "Recruiting opens when the season tips off." : "Be the first: a call or a visit gets you on his list."}</div>
       )}
     </Card>
   );
@@ -150,107 +162,20 @@ function WhatHeWants({ L, p }: { L: League; p: Player }) {
   );
 }
 
-const GROUPS: { k: RevealKey; title: string }[] = [
-  { k: "film", title: "Skills" },
-  { k: "live", title: "Body & defense" },
-];
-
-/** Blue Bloods-style scouting: three looks, each revealing part of him. */
-function Scouting({ L, p }: { L: League; p: Player }) {
-  const r = p.recruit!;
-  const portal = r.kind === "portal";
-  const done = portal ? (["film", "live"] as RevealKey[]).concat(revealsOf(p).filter((x) => x === "coach")) : revealsOf(p);
-  const [msg, setMsg] = useState("");
-  const keys: RevealKey[] = portal ? ["coach"] : ["film", "live", "coach"];
-  const val = (v: number) => Math.round(Math.max(1, Math.min(99, v)));
-  return (
-    <Card title="Scouting" sub={portal ? "He's played college ball, so his ratings are known. Talk to his coach to learn the rest." : "Spend a few points to find out what he really is. Stars only tell you so much."}>
-      {r.stage !== "signed" && (
-        <div className="reveal-grid">
-          {keys.map((k) => {
-            const def = REVEALS[k];
-            const has = done.includes(k);
-            const short = !has && L.recruitPts < def.cost;
-            return (
-              <button
-                key={k}
-                className={`reveal-opt${has ? " done" : ""}`}
-                disabled={has || short}
-                onClick={() =>
-                  mutate((LL) => {
-                    setMsg(reveal(LL, p, k).msg);
-                  })
-                }
-              >
-                <span className="row" style={{ gap: 6, justifyContent: "space-between" }}>
-                  <span className="row" style={{ gap: 6 }}>
-                    <Icon name={has ? "check" : REVEAL_ICONS[k]} size={15} />
-                    <b>{def.label}</b>
-                  </span>
-                  {!has && <span className="prep-cost">{def.cost} pts</span>}
-                </span>
-                <span className="tiny muted">{def.reveals}</span>
-              </button>
-            );
-          })}
-        </div>
-      )}
-      {msg && <div className="small good mt-8">{msg}</div>}
-      <div className="grid g2 mt-12" style={{ gap: 14 }}>
-        {GROUPS.map((g) => (
-          <div key={g.k}>
-            <div className="section-title" style={{ marginBottom: 6 }}>
-              {g.title}
-            </div>
-            {REVEALS[g.k].keys.map((k) => {
-              const known = done.includes(g.k);
-              const v = val(p.r[k]);
-              return (
-                <div key={k} className="rate-row">
-                  <span className="muted">{RATING_LABELS[k]}</span>
-                  {known ? (
-                    <>
-                      <div className="rate-bar">
-                        <i style={{ width: `${v}%` }} />
-                      </div>
-                      <b className="num">{v}</b>
-                    </>
-                  ) : (
-                    <span className="unknown">?</span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        ))}
-      </div>
-      <div className="section-title mt-12" style={{ marginBottom: 6 }}>
-        Character
-      </div>
-      <div className="row-wrap" style={{ gap: 16 }}>
-        {[
-          ["Work ethic", p.workEthic],
-          ["Loyalty", p.loyalty],
-          ["Potential", p.pot],
-        ].map(([label, v]) => (
-          <div key={label as string} className="row" style={{ gap: 8 }}>
-            <span className="muted">{label}</span>
-            {done.includes("coach") ? <Grade v={v as number} /> : <span className="unknown">?</span>}
-          </div>
-        ))}
-      </div>
-    </Card>
-  );
-}
-
-function Actions({ L, p }: { L: League; p: Player }) {
+/** Everything that costs points: scouting him and recruiting him. */
+function RecruitTab({ L, p }: { L: League; p: Player }) {
   const r = p.recruit!;
   const ut = team(L, L.userTid);
-  const [msg, setMsg] = useState<string>("");
+  const [msg, setMsg] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [pick, setPick] = useState<CatKey | "">("");
+  const [nilAsk, setNilAsk] = useState<{ v: number; label: string } | null>(null);
+  const open = recruitingOpen(L, p);
+  const seen = seenOf(p);
+  const talked = talkedTo(p);
+  const hs = r.kind === "hs";
   const act = (a: ActionKey) =>
     mutate((LL) => {
-      const res = doAction(LL, LL.userTid, p, a);
-      setMsg(res.msg);
+      setMsg(doAction(LL, LL.userTid, p, a));
     });
   const spots = openSpots(L, ut.id);
   const nilLeft = ut.nilBudget - nilCommitted(L, ut.id) + (r.nil[L.userTid] ?? 0);
@@ -262,59 +187,266 @@ function Actions({ L, p }: { L: League; p: Player }) {
     { label: "Fair", v: Math.round(typical / 5) * 5 },
     { label: "Big", v: Math.round((typical * 1.6) / 5) * 5 },
   ];
+  const unseen = CAT_KEYS.filter((k) => !seen.includes(k));
   return (
-    <Card title="Recruit him">
-      <div className="points-line">
+    <div className="col gap-16">
+      <div className="points-line" style={{ marginBottom: 0 }}>
         <Icon name="bolt" size={15} /> <b>{L.recruitPts}</b> of {L.recruitPtsMax} coaching points left this week
+        {!open.ok && <span className="muted" style={{ marginLeft: "auto" }}>{open.why}</span>}
       </div>
-      {r.stage === "signed" ? (
-        <div className="muted">He has signed. Recruiting is over.</div>
-      ) : (
-        <div className="col" style={{ gap: 8 }}>
-          {keys.map((a) => {
-            const chk = canAct(L, L.userTid, p, a);
-            const def = ACTIONS[a];
-            const txt = ACTION_TEXT[a];
-            const done = !chk.ok && (chk.why === "Done this week" || chk.why === "Already offered" || chk.why === "Already visited");
-            return (
-              <button key={a} className={`rec-act${a === "offer" ? " offer" : ""}${done ? " done" : ""}`} disabled={!chk.ok} title={chk.why} onClick={() => act(a)}>
-                <span className="act-ic">
-                  <Icon name={done ? "check" : ACTION_ICONS[a]} size={16} />
+      {hs && (
+        <Card title="Scout him" sub={`${seen.length} of 7 categories scouted${talked ? " · talked to his coach" : ""}`}>
+          <div className="col" style={{ gap: 8 }}>
+            <button className="rec-act" disabled={!open.ok || !unseen.length || L.recruitPts < SCOUT_COST.film} onClick={() => mutate((LL) => setMsg(watchFilm(LL, p)))}>
+              <span className="act-ic">
+                <Icon name="tv" size={16} />
+              </span>
+              <span style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
+                <b>Watch game film</b>
+                <span className="tiny muted" style={{ display: "block" }}>
+                  {unseen.length ? "Reveals one category you haven't seen, at random." : "You've seen everything."}
                 </span>
-                <span style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
-                  <b>{txt.label}</b>
-                  <span className="tiny muted" style={{ display: "block" }}>
-                    {chk.ok || done ? txt.desc : chk.why}
-                    {a === "visit" ? ` ${OFFICIAL_VISITS - ut.officialVisitsUsed} left this year.` : ""}
-                    {a === "offer" ? ` ${spots} open spot${spots === 1 ? "" : "s"}.` : ""}
-                  </span>
-                </span>
-                <span className="prep-cost">{done ? "Done" : def.cost ? `${def.cost} pts` : "Free"}</span>
-              </button>
-            );
-          })}
-          {L.settings.nil && (
-            <div className="nil-pick">
-              <span className="bold">NIL deal</span>
-              <div className="seg">
-                {nilOpts.map((o) => (
-                  <button key={o.label} className={nilNow === o.v || (o.v > 0 && nilNow > 0 && Math.abs(nilNow - o.v) < 5) ? "on" : ""} onClick={() => mutate((LL) => setMsg(setNilOffer(LL, LL.userTid, p, o.v).msg))}>
-                    {o.label}
-                    {o.v ? ` ${money(o.v)}` : ""}
-                  </button>
-                ))}
-              </div>
-              <span className="tiny muted">{money(Math.max(0, nilLeft))} left in your NIL budget. Bigger names care more about NIL.</span>
-            </div>
-          )}
-          {r.offers.includes(L.userTid) && r.stage !== "committed" && (
-            <button className="btn btn-sm btn-ghost btn-danger" style={{ alignSelf: "flex-start" }} onClick={() => mutate((LL) => pullOffer(LL, LL.userTid, p))}>
-              Pull scholarship offer
+              </span>
+              <span className="prep-cost">{SCOUT_COST.film} pts</span>
             </button>
-          )}
-          {msg && <div className="small good">{msg}</div>}
+            <div className={`rec-act${!open.ok || !unseen.length ? " off" : ""}`}>
+              <span className="act-ic">
+                <Icon name="eye" size={16} />
+              </span>
+              <span style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
+                <b>Scout a game</b>
+                <span className="tiny muted" style={{ display: "block" }}>
+                  Go see him play and pick what to watch for.
+                </span>
+                <span className="row" style={{ gap: 6, marginTop: 6, flexWrap: "wrap" }}>
+                  <select className="select" style={{ height: 30, minWidth: 150 }} value={pick} disabled={!open.ok || !unseen.length} onChange={(e) => setPick(e.target.value as CatKey)}>
+                    <option value="">Pick a category…</option>
+                    {unseen.map((k) => (
+                      <option key={k} value={k}>
+                        {CATS[k].label}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    className="btn btn-sm btn-primary"
+                    disabled={!open.ok || !pick || L.recruitPts < SCOUT_COST.game}
+                    onClick={() =>
+                      mutate((LL) => {
+                        if (pick) setMsg(scoutGame(LL, p, pick));
+                        setPick("");
+                      })
+                    }
+                  >
+                    Scout it
+                  </button>
+                </span>
+              </span>
+              <span className="prep-cost">{SCOUT_COST.game} pts</span>
+            </div>
+            <button className={`rec-act${talked ? " done" : ""}`} disabled={!open.ok || talked || L.recruitPts < SCOUT_COST.coach} onClick={() => mutate((LL) => setMsg(talkToCoach(LL, p)))}>
+              <span className="act-ic">
+                <Icon name={talked ? "check" : "phone"} size={16} />
+              </span>
+              <span style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
+                <b>Talk to his coach</b>
+                <span className="tiny muted" style={{ display: "block" }}>
+                  His work ethic and how good he can become.
+                </span>
+              </span>
+              <span className="prep-cost">{talked ? "Done" : `${SCOUT_COST.coach} pts`}</span>
+            </button>
+          </div>
+        </Card>
+      )}
+      <Card title="Recruit him">
+        {r.stage === "signed" ? (
+          <div className="muted">He has signed. Recruiting is over.</div>
+        ) : (
+          <div className="col" style={{ gap: 8 }}>
+            {keys.map((a) => {
+              const chk = canAct(L, L.userTid, p, a);
+              const def = ACTIONS[a];
+              const txt = ACTION_TEXT[a];
+              const done = !chk.ok && (chk.why === "Done this week" || chk.why === "Already offered" || chk.why === "Already visited");
+              return (
+                <button key={a} className={`rec-act${a === "offer" ? " offer" : ""}${done ? " done" : ""}`} disabled={!chk.ok} title={chk.why} onClick={() => act(a)}>
+                  <span className="act-ic">
+                    <Icon name={done ? "check" : ACTION_ICONS[a]} size={16} />
+                  </span>
+                  <span style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
+                    <b>{txt.label}</b>
+                    <span className="tiny muted" style={{ display: "block" }}>
+                      {chk.ok || done ? txt.desc : chk.why}
+                      {a === "visit" ? ` ${OFFICIAL_VISITS - ut.officialVisitsUsed} left this year.` : ""}
+                      {a === "offer" ? ` ${spots} open spot${spots === 1 ? "" : "s"}.` : ""}
+                    </span>
+                  </span>
+                  <span className="prep-cost">{done ? "Done" : def.cost ? `${def.cost} pts` : "Free"}</span>
+                </button>
+              );
+            })}
+            {L.settings.nil && (
+              <div className="nil-pick">
+                <span className="bold">NIL deal</span>
+                <div className="seg">
+                  {nilOpts.map((o) => {
+                    const on = nilNow === o.v || (o.v > 0 && nilNow > 0 && Math.abs(nilNow - o.v) < 5);
+                    return (
+                      <button key={o.label} className={on ? "on" : ""} disabled={on || !open.ok} onClick={() => setNilAsk(o)}>
+                        {o.label}
+                        {o.v ? ` ${money(o.v)}` : ""}
+                      </button>
+                    );
+                  })}
+                </div>
+                <span className="tiny muted">
+                  Current: {nilNow ? `${money(nilNow)}/yr` : "none"} · {money(Math.max(0, nilLeft - nilNow))} left in your NIL budget. Bigger names care more about NIL.
+                </span>
+              </div>
+            )}
+            {r.offers.includes(L.userTid) && r.stage !== "committed" && (
+              <button className="btn btn-sm btn-ghost btn-danger" style={{ alignSelf: "flex-start" }} onClick={() => confirm(`Pull your scholarship offer to ${p.first} ${p.last}?`) && mutate((LL) => pullOffer(LL, LL.userTid, p))}>
+                Pull scholarship offer
+              </button>
+            )}
+          </div>
+        )}
+      </Card>
+      {msg && <div className={`small ${msg.ok ? "good" : "bad"}`}>{msg.msg}</div>}
+      {nilAsk && (
+        <div className="overlay" onClick={(e) => e.target === e.currentTarget && setNilAsk(null)}>
+          <div className="modal" style={{ width: "min(440px, 92vw)" }}>
+            <div className="modal-h">
+              <Icon name="money" size={18} />
+              <h2>{nilAsk.v ? "Offer this NIL deal?" : "Withdraw your NIL offer?"}</h2>
+            </div>
+            <div className="modal-b">
+              {nilAsk.v ? (
+                <>
+                  Offer <b>{p.first} {p.last}</b> a <b>{money(nilAsk.v)} a year</b> NIL deal ({nilAsk.label.toLowerCase()}){nilNow ? `, replacing your ${money(nilNow)} offer` : ""}. It comes out of your NIL budget, which has {money(Math.max(0, nilLeft - nilNow))} left.
+                </>
+              ) : (
+                <>
+                  Take back your {money(nilNow)} a year NIL offer to <b>{p.first} {p.last}</b>?
+                </>
+              )}
+            </div>
+            <div className="modal-f">
+              <button className="btn" onClick={() => setNilAsk(null)}>
+                Cancel
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={() => {
+                  const v = nilAsk.v;
+                  setNilAsk(null);
+                  mutate((LL) => setMsg(setNilOffer(LL, LL.userTid, p, v)));
+                }}
+              >
+                {nilAsk.v ? `Offer ${money(nilAsk.v)}` : "Withdraw"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function ethicWord(v: number): string {
+  return v >= 75 ? "Gym rat" : v >= 55 ? "Hard worker" : v >= 35 ? "Average" : "Needs motivation";
+}
+
+/** Broad ratings, revealed one category at a time. */
+function RatingsTab({ L, p }: { L: League; p: Player }) {
+  const r = p.recruit!;
+  const seen = seenOf(p);
+  const talked = talkedTo(p);
+  const open = recruitingOpen(L, p);
+  const scoutable = r.kind === "hs" && open.ok;
+  return (
+    <Card title="Ratings" sub={r.kind === "portal" ? "He's played college ball, so his ratings are known." : `${seen.length} of 7 scouted. Tap a ? to scout that category (${SCOUT_COST.game} pts).`}>
+      <div className="cat-grid">
+        {CAT_KEYS.map((k) => {
+          const known = seen.includes(k);
+          return (
+            <div key={k} className={`cat-card${known ? "" : " unknown-card"}`}>
+              <div style={{ minWidth: 0 }}>
+                <b>{CATS[k].label}</b>
+                <div className="tiny muted">{CATS[k].desc}</div>
+              </div>
+              {known ? (
+                <Grade v={catValue(p, k)} md />
+              ) : (
+                <button className="unknown big" disabled={!scoutable || L.recruitPts < SCOUT_COST.game} title={scoutable ? `Scout a game for his ${CATS[k].label.toLowerCase()} (${SCOUT_COST.game} pts)` : open.why} onClick={() => mutate((LL) => void scoutGame(LL, p, k))}>
+                  ?
+                </button>
+              )}
+            </div>
+          );
+        })}
+        <div className={`cat-card${talked ? "" : " unknown-card"}`}>
+          <div style={{ minWidth: 0 }}>
+            <b>Work ethic</b>
+            <div className="tiny muted">{talked ? `${ethicWord(p.workEthic)} · how fast he grows` : "How fast he grows and takes to training"}</div>
+          </div>
+          {talked ? <Grade v={p.workEthic} md /> : <span className="unknown big">?</span>}
+        </div>
+        <div className={`cat-card${talked ? "" : " unknown-card"}`}>
+          <div style={{ minWidth: 0 }}>
+            <b>Potential</b>
+            <div className="tiny muted">How good he can become</div>
+          </div>
+          {talked ? <Grade v={p.pot} md /> : <span className="unknown big">?</span>}
+        </div>
+      </div>
+      {!talked && r.kind === "hs" && <div className="tiny muted mt-12">Talk to his coach (Recruit tab) to learn his work ethic and potential.</div>}
+    </Card>
+  );
+}
+
+/** High school career; the senior year plays out alongside the college season. */
+function HsStatsTab({ L, p }: { L: League; p: Player }) {
+  const rows = hsCareer(L, p);
+  const last = p.stats[p.stats.length - 1];
+  if (p.recruit?.kind === "portal")
+    return (
+      <Card title="College stats">
+        {last && last.g ? (
+          <div className="small">
+            {seasonLabel(last.season)}: {(last.pts / last.g).toFixed(1)} PTS, {((last.orb + last.drb) / last.g).toFixed(1)} REB, {(last.ast / last.g).toFixed(1)} AST in {last.g} games.
+          </div>
+        ) : (
+          <div className="muted">No college stats.</div>
+        )}
+      </Card>
+    );
+  return (
+    <Card title="High school career" sub={`${p.city}, ${p.state}`} flush>
+      <table className="tbl">
+        <thead>
+          <tr>
+            <th>Year</th>
+            <th className="n">G</th>
+            <th className="n">PTS</th>
+            <th className="n">REB</th>
+            <th className="n">AST</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((x) => (
+            <tr key={x.year}>
+              <td>
+                <b>{x.year}</b> {x.live && <span className="badge gold">{x.g ? "In progress" : "Starts with your season"}</span>}
+              </td>
+              <td className="n">{x.g || "-"}</td>
+              <td className="n">{x.g ? x.pts.toFixed(1) : "-"}</td>
+              <td className="n">{x.g ? x.reb.toFixed(1) : "-"}</td>
+              <td className="n">{x.g ? x.ast.toFixed(1) : "-"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </Card>
   );
 }
@@ -336,20 +468,22 @@ function Timeline({ p }: { p: Player }) {
   );
 }
 
+type TabKey = "overview" | "recruit" | "ratings" | "stats";
+
 export function RecruitProfile({ p }: { p: Player }) {
   const L = useLeague();
   const r = p.recruit!;
-  const seen = revealsOf(p);
+  const [tab, setTab] = useState<TabKey>("overview");
+  const seen = seenOf(p);
+  const talked = talkedTo(p);
   const from = r.fromTid !== undefined ? teamMaybe(L, r.fromTid) : undefined;
   const committed = r.committedTo !== null ? team(L, r.committedTo) : undefined;
   const colors = (committed ?? from)?.colors ?? ["#273449", "#f2b631"];
   const onBoard = L.board.includes(p.id);
   const last = p.stats[p.stats.length - 1];
-  const ir = (() => {
-    const sorted = Object.entries(r.interest).sort((a, b) => b[1] - a[1]);
-    const i = sorted.findIndex(([k]) => Number(k) === L.userTid);
-    return i >= 0 ? i + 1 : null;
-  })();
+  const career = hsCareer(L, p);
+  const hsNow = career.length ? (career[career.length - 1].g ? career[career.length - 1] : career[career.length - 2]) : null;
+  const heat = heatOf(p, L.userTid);
   return (
     <div className="col gap-16">
       <div className="hero-banner" style={heroStyle(colors as [string, string])}>
@@ -404,19 +538,19 @@ export function RecruitProfile({ p }: { p: Player }) {
           </div>
         </div>
         <div className="hero-stats">
-          {r.kind === "hs" && r.hs ? (
+          {r.kind === "hs" && hsNow ? (
             <>
               <div>
-                <div className="label">HS points</div>
-                <div className="value">{r.hs.pts.toFixed(1)}</div>
+                <div className="label">{hsNow.year} PPG</div>
+                <div className="value">{hsNow.pts.toFixed(1)}</div>
               </div>
               <div>
-                <div className="label">HS rebounds</div>
-                <div className="value">{r.hs.reb.toFixed(1)}</div>
+                <div className="label">RPG</div>
+                <div className="value">{hsNow.reb.toFixed(1)}</div>
               </div>
               <div>
-                <div className="label">HS assists</div>
-                <div className="value">{r.hs.ast.toFixed(1)}</div>
+                <div className="label">APG</div>
+                <div className="value">{hsNow.ast.toFixed(1)}</div>
               </div>
             </>
           ) : last ? (
@@ -438,34 +572,51 @@ export function RecruitProfile({ p }: { p: Player }) {
           <div>
             <div className="label">Overall</div>
             <div className="value" style={{ paddingTop: 2 }}>
-              {r.kind === "portal" ? <Grade v={p.ovr} /> : seen.includes("film") || seen.includes("live") ? <Grade v={scoutedOvr(p)} /> : <span className="unknown light">?</span>}
+              {r.kind === "portal" ? <Grade v={p.ovr} /> : seen.length >= 4 ? <Grade v={scoutedOvr(p)} /> : <span className="unknown light">?</span>}
             </div>
           </div>
           <div>
             <div className="label">Potential</div>
             <div className="value" style={{ paddingTop: 2 }}>
-              {seen.includes("coach") ? <Grade v={p.pot} /> : r.kind === "portal" ? <Grade v={p.pot + p.potErr} /> : <span className="unknown light">?</span>}
+              {talked ? <Grade v={p.pot} /> : r.kind === "portal" ? <Grade v={p.pot + p.potErr} /> : <span className="unknown light">?</span>}
             </div>
           </div>
           <div>
-            <div className="label">You're</div>
-            <div className="value">{ir ? `#${ir}` : "-"}</div>
+            <div className="label">Your heat</div>
+            <div className="value" style={{ fontSize: 16, paddingTop: 4 }}>
+              {heat.label}
+            </div>
           </div>
         </div>
       </div>
-      <div className="grid g-main" style={{ alignItems: "start" }}>
-        <div className="col gap-16">
+      <Tabs
+        tabs={[
+          { key: "overview", label: "Overview" },
+          { key: "recruit", label: `Recruit · ${L.recruitPts} pts` },
+          { key: "ratings", label: r.kind === "hs" ? `Ratings · ${seen.length}/7` : "Ratings" },
+          { key: "stats", label: r.kind === "hs" ? "HS Stats" : "College Stats" },
+        ]}
+        value={tab}
+        onChange={setTab}
+      />
+      {tab === "overview" && (
+        <div className="grid g2" style={{ alignItems: "start" }}>
           <WhatHeWants L={L} p={p} />
-          <Scouting L={L} p={p} />
-          <WhosAfterHim L={L} p={p} />
+          <div className="col gap-16">
+            <WhosAfterHim L={L} p={p} />
+            <Card title="Timeline">
+              <Timeline p={p} />
+            </Card>
+          </div>
         </div>
-        <div className="col gap-16">
-          <Actions L={L} p={p} />
-          <Card title="Timeline">
-            <Timeline p={p} />
-          </Card>
+      )}
+      {tab === "recruit" && (
+        <div style={{ maxWidth: 760 }}>
+          <RecruitTab L={L} p={p} />
         </div>
-      </div>
+      )}
+      {tab === "ratings" && <RatingsTab L={L} p={p} />}
+      {tab === "stats" && <HsStatsTab L={L} p={p} />}
     </div>
   );
 }

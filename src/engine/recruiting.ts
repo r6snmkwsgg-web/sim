@@ -1,7 +1,7 @@
-import type { League, Player, PrefKey, RatingKey, RecruitInfo, RevealKey, Team } from "./types";
+import type { CatKey, League, Player, PrefKey, RatingKey, RecruitInfo, RevealKey, Team } from "./types";
 import { PREF_KEYS } from "./types";
 import { Rng, clamp, distanceMiles } from "./rng";
-import { addNews, addPlayer, coachOf, nextPid, playerName, roster, rngOf, rostersDirty, rosterVersion, team } from "./core";
+import { addNews, addPlayer, coachOf, nextPid, playerName, REG_DAYS, roster, rngOf, rostersDirty, rosterVersion, team } from "./core";
 import { generatePlayer } from "./gen/player";
 import { powerRanks } from "./rankings";
 
@@ -25,33 +25,127 @@ export const ACTIONS: Record<ActionKey, { label: string; cost: number; value: nu
   offer: { label: "Offer Scholarship", cost: 0, value: 9, cooldown: 0, once: true, desc: "Required for him to commit. Limited by your open roster spots." },
 };
 
-/** Scouting, Blue Bloods style: each look reveals part of the picture. */
-export const REVEALS: Record<RevealKey, { label: string; cost: number; reveals: string; keys: RatingKey[] }> = {
-  film: { label: "Watch film", cost: 3, reveals: "Shooting, handles, passing and IQ", keys: ["ins", "mid", "three", "ft", "hnd", "pas", "iq"] },
-  live: { label: "Watch him play", cost: 5, reveals: "Athleticism, defense and rebounding", keys: ["ath", "str", "end", "perD", "intD", "stl", "blk", "reb"] },
-  coach: { label: "Talk to his coach", cost: 3, reveals: "Work ethic, loyalty and his real potential", keys: [] },
+// ---------- scouting recruits ----------
+/** The broad categories a recruit is scouted in; each is the average of its ratings. */
+export const CATS: Record<CatKey, { label: string; keys: RatingKey[]; desc: string }> = {
+  shooting: { label: "Shooting", keys: ["three", "mid", "ft"], desc: "Threes, mid-range and free throws" },
+  finishing: { label: "Finishing", keys: ["ins"], desc: "Scoring at the rim and in the post" },
+  playmaking: { label: "Playmaking", keys: ["hnd", "pas", "iq"], desc: "Handles, passing and basketball IQ" },
+  perimeterD: { label: "Perimeter D", keys: ["perD", "stl"], desc: "Guarding the ball and getting steals" },
+  interiorD: { label: "Interior D", keys: ["intD", "blk"], desc: "Protecting the rim and blocking shots" },
+  rebounding: { label: "Rebounding", keys: ["reb"], desc: "Cleaning the glass" },
+  athleticism: { label: "Athleticism", keys: ["ath", "str", "end"], desc: "Speed, strength and stamina" },
 };
+export const CAT_KEYS = Object.keys(CATS) as CatKey[];
 
-/** Which reveals the user has done on a recruit (older saves only stored a level). */
-export function revealsOf(p: Player): RevealKey[] {
-  const r = p.recruit;
-  if (!r) return [];
-  if (r.reveals) return r.reveals;
-  return (["film", "live", "coach"] as RevealKey[]).slice(0, r.scout);
+export const SCOUT_COST = { film: 2, game: 5, coach: 3 };
+
+export function catValue(p: Player, k: CatKey): number {
+  const ks = CATS[k].keys;
+  return Math.round(ks.reduce((a, r) => a + p.r[r], 0) / ks.length);
 }
 
-export function reveal(L: League, p: Player, k: RevealKey): { ok: boolean; msg: string } {
+/** Categories the user knows (older saves stored whole looks instead). */
+export function seenOf(p: Player): CatKey[] {
   const r = p.recruit;
-  if (!r || r.stage === "signed" || r.stage === "unsigned") return { ok: false, msg: "No longer available" };
-  const done = revealsOf(p);
-  if (done.includes(k)) return { ok: false, msg: "Already done" };
-  const def = REVEALS[k];
-  if (L.recruitPts < def.cost) return { ok: false, msg: `Needs ${def.cost} points` };
-  L.recruitPts -= def.cost;
-  r.reveals = [...done, k];
-  r.scout = Math.min(3, r.reveals.length);
+  if (!r) return [];
+  if (r.kind === "portal") return CAT_KEYS;
+  if (r.seen) return r.seen;
+  const old = r.reveals ?? (["film", "live", "coach"] as RevealKey[]).slice(0, r.scout);
+  const out: CatKey[] = [];
+  if (old.includes("film")) out.push("shooting", "finishing", "playmaking");
+  if (old.includes("live")) out.push("perimeterD", "interiorD", "rebounding", "athleticism");
+  return out;
+}
+
+export function talkedTo(p: Player): boolean {
+  const r = p.recruit;
+  return !!r && (r.talked ?? (r.reveals ?? (["film", "live", "coach"] as RevealKey[]).slice(0, r.scout)).includes("coach"));
+}
+
+/** Recruiting high schoolers opens when the college season tips off. */
+export function recruitingOpen(L: League, p: Player): { ok: boolean; why?: string } {
+  const r = p.recruit;
+  if (!r || r.stage === "signed" || r.stage === "unsigned") return { ok: false, why: "No longer available" };
+  if (r.kind === "hs" && L.phase === "preseason") return { ok: false, why: "Recruiting opens when the season tips off" };
+  return { ok: true };
+}
+
+function markSeen(L: League, p: Player, add: CatKey[], talked = false) {
+  const r = p.recruit!;
+  const seen = [...new Set([...seenOf(p), ...add])];
+  r.seen = seen;
+  if (talked) r.talked = true;
+  else if (r.talked === undefined) r.talked = talkedTo(p);
+  // how sharp the overall estimate is
+  r.scout = seen.length >= 7 ? 3 : seen.length >= 4 ? 2 : seen.length >= 2 ? 1 : 0;
   if (!L.board.includes(p.id)) L.board.push(p.id);
-  return { ok: true, msg: `${def.label}: done` };
+}
+
+/** Watch game film: cheap, reveals one category you haven't seen, chosen at random. */
+export function watchFilm(L: League, p: Player): { ok: boolean; msg: string } {
+  const open = recruitingOpen(L, p);
+  if (!open.ok) return { ok: false, msg: open.why! };
+  const left = CAT_KEYS.filter((k) => !seenOf(p).includes(k));
+  if (!left.length) return { ok: false, msg: "You've seen everything on film" };
+  if (L.recruitPts < SCOUT_COST.film) return { ok: false, msg: `Needs ${SCOUT_COST.film} points` };
+  L.recruitPts -= SCOUT_COST.film;
+  const k = rngOf(L).pick(left);
+  markSeen(L, p, [k]);
+  return { ok: true, msg: `Film shows his ${CATS[k].label.toLowerCase()}` };
+}
+
+/** Scout one of his games: costs more, but you pick what to look for. */
+export function scoutGame(L: League, p: Player, k: CatKey): { ok: boolean; msg: string } {
+  const open = recruitingOpen(L, p);
+  if (!open.ok) return { ok: false, msg: open.why! };
+  if (seenOf(p).includes(k)) return { ok: false, msg: "Already scouted" };
+  if (L.recruitPts < SCOUT_COST.game) return { ok: false, msg: `Needs ${SCOUT_COST.game} points` };
+  L.recruitPts -= SCOUT_COST.game;
+  markSeen(L, p, [k]);
+  return { ok: true, msg: `You scouted his ${CATS[k].label.toLowerCase()}` };
+}
+
+/** Talk to his high school coach: work ethic and real potential. */
+export function talkToCoach(L: League, p: Player): { ok: boolean; msg: string } {
+  const open = recruitingOpen(L, p);
+  if (!open.ok) return { ok: false, msg: open.why! };
+  if (talkedTo(p)) return { ok: false, msg: "Already talked" };
+  if (L.recruitPts < SCOUT_COST.coach) return { ok: false, msg: `Needs ${SCOUT_COST.coach} points` };
+  L.recruitPts -= SCOUT_COST.coach;
+  markSeen(L, p, [], true);
+  return { ok: true, msg: "His coach filled you in" };
+}
+
+/** How close a school is to landing him: Cold, Warm, Hot, or Ready to commit. */
+export function heatOf(p: Player, tid: number): { v: number; label: string; level: number } {
+  const r = p.recruit!;
+  const thr = COMMIT_THRESHOLD[r.stars] * (r.kind === "portal" ? 0.6 : 1);
+  const v = (r.interest[tid] ?? 0) / thr;
+  const level = v >= 1 ? 3 : v >= 0.6 ? 2 : v >= 0.25 ? 1 : 0;
+  return { v: Math.min(1, v), label: ["Cold", "Warm", "Hot", "Ready to commit"][level], level };
+}
+
+/** His high school career per game; the senior season plays out alongside the college season. */
+export function hsCareer(L: League, p: Player): { year: string; g: number; pts: number; reb: number; ast: number; live?: boolean }[] {
+  const r = p.recruit;
+  if (!r?.hs || r.kind !== "hs") return [];
+  let h = (p.faceSeed ^ 0x9e3779b9) >>> 0;
+  const rnd = () => {
+    h = Math.imul(h ^ (h >>> 15), 0x2c1b3c6d) >>> 0;
+    h = Math.imul(h ^ (h >>> 12), 0x297a2d39) >>> 0;
+    return ((h ^ (h >>> 15)) >>> 0) / 4294967296;
+  };
+  const row = (year: string, f: number, g: number, live = false) => {
+    const j = () => 0.9 + rnd() * 0.2;
+    return { year, g, pts: Math.round(r.hs!.pts * f * j() * 10) / 10, reb: Math.round(r.hs!.reb * f * j() * 10) / 10, ast: Math.round(r.hs!.ast * f * j() * 10) / 10, live };
+  };
+  const rows = [row("Freshman", 0.45, 22 + Math.floor(rnd() * 6)), row("Sophomore", 0.66, 23 + Math.floor(rnd() * 6)), row("Junior", 0.86, 24 + Math.floor(rnd() * 6))];
+  // senior year: games so far track the college calendar
+  const full = 26 + Math.floor(rnd() * 5);
+  const g = L.phase === "preseason" ? 0 : L.phase === "regular" ? Math.min(full, Math.round((L.day / REG_DAYS) * full)) : full;
+  if (L.season + 1 === r.classSeason) rows.push(row("Senior", 1, g, L.phase === "preseason" || L.phase === "regular"));
+  return rows;
 }
 
 export const OFFICIAL_VISITS = 12;
@@ -345,6 +439,7 @@ export function canAct(L: League, tid: number, p: Player, a: ActionKey): { ok: b
   if (r.committedTo !== null && r.committedTo !== tid && a !== "scout") {
     // can still try to flip a verbal commitment, but not a signed one
   }
+  if (r.kind === "hs" && L.phase === "preseason") return { ok: false, why: "Opens at tip-off" };
   const def = ACTIONS[a];
   const t = team(L, tid);
   const pts = tid === L.userTid ? L.recruitPts : t.recruitPoints;
@@ -423,6 +518,7 @@ export function setNilOffer(L: League, tid: number, p: Player, amount: number): 
   if (!L.settings.nil) return { ok: false, msg: "NIL is disabled" };
   const r = p.recruit;
   if (!r || r.stage === "signed") return { ok: false, msg: "Not available" };
+  if (r.kind === "hs" && L.phase === "preseason") return { ok: false, msg: "Recruiting opens when the season tips off" };
   const t = team(L, tid);
   const current = r.nil[tid] ?? 0;
   const committed = nilCommitted(L, tid) - current;
