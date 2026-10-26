@@ -59,7 +59,7 @@ export function NewLeague() {
             ‹ Back
           </Link>
           <div>
-            <div className="hero-kicker" style={{ color: "#ffb547", opacity: 1 }}>
+            <div className="hero-kicker" style={{ color: "var(--l-muted)", opacity: 1 }}>
               New league
             </div>
             <div className="home-title" style={{ fontSize: 40 }}>

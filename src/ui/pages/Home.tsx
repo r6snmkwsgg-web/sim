@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { deleteLeague, importLeague, listLeagues, type LeagueMeta, type SyncRec } from "../db";
-import { heroStyle, Logo } from "../components/common";
+import { Logo } from "../components/common";
+import { Floor } from "../components/Floor";
 import { Icon } from "../components/Icons";
 import { PHASE_LABEL, seasonLabel } from "../../engine/core";
 import { getLeague, setLeague } from "../store";
 import { cloudOn, deleteCloudLeague, formatCode, getCode, listCloud, pullLeague, pushUnsynced, switchCode, syncRecords, useCloudStatus, type CloudLeague } from "../cloud";
 import { cloudLine } from "../components/CloudCard";
+import teamData from "../../engine/data/teams.json";
+import confData from "../../engine/data/conferences.json";
 
 interface Row {
   meta: LeagueMeta;
@@ -16,11 +19,14 @@ interface Row {
   newer: boolean;
 }
 
-const FEATURES: [string, string, string][] = [
-  ["history", "Nothing gets deleted", "Every season, roster, box score, bracket and record stays browsable forever."],
-  ["recruit", "Recruit like a coach", "Calls, visits, offers and NIL against AI programs playing by the same rules."],
-  ["bracket", "Real March", "Conference tournaments, Selection Sunday, the First Four and upsets that feel earned."],
-  ["crown", "Build a Blue Blood", "Take any of 365 programs from nowhere to the top. Or move up the coaching ladder."],
+const TEAM_COUNT = teamData.length;
+const FACTS: [string, string][] = [
+  ["Programs", `${TEAM_COUNT}, in ${confData.length} conferences`],
+  ["Recruits a class", "1,500 to 1,900"],
+  ["March", "68 teams, First Four to the title game"],
+  ["Transfer portal", "Four windows every spring"],
+  ["NIL", "Budgets set by each school's boosters"],
+  ["Kept forever", "Every box score"],
 ];
 
 export function Home() {
@@ -86,194 +92,179 @@ export function Home() {
     }
     nav(`/l/${r.meta.id}`);
   };
-  return (
-    <div className="home-wrap">
-      <div className="home-inner">
-        <div className="row" style={{ gap: 12, marginBottom: 26 }}>
-          <span className="brand-mark" style={{ width: 40, height: 40, borderRadius: 11 }}>
-            <Icon name="crown" size={23} />
-          </span>
-          <span className="brand-name" style={{ fontSize: 20, color: "#fff" }}>
-            Hardwood Dynasty
-          </span>
-        </div>
-        <div className="home-title">
-          Build a <span>dynasty.</span>
-        </div>
-        <p style={{ color: "#a9b4c6", fontSize: 17, maxWidth: 620, margin: "16px 0 26px", lineHeight: 1.5 }}>
-          A college basketball program builder. Pick any school, recruit, develop, survive March, and watch your program's history grow season after season.
+  const importer = (
+    <>
+      <button className="land-text-btn" disabled={importing} onClick={() => fileRef.current?.click()}>
+        {importing ? "Importing…" : "Import a save file"}
+      </button>
+      <input
+        ref={fileRef}
+        type="file"
+        accept=".hdsave,.gz,.json,application/gzip,application/json"
+        style={{ display: "none" }}
+        onChange={async (e) => {
+          const f = e.target.files?.[0];
+          if (!f) return;
+          setImporting(true);
+          try {
+            const id = await importLeague(f);
+            await refresh();
+            nav(`/l/${id}`);
+          } catch (err) {
+            alert(`Import failed: ${(err as Error).message}`);
+          }
+          setImporting(false);
+          e.target.value = "";
+        }}
+      />
+    </>
+  );
+  const about = (
+    <section className="land-about">
+      <div>
+        <p className="land-lede">
+          You're the new head coach. Take over any of the {TEAM_COUNT} Division I programs, recruit high schoolers and transfers, coach the games, and find out how long you can keep the job.
         </p>
-        <div className="row" style={{ gap: 10 }}>
-          <Link to="/new" className="cta">
-            <Icon name="plus" size={17} /> New League
+        <p className="land-sub">Nothing gets thrown away: every box score, bracket and signing class stays in the record book.</p>
+        <div className="land-actions">
+          <Link to="/new" className="land-btn">
+            Start a new league
           </Link>
-          <button className="ghost-light" disabled={importing} onClick={() => fileRef.current?.click()}>
-            <Icon name="upload" size={16} /> {importing ? "Importing…" : "Import Save"}
-          </button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".hdsave,.gz,.json,application/gzip,application/json"
-            style={{ display: "none" }}
-            onChange={async (e) => {
-              const f = e.target.files?.[0];
-              if (!f) return;
-              setImporting(true);
-              try {
-                const id = await importLeague(f);
-                await refresh();
-                nav(`/l/${id}`);
-              } catch (err) {
-                alert(`Import failed: ${(err as Error).message}`);
-              }
-              setImporting(false);
-              e.target.value = "";
-            }}
-          />
+          {importer}
         </div>
-
-        <div className="section-title" style={{ marginTop: 52, color: "#8d99ae" }}>
-          Your leagues
-        </div>
-        <div className={`home-cloud ${st.state}`}>
-          <Icon name="cloud" size={16} />
-          <span>
-            {cloudOn() ? (
-              <>
-                <b>Cloud saves {cloudErr ? "unreachable right now" : "on"}.</b> {loc.search.includes("linked=1") ? "Linked to your other device's code." : cloudErr ? "Your leagues are still saved on this device." : cloudLine(st)}
-              </>
-            ) : (
-              <>
-                <b>Cloud saves off.</b> Turn them on in a league's Settings.
-              </>
+      </div>
+      <dl className="land-facts">
+        <div className="land-facts-h">Quick facts</div>
+        {FACTS.map(([k, v]) => (
+          <div key={k}>
+            <dt>{k}</dt>
+            <dd>{v}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+  const loaded = !(leagues === null || (cloud === null && leagues.length === 0));
+  return (
+    <div className="home-wrap land">
+      <Floor title="Hardwood Dynasty" />
+      <main className="land-inner">
+        {loaded && rows.length === 0 && about}
+        <section>
+          <div className="land-head">
+            <h2>Your leagues</h2>
+            {rows.length > 0 && (
+              <Link to="/new" className="land-btn small">
+                New league
+              </Link>
             )}
-          </span>
-          {cloudOn() && (
-            <button className="home-link" onClick={() => setCodeOpen(!codeOpen)}>
-              {codeOpen ? "Close" : "Use a code from another device"}
-            </button>
-          )}
-        </div>
-        {codeOpen && (
-          <div className="home-codebox">
-            <div style={{ color: "#a9b4c6", fontSize: 13 }}>
-              Enter the save code from Settings on your other device. This device's code is <b style={{ color: "#fff" }}>{formatCode(getCode() ?? "")}</b>.
-            </div>
-            <div className="row" style={{ gap: 8, marginTop: 8 }}>
-              <input className="input" style={{ maxWidth: 260, textTransform: "uppercase" }} placeholder="XXXX-XXXX-XXXX-XXXX" value={codeInput} onChange={(e) => setCodeInput(e.target.value)} />
-              <button
-                className="btn btn-white"
-                disabled={!codeInput.trim()}
-                onClick={async () => {
-                  if (await switchCode(codeInput)) {
-                    setCodeInput("");
-                    setCodeOpen(false);
-                    setCloud(null);
-                    void refresh();
-                  } else alert("That code doesn't look right. It has 16 letters and numbers.");
-                }}
-              >
-                Load my leagues
-              </button>
-            </div>
           </div>
-        )}
-        {leagues === null || (cloud === null && leagues.length === 0) ? (
-          <div style={{ color: "#8d99ae" }}>Loading…</div>
-        ) : rows.length === 0 ? (
-          <div className="home-card home-empty" style={{ padding: 30, display: "flex", alignItems: "center", gap: 22 }}>
-            <span className="feature">
-              <span className="fi" style={{ width: 52, height: 52, borderRadius: 14 }}>
-                <Icon name="ball" size={26} />
-              </span>
+          <div className={`land-cloud ${st.state}`}>
+            <Icon name="cloud" size={15} />
+            <span>
+              {cloudOn() ? (
+                <>
+                  <b>Cloud saves {cloudErr ? "unreachable right now" : "on"}.</b> {loc.search.includes("linked=1") ? "Linked to your other device's code." : cloudErr ? "Your leagues are still saved on this device." : cloudLine(st)}
+                </>
+              ) : (
+                <>
+                  <b>Cloud saves off.</b> Turn them on in a league's Settings.
+                </>
+              )}
             </span>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 18, fontWeight: 700, color: "#fff" }}>No leagues yet</div>
-              <div style={{ color: "#8d99ae", marginTop: 4 }}>Start a new league, pick a program, and take the job.</div>
-            </div>
-            <Link to="/new" className="cta">
-              Start your first league
-            </Link>
+            {cloudOn() && (
+              <button className="land-text-btn" onClick={() => setCodeOpen(!codeOpen)}>
+                {codeOpen ? "Close" : "Use a code from another device"}
+              </button>
+            )}
           </div>
-        ) : (
-          <div className="grid g3">
-            {rows.map((r) => {
-              const m = r.meta;
-              const busy = loading?.lid === m.id;
-              return (
-              <div key={m.id} className="home-card" style={{ display: "flex", flexDirection: "column" }}>
-                <a
-                  href={`#/l/${m.id}`}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    void open(r);
+          {codeOpen && (
+            <div className="land-codebox">
+              <div>
+                Enter the save code from Settings on your other device. This device's code is <b>{formatCode(getCode() ?? "")}</b>.
+              </div>
+              <div className="row" style={{ gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+                <input className="input" style={{ maxWidth: 260, textTransform: "uppercase" }} placeholder="XXXX-XXXX-XXXX-XXXX" value={codeInput} onChange={(e) => setCodeInput(e.target.value)} />
+                <button
+                  className="land-btn small"
+                  disabled={!codeInput.trim()}
+                  onClick={async () => {
+                    if (await switchCode(codeInput)) {
+                      setCodeInput("");
+                      setCodeOpen(false);
+                      setCloud(null);
+                      void refresh();
+                    } else alert("That code doesn't look right. It has 16 letters and numbers.");
                   }}
-                  className="league-card-top hero-banner"
-                  style={{ ...heroStyle(m.colors), borderRadius: 0, boxShadow: "none", border: "none" }}
                 >
-                  <Logo team={{ abbrev: m.teamAbbrev, colors: m.colors }} size={58} />
-                  <div style={{ minWidth: 0, position: "relative" }}>
-                    <div className="np-opp ellipsis">{m.teamName}</div>
-                    <div className="small" style={{ opacity: 0.85 }}>
-                      Coach {m.coach}
-                    </div>
-                  </div>
-                  {r.cloud && (
-                    <span className="league-cloud" title={r.newer ? (r.local ? "Newer progress from another device" : "Saved in the cloud") : "Saved in the cloud"}>
-                      <Icon name="cloud" size={13} /> {r.newer ? (r.local ? "Newer save" : "In the cloud") : "Synced"}
-                    </span>
-                  )}
-                </a>
-                <div className="league-card-body">
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ color: "#fff", fontWeight: 650 }} className="ellipsis">
-                      {m.name}
-                    </div>
-                    <div style={{ color: "#8d99ae", fontSize: 12.5 }} className="ellipsis">
-                      {seasonLabel(m.season)} · {PHASE_LABEL[m.phase as keyof typeof PHASE_LABEL] ?? m.phase} · <b style={{ color: "#c3ccda" }}>{m.record}</b>
-                    </div>
-                    <div style={{ color: "#5d6a80", fontSize: 11.5, marginTop: 2 }}>Last played {new Date(m.updated).toLocaleDateString()}</div>
-                  </div>
-                  <div className="col" style={{ gap: 4, alignItems: "flex-end" }}>
-                    <button className="btn btn-white" disabled={!!loading} onClick={() => void open(r)}>
-                      {busy ? `Loading ${loading!.total > 1 ? `${Math.round((100 * loading!.done) / loading!.total)}%` : "…"}` : r.newer && !r.local ? "Load" : "Continue"}
-                    </button>
-                    <button
-                      className="btn btn-sm btn-ghost"
-                      style={{ color: "#ff8a8a", height: 22 }}
-                      onClick={async () => {
-                        if (!confirm(`Delete "${m.name}" (${m.teamName})${r.cloud ? " here and in the cloud" : ""}? This removes all of its history and cannot be undone.`)) return;
-                        if (r.local) await deleteLeague(m.id);
-                        if (r.cloud) await deleteCloudLeague(m.id).catch(() => alert("Couldn't remove the cloud copy right now."));
-                        if (getLeague()?.id === m.id) setLeague(null);
-                        void refresh();
+                  Load my leagues
+                </button>
+              </div>
+            </div>
+          )}
+          {!loaded ? (
+            <div className="land-muted">Loading…</div>
+          ) : rows.length === 0 ? (
+            <div className="land-muted">Nothing saved on this device yet.</div>
+          ) : (
+            <div className="land-list">
+              {rows.map((r) => {
+                const m = r.meta;
+                const busy = loading?.lid === m.id;
+                return (
+                  <div key={m.id} className="land-row" style={{ ["--team" as string]: m.colors[0] }}>
+                    <a
+                      href={`#/l/${m.id}`}
+                      className="land-row-team"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        void open(r);
                       }}
                     >
-                      Delete
-                    </button>
+                      <Logo team={{ abbrev: m.teamAbbrev, colors: m.colors }} size={44} />
+                      <span style={{ minWidth: 0 }}>
+                        <span className="land-row-name ellipsis">{m.teamName}</span>
+                        <span className="land-row-sub ellipsis">
+                          Coach {m.coach} · {m.name}
+                        </span>
+                      </span>
+                    </a>
+                    <div className="land-row-season">
+                      <span>{seasonLabel(m.season)}</span>
+                      <span className="land-muted">{PHASE_LABEL[m.phase as keyof typeof PHASE_LABEL] ?? m.phase}</span>
+                    </div>
+                    <div className="land-row-rec">{m.record}</div>
+                    <div className="land-row-when land-muted">
+                      {r.cloud ? (r.newer ? (r.local ? "Newer save in the cloud" : "In the cloud") : "Synced") : "This device"}
+                      <br />
+                      Played {new Date(m.updated).toLocaleDateString()}
+                    </div>
+                    <div className="land-row-act">
+                      <button className="land-btn small" disabled={!!loading} onClick={() => void open(r)}>
+                        {busy ? `Loading ${loading!.total > 1 ? `${Math.round((100 * loading!.done) / loading!.total)}%` : "…"}` : r.newer && !r.local ? "Load" : "Continue"}
+                      </button>
+                      <button
+                        className="land-text-btn danger"
+                        onClick={async () => {
+                          if (!confirm(`Delete "${m.name}" (${m.teamName})${r.cloud ? " here and in the cloud" : ""}? This removes all of its history and cannot be undone.`)) return;
+                          if (r.local) await deleteLeague(m.id);
+                          if (r.cloud) await deleteCloudLeague(m.id).catch(() => alert("Couldn't remove the cloud copy right now."));
+                          if (getLeague()?.id === m.id) setLeague(null);
+                          void refresh();
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </div>
-                </div>
-              </div>
-              );
-            })}
-          </div>
-        )}
-
-        <div className="grid g4" style={{ marginTop: 52, gap: 22 }}>
-          {FEATURES.map(([icon, title, text]) => (
-            <div key={title} className="feature">
-              <span className="fi">
-                <Icon name={icon} />
-              </span>
-              <div>
-                <b>{title}</b>
-                <span>{text}</span>
-              </div>
+                );
+              })}
             </div>
-          ))}
-        </div>
-        <div style={{ color: "#5d6a80", fontSize: 12, marginTop: 44 }}>Leagues save in this browser and, with cloud saves on, to your save code so they follow you to other devices. Settings → Export league also downloads a backup file.</div>
-      </div>
+          )}
+        </section>
+        {loaded && rows.length > 0 && about}
+        <footer className="land-foot">Leagues save in this browser and, with cloud saves on, to your save code so they follow you to other devices. Settings, then Export league, downloads a backup file.</footer>
+      </main>
     </div>
   );
 }
