@@ -9,6 +9,7 @@ import { PREP_LEVELS, currentPrep, nextOpponent, projectedLine, setPrep } from "
 import type { League, Team } from "../../engine/types";
 import { Card, Empty, Grade, heroStyle, Logo, PageHead, PlayerLink } from "../components/common";
 import { Icon } from "../components/Icons";
+import { confirmSpend } from "../components/Confirm";
 import { gameView, nextGame, seasonStatsOf } from "../helpers";
 
 const TEMPO = ["", "Grind", "Slow", "Normal", "Fast", "Run & Gun"];
@@ -118,7 +119,10 @@ export function Prep() {
                 key={lv.level}
                 className={`prep-opt${on ? " on" : ""}`}
                 disabled={on || short}
-                onClick={() => {
+                onClick={async () => {
+                  // spending points asks first; dropping to a cheaper level (a refund) doesn't
+                  if (extra > 0 && !(await confirmSpend({ title: `${lv.name} for ${opp.name}?`, body: `${lv.desc} ${lv.edge ? `About +${lv.edge} point${lv.edge > 1 ? "s" : ""} in this game only.` : ""}`, cost: { pts: extra, have: L.recruitPts }, ok: lv.name })))
+                    return;
                   let res: { ok: boolean; msg?: string } = { ok: false };
                   mutate((LL) => {
                     res = setPrep(LL, lv.level);

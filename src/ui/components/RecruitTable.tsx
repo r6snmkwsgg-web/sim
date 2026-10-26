@@ -2,10 +2,11 @@ import { useNavigate } from "react-router-dom";
 import type { League, Player } from "../../engine/types";
 import { team } from "../../engine/core";
 import { heightStr, classLabel } from "../../engine/ratings";
-import { ACTIONS, actionMult, canAct, doAction, heatOf, scoutedOvr, seenOf, talkedTo, type ActionKey } from "../../engine/recruiting";
+import { ACTIONS, actionMult, canAct, doAction, heatOf, openSpots, scoutedOvr, seenOf, talkedTo, type ActionKey } from "../../engine/recruiting";
 import { mutate } from "../store";
 import { Grade, Logo, PlayerLink, Pos, Stars, Table, type Col } from "./common";
 import { Icon } from "./Icons";
+import { confirmSpend } from "./Confirm";
 import { chanceOf, stageText } from "../pages/RecruitProfile";
 
 export function interestRank(L: League, p: Player): number | null {
@@ -51,6 +52,16 @@ const ACTION_ICON: Record<ActionKey, string> = { scout: "eye", call: "phone", as
 const QUICK_LABEL: Partial<Record<ActionKey, string>> = { call: "Call", assistant: "Visit", coach: "Head coach visit", visit: "Official visit" };
 
 export function QuickActions({ L, p, keys = ["call", "assistant", "offer"] }: { L: League; p: Player; keys?: ActionKey[] }) {
+  const run = async (k: ActionKey) => {
+    const name = `${p.first} ${p.last}`;
+    const spots = openSpots(L, L.userTid);
+    const ok = await confirmSpend(
+      k === "offer"
+        ? { title: `Offer ${name} a scholarship?`, body: `He can only commit to schools that offered him. You have ${spots} open spot${spots === 1 ? "" : "s"} next season.`, ok: "Offer scholarship" }
+        : { title: `${QUICK_LABEL[k] ?? ACTIONS[k].label}: ${name}?`, body: ACTIONS[k].desc, cost: { pts: ACTIONS[k].cost, have: L.recruitPts }, ok: QUICK_LABEL[k] ?? ACTIONS[k].label },
+    );
+    if (ok) mutate((LL) => void doAction(LL, LL.userTid, p, k));
+  };
   return (
     <span className="qa" onClick={(e) => e.stopPropagation()}>
       {keys.map((k) => {
@@ -59,7 +70,7 @@ export function QuickActions({ L, p, keys = ["call", "assistant", "offer"] }: { 
         const tip = `${QUICK_LABEL[k] ?? ACTIONS[k].label} · ${ACTIONS[k].cost} pts${c.ok ? "" : ` · ${c.why}`}`;
         if (k === "offer")
           return (
-            <button key={k} className={`btn btn-sm ${done ? "qa-done" : "btn-primary"}`} style={{ minWidth: 62 }} disabled={!c.ok} title={tip} onClick={() => mutate((LL) => void doAction(LL, LL.userTid, p, k))}>
+            <button key={k} className={`btn btn-sm ${done ? "qa-done" : "btn-primary"}`} style={{ minWidth: 62 }} disabled={!c.ok} title={tip} onClick={() => void run(k)}>
               {done ? (
                 <>
                   <Icon name="check" size={12} /> Offered
@@ -70,7 +81,7 @@ export function QuickActions({ L, p, keys = ["call", "assistant", "offer"] }: { 
             </button>
           );
         return (
-          <button key={k} className={`qa-btn${done ? " done" : ""}`} disabled={!c.ok} title={tip} aria-label={ACTIONS[k].label} onClick={() => mutate((LL) => void doAction(LL, LL.userTid, p, k))}>
+          <button key={k} className={`qa-btn${done ? " done" : ""}`} disabled={!c.ok} title={tip} aria-label={ACTIONS[k].label} onClick={() => void run(k)}>
             <Icon name={done ? "check" : ACTION_ICON[k]} size={14} />
             <span>{ACTIONS[k].cost}</span>
           </button>

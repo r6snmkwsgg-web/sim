@@ -13,6 +13,7 @@ import { PREF_KEYS } from "../../engine/types";
 import { Card, Grade, heroStyle, Logo, Stars, Tabs } from "../components/common";
 import { Face } from "../components/Face";
 import { Icon } from "../components/Icons";
+import { confirmSpend, pickAndConfirm } from "../components/Confirm";
 import { inkOn, money } from "../util";
 
 const IMPORTANCE = ["", "Doesn't care", "Minor", "Nice to have", "Important", "Must have"];
@@ -168,22 +169,27 @@ function WhatHeWants({ L, p }: { L: League; p: Player }) {
   );
 }
 
-/** Everything that costs points: scouting him and recruiting him. */
-function RecruitTab({ L, p }: { L: League; p: Player }) {
+/** Everything that costs points: scouting him and recruiting him. Every spend asks first. */
+function RecruitPanel({ L, p }: { L: League; p: Player }) {
   const r = p.recruit!;
   const ut = team(L, L.userTid);
   const [msg, setMsg] = useState<{ ok: boolean; msg: string } | null>(null);
-  const [pick, setPick] = useState<CatKey | "">("");
-  const [nilAsk, setNilAsk] = useState<{ v: number; label: string } | null>(null);
   const open = recruitingOpen(L, p);
   const seen = seenOf(p);
   const talked = talkedTo(p);
   const hs = r.kind === "hs";
-  const act = (a: ActionKey) =>
-    mutate((LL) => {
-      setMsg(doAction(LL, LL.userTid, p, a));
-    });
+  const name = `${p.first} ${p.last}`;
+  const cost = (pts: number) => ({ pts, have: L.recruitPts });
   const spots = openSpots(L, ut.id);
+  const act = async (a: ActionKey) => {
+    const txt = ACTION_TEXT[a];
+    const ok = await confirmSpend(
+      a === "offer"
+        ? { title: `Offer ${name} a scholarship?`, body: `He can only commit to schools that offered him. You have ${spots} open spot${spots === 1 ? "" : "s"} next season.`, ok: "Offer scholarship" }
+        : { title: `${txt.label}: ${name}?`, body: txt.desc, cost: cost(ACTIONS[a].cost), ok: txt.label },
+    );
+    if (ok) mutate((LL) => setMsg(doAction(LL, LL.userTid, p, a)));
+  };
   const nilLeft = ut.nilBudget - nilCommitted(L, ut.id) + (r.nil[L.userTid] ?? 0);
   const keys: ActionKey[] = ["call", "assistant", "coach", "visit", "offer"];
   const typical = NIL_VALUE[r.stars];
@@ -193,7 +199,59 @@ function RecruitTab({ L, p }: { L: League; p: Player }) {
     { label: "Fair", v: Math.round(typical / 5) * 5 },
     { label: "Big", v: Math.round((typical * 1.6) / 5) * 5 },
   ];
+  const offerNil = async (o: { label: string; v: number }) => {
+    const ok = await confirmSpend(
+      o.v
+        ? {
+            title: "Offer this NIL deal?",
+            body: (
+              <>
+                Offer <b>{name}</b> a <b>{money(o.v)} a year</b> NIL deal ({o.label.toLowerCase()}){nilNow ? `, replacing your ${money(nilNow)} offer` : ""}. It comes out of your NIL budget, which has {money(Math.max(0, nilLeft - nilNow))} left.
+              </>
+            ),
+            ok: `Offer ${money(o.v)}`,
+          }
+        : { title: "Withdraw your NIL offer?", body: `Take back your ${money(nilNow)} a year NIL offer to ${name}?`, ok: "Withdraw", danger: true },
+    );
+    if (ok) mutate((LL) => setMsg(setNilOffer(LL, LL.userTid, p, o.v)));
+  };
   const unseen = CAT_KEYS.filter((k) => !seen.includes(k));
+  const film = async () => {
+    if (await confirmSpend({ title: `Watch game film on ${name}?`, body: "Shows one rating category you haven't seen yet, picked at random.", cost: cost(SCOUT_COST.film), ok: "Watch film" }))
+      mutate((LL) => setMsg(watchFilm(LL, p)));
+  };
+  const game = async () => {
+    const k = await pickAndConfirm({
+      title: `Scout one of ${p.first}'s games`,
+      body: "Pick what you want to watch for. You'll see his grade in it.",
+      choices: unseen.map((c) => ({ key: c, label: CATS[c].label, sub: CATS[c].desc })),
+      cost: cost(SCOUT_COST.game),
+      ok: "Scout the game",
+    });
+    if (k) mutate((LL) => setMsg(scoutGame(LL, p, k as CatKey)));
+  };
+  const coach = async () => {
+    if (await confirmSpend({ title: `Talk to ${p.first}'s coach?`, body: "Learn his work ethic and how good he can become.", cost: cost(SCOUT_COST.coach), ok: "Make the call" }))
+      mutate((LL) => setMsg(talkToCoach(LL, p)));
+  };
+  const pull = async () => {
+    if (await confirmSpend({ title: `Pull your offer to ${name}?`, body: "He won't be able to commit to you unless you offer again.", ok: "Pull offer", danger: true }))
+      mutate((LL) => pullOffer(LL, LL.userTid, p));
+  };
+  const scoutRow = (icon: string, label: string, desc: string, pts: number, onClick: () => void, disabled: boolean, done = false) => (
+    <button className={`rec-act${done ? " done" : ""}`} disabled={disabled} onClick={onClick}>
+      <span className="act-ic">
+        <Icon name={done ? "check" : icon} size={16} />
+      </span>
+      <span style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
+        <b>{label}</b>
+        <span className="tiny muted" style={{ display: "block" }}>
+          {desc}
+        </span>
+      </span>
+      <span className="prep-cost">{done ? "Done" : `${pts} pts`}</span>
+    </button>
+  );
   return (
     <div className="col gap-16">
       <div className="points-line" style={{ marginBottom: 0 }}>
@@ -203,64 +261,9 @@ function RecruitTab({ L, p }: { L: League; p: Player }) {
       {hs && (
         <Card title="Scout him" sub={`${seen.length} of 7 categories scouted${talked ? " · talked to his coach" : ""}`}>
           <div className="col" style={{ gap: 8 }}>
-            <button className="rec-act" disabled={!open.ok || !unseen.length || L.recruitPts < SCOUT_COST.film} onClick={() => mutate((LL) => setMsg(watchFilm(LL, p)))}>
-              <span className="act-ic">
-                <Icon name="tv" size={16} />
-              </span>
-              <span style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
-                <b>Watch game film</b>
-                <span className="tiny muted" style={{ display: "block" }}>
-                  {unseen.length ? "Reveals one category you haven't seen, at random." : "You've seen everything."}
-                </span>
-              </span>
-              <span className="prep-cost">{SCOUT_COST.film} pts</span>
-            </button>
-            <div className={`rec-act${!open.ok || !unseen.length ? " off" : ""}`}>
-              <span className="act-ic">
-                <Icon name="eye" size={16} />
-              </span>
-              <span style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
-                <b>Scout a game</b>
-                <span className="tiny muted" style={{ display: "block" }}>
-                  Go see him play and pick what to watch for.
-                </span>
-                <span className="row" style={{ gap: 6, marginTop: 6, flexWrap: "wrap" }}>
-                  <select className="select" style={{ height: 30, minWidth: 150 }} value={pick} disabled={!open.ok || !unseen.length} onChange={(e) => setPick(e.target.value as CatKey)}>
-                    <option value="">Pick a category…</option>
-                    {unseen.map((k) => (
-                      <option key={k} value={k}>
-                        {CATS[k].label}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    className="btn btn-sm btn-primary"
-                    disabled={!open.ok || !pick || L.recruitPts < SCOUT_COST.game}
-                    onClick={() =>
-                      mutate((LL) => {
-                        if (pick) setMsg(scoutGame(LL, p, pick));
-                        setPick("");
-                      })
-                    }
-                  >
-                    Scout it
-                  </button>
-                </span>
-              </span>
-              <span className="prep-cost">{SCOUT_COST.game} pts</span>
-            </div>
-            <button className={`rec-act${talked ? " done" : ""}`} disabled={!open.ok || talked || L.recruitPts < SCOUT_COST.coach} onClick={() => mutate((LL) => setMsg(talkToCoach(LL, p)))}>
-              <span className="act-ic">
-                <Icon name={talked ? "check" : "phone"} size={16} />
-              </span>
-              <span style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
-                <b>Talk to his coach</b>
-                <span className="tiny muted" style={{ display: "block" }}>
-                  His work ethic and how good he can become.
-                </span>
-              </span>
-              <span className="prep-cost">{talked ? "Done" : `${SCOUT_COST.coach} pts`}</span>
-            </button>
+            {scoutRow("tv", "Watch game film", unseen.length ? "Reveals one category you haven't seen, at random." : "You've seen everything.", SCOUT_COST.film, film, !open.ok || !unseen.length || L.recruitPts < SCOUT_COST.film)}
+            {scoutRow("eye", "Scout a game", unseen.length ? "Go see him play and pick what to watch for." : "You've seen everything.", SCOUT_COST.game, game, !open.ok || !unseen.length || L.recruitPts < SCOUT_COST.game)}
+            {scoutRow("phone", "Talk to his coach", "His work ethic and how good he can become.", SCOUT_COST.coach, coach, !open.ok || talked || L.recruitPts < SCOUT_COST.coach, talked)}
           </div>
         </Card>
       )}
@@ -275,7 +278,7 @@ function RecruitTab({ L, p }: { L: League; p: Player }) {
               const txt = ACTION_TEXT[a];
               const done = !chk.ok && (chk.why === "Done this week" || chk.why === "Already offered" || chk.why === "Already visited");
               return (
-                <button key={a} className={`rec-act${a === "offer" ? " offer" : ""}${done ? " done" : ""}`} disabled={!chk.ok} title={chk.why} onClick={() => act(a)}>
+                <button key={a} className={`rec-act${a === "offer" ? " offer" : ""}${done ? " done" : ""}`} disabled={!chk.ok} title={chk.why} onClick={() => void act(a)}>
                   <span className="act-ic">
                     <Icon name={done ? "check" : ACTION_ICONS[a]} size={16} />
                   </span>
@@ -298,7 +301,7 @@ function RecruitTab({ L, p }: { L: League; p: Player }) {
                   {nilOpts.map((o) => {
                     const on = nilNow === o.v || (o.v > 0 && nilNow > 0 && Math.abs(nilNow - o.v) < 5);
                     return (
-                      <button key={o.label} className={on ? "on" : ""} disabled={on || !open.ok} onClick={() => setNilAsk(o)}>
+                      <button key={o.label} className={on ? "on" : ""} disabled={on || !open.ok} onClick={() => void offerNil(o)}>
                         {o.label}
                         {o.v ? ` ${money(o.v)}` : ""}
                       </button>
@@ -311,7 +314,7 @@ function RecruitTab({ L, p }: { L: League; p: Player }) {
               </div>
             )}
             {r.offers.includes(L.userTid) && r.stage !== "committed" && (
-              <button className="btn btn-sm btn-ghost btn-danger" style={{ alignSelf: "flex-start" }} onClick={() => confirm(`Pull your scholarship offer to ${p.first} ${p.last}?`) && mutate((LL) => pullOffer(LL, LL.userTid, p))}>
+              <button className="btn btn-sm btn-ghost btn-danger" style={{ alignSelf: "flex-start" }} onClick={() => void pull()}>
                 Pull scholarship offer
               </button>
             )}
@@ -319,42 +322,6 @@ function RecruitTab({ L, p }: { L: League; p: Player }) {
         )}
       </Card>
       {msg && <div className={`small ${msg.ok ? "good" : "bad"}`}>{msg.msg}</div>}
-      {nilAsk && (
-        <div className="overlay" onClick={(e) => e.target === e.currentTarget && setNilAsk(null)}>
-          <div className="modal" style={{ width: "min(440px, 92vw)" }}>
-            <div className="modal-h">
-              <Icon name="money" size={18} />
-              <h2>{nilAsk.v ? "Offer this NIL deal?" : "Withdraw your NIL offer?"}</h2>
-            </div>
-            <div className="modal-b">
-              {nilAsk.v ? (
-                <>
-                  Offer <b>{p.first} {p.last}</b> a <b>{money(nilAsk.v)} a year</b> NIL deal ({nilAsk.label.toLowerCase()}){nilNow ? `, replacing your ${money(nilNow)} offer` : ""}. It comes out of your NIL budget, which has {money(Math.max(0, nilLeft - nilNow))} left.
-                </>
-              ) : (
-                <>
-                  Take back your {money(nilNow)} a year NIL offer to <b>{p.first} {p.last}</b>?
-                </>
-              )}
-            </div>
-            <div className="modal-f">
-              <button className="btn" onClick={() => setNilAsk(null)}>
-                Cancel
-              </button>
-              <button
-                className="btn btn-primary"
-                onClick={() => {
-                  const v = nilAsk.v;
-                  setNilAsk(null);
-                  mutate((LL) => setMsg(setNilOffer(LL, LL.userTid, p, v)));
-                }}
-              >
-                {nilAsk.v ? `Offer ${money(nilAsk.v)}` : "Withdraw"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -384,7 +351,10 @@ function RatingsTab({ L, p }: { L: League; p: Player }) {
               {known ? (
                 <Grade v={catValue(p, k)} md />
               ) : (
-                <button className="unknown big" disabled={!scoutable || L.recruitPts < SCOUT_COST.game} title={scoutable ? `Scout a game for his ${CATS[k].label.toLowerCase()} (${SCOUT_COST.game} pts)` : open.why} onClick={() => mutate((LL) => void scoutGame(LL, p, k))}>
+                <button className="unknown big" disabled={!scoutable || L.recruitPts < SCOUT_COST.game} title={scoutable ? `Scout a game for his ${CATS[k].label.toLowerCase()} (${SCOUT_COST.game} pts)` : open.why} onClick={async () => {
+                    if (await confirmSpend({ title: `Scout his ${CATS[k].label.toLowerCase()}?`, body: `Go see ${p.first} play and watch for it. ${CATS[k].desc}.`, cost: { pts: SCOUT_COST.game, have: L.recruitPts }, ok: "Scout it" }))
+                      mutate((LL) => void scoutGame(LL, p, k));
+                  }}>
                   ?
                 </button>
               )}
@@ -406,7 +376,7 @@ function RatingsTab({ L, p }: { L: League; p: Player }) {
           {talked ? <Grade v={p.pot} md /> : <span className="unknown big">?</span>}
         </div>
       </div>
-      {!talked && r.kind === "hs" && <div className="tiny muted mt-12">Talk to his coach (Recruit tab) to learn his work ethic and potential.</div>}
+      {!talked && r.kind === "hs" && <div className="tiny muted mt-12">Talk to his coach (on the Overview tab) to learn his work ethic and potential.</div>}
     </Card>
   );
 }
@@ -474,7 +444,7 @@ function Timeline({ p }: { p: Player }) {
   );
 }
 
-type TabKey = "overview" | "recruit" | "ratings" | "stats";
+type TabKey = "overview" | "ratings" | "stats";
 
 export function RecruitProfile({ p }: { p: Player }) {
   const L = useLeague();
@@ -598,7 +568,6 @@ export function RecruitProfile({ p }: { p: Player }) {
       <Tabs
         tabs={[
           { key: "overview", label: "Overview" },
-          { key: "recruit", label: `Recruit · ${L.recruitPts} pts` },
           { key: "ratings", label: r.kind === "hs" ? `Ratings · ${seen.length}/7` : "Ratings" },
           { key: "stats", label: r.kind === "hs" ? "HS Stats" : "College Stats" },
         ]}
@@ -607,18 +576,16 @@ export function RecruitProfile({ p }: { p: Player }) {
       />
       {tab === "overview" && (
         <div className="grid g2" style={{ alignItems: "start" }}>
-          <WhatHeWants L={L} p={p} />
+          <div className="col gap-16">
+            <WhatHeWants L={L} p={p} />
+            <RecruitPanel L={L} p={p} />
+          </div>
           <div className="col gap-16">
             <WhosAfterHim L={L} p={p} />
             <Card title="Timeline">
               <Timeline p={p} />
             </Card>
           </div>
-        </div>
-      )}
-      {tab === "recruit" && (
-        <div style={{ maxWidth: 760 }}>
-          <RecruitTab L={L} p={p} />
         </div>
       )}
       {tab === "ratings" && <RatingsTab L={L} p={p} />}

@@ -62,7 +62,8 @@ Getting around: five sections (Home, My Team, Recruiting, League, History) sit o
 - Weekly coaching points (about 85 to 115 by program, a little more with a good recruiter) for calls, assistant visits, head coach visits, official visits, offers and NIL deals, and for Game Prep; practice is free
 - Official visits open once a recruit is Hot on you (halfway to committing), like Blue Bloods' campus invite; each recruit has a decision week and then picks among schools that offered and are Ready to commit, usually the leader
 - Scouting the Blue Bloods way: seven broad categories (Shooting, Finishing, Playmaking, Perimeter D, Interior D, Rebounding, Athleticism), each a letter grade averaged from the ratings underneath. Game film (2 pts) reveals one at random, Scout a game (5 pts) reveals the one you choose, Talk to his coach (3 pts) reveals work ethic and potential; until then it's "?", and star ratings are noisy, so there are sleepers and busts
-- Recruit profiles in tabs: Overview (what he wants, who's after him), Recruit (everything that costs points), Ratings, and HS Stats (his high school career, with the senior season playing out alongside yours)
+- Recruit profiles in tabs: Overview (what he wants, scouting and recruiting actions, who's after him), Ratings, and HS Stats (his high school career, with the senior season playing out alongside yours)
+- Everything that spends coaching points (scouting, calls, visits, Game Prep) or makes an offer asks you to confirm first; Scout a game opens a popup to pick what to watch for
 - Heat meters (Cold, Warm, Hot, Ready to commit) for you and every rival; NIL offers ask for confirmation
 - Recruiting opens at tip-off: the high school season starts with the college season, so nobody recruits in the preseason
 - Coaching points always visible in the top bar; a "Realistic for us" board filter and a plain-language chance for every recruit

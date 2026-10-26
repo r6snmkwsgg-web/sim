@@ -6,6 +6,7 @@ import { currentRank } from "../../engine/rankings";
 import { curSeason } from "../../engine/play";
 import { heroColors, inkOn } from "../util";
 import { Icon } from "./Icons";
+import { ConfirmHost } from "./Confirm";
 import { Logo } from "./common";
 import { GlobalSearch } from "./Search";
 import { PORTAL_ROUNDS, advanceBlocker, isDayPhase } from "../../engine/advance";
@@ -528,6 +529,7 @@ export function Layout({ children }: { children: ReactNode }) {
       <SimOverlay />
       <ResultToast />
       <MomentOverlay />
+      <ConfirmHost />
     </div>
   );
 }
