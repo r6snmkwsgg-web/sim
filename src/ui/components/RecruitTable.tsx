@@ -101,7 +101,7 @@ export function KnownPot({ p }: { p: Player }) {
 
 /** Your heat with him as a short colored label. */
 export function HeatTag({ L, p }: { L: League; p: Player }) {
-  const h = heatOf(p, L.userTid);
+  const h = heatOf(L, p, L.userTid);
   if (!(p.recruit!.interest[L.userTid] ?? 0)) return <span className="faint">-</span>;
   return <span className={`heat-label l${h.level}`}>{h.label}</span>;
 }

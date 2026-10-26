@@ -21,7 +21,7 @@ export const ACTIONS: Record<ActionKey, { label: string; cost: number; value: nu
   call: { label: "Phone Call", cost: 3, value: 3, cooldown: 1, desc: "A quick call from your staff. Small interest boost (once per week)." },
   assistant: { label: "Assistant Visit", cost: 8, value: 7, cooldown: 1, desc: "An assistant coach visits. Solid interest boost (once per week)." },
   coach: { label: "Head Coach Visit", cost: 18, value: 14, cooldown: 3, desc: "You visit personally. Big boost, scaled by your recruiting skill (every 3 weeks)." },
-  visit: { label: "Official Visit", cost: 20, value: 22, cooldown: 0, once: true, desc: "Bring him to campus. Huge boost (once per recruit, limited per season)." },
+  visit: { label: "Official Visit", cost: 20, value: 22, cooldown: 0, once: true, desc: "Bring him to campus. Huge boost (once per recruit, limited per season). Opens once he's Hot on you." },
   offer: { label: "Offer Scholarship", cost: 0, value: 9, cooldown: 0, once: true, desc: "Required for him to commit. Limited by your open roster spots." },
 };
 
@@ -117,12 +117,25 @@ export function talkToCoach(L: League, p: Player): { ok: boolean; msg: string } 
   return { ok: true, msg: "His coach filled you in" };
 }
 
-/** How close a school is to landing him: Cold, Warm, Hot, or Ready to commit. */
-export function heatOf(p: Player, tid: number): { v: number; label: string; level: number } {
+/** The interest a school needs for him to commit to it. It drops the longer he waits past his decision week. */
+export function commitBar(L: League, p: Player): number {
   const r = p.recruit!;
-  const thr = COMMIT_THRESHOLD[r.stars] * (r.kind === "portal" ? 0.6 : 1);
-  const v = (r.interest[tid] ?? 0) / thr;
-  const level = v >= 1 ? 3 : v >= 0.6 ? 2 : v >= 0.25 ? 1 : 0;
+  const late = (r.kind === "portal" ? L.portalRound : L.week) - r.commitWeek;
+  const patience = late > 0 ? Math.max(0.45, 1 - 0.07 * late) : 1;
+  return COMMIT_THRESHOLD[r.stars] * (r.kind === "portal" ? 0.6 : 1) * patience;
+}
+
+/** Weeks until he starts deciding (0 once he is). */
+export function weeksToDecide(L: League, p: Player): number {
+  const r = p.recruit!;
+  return Math.max(0, r.commitWeek - (r.kind === "portal" ? L.portalRound : L.week));
+}
+
+/** How close a school is to landing him: Cold, Warm, Hot (halfway: official visits open), or Ready to commit. */
+export function heatOf(L: League, p: Player, tid: number): { v: number; label: string; level: number } {
+  const r = p.recruit!;
+  const v = (r.interest[tid] ?? 0) / commitBar(L, p);
+  const level = v >= 1 ? 3 : v >= HOT ? 2 : v >= 0.25 ? 1 : 0;
   return { v: Math.min(1, v), label: ["Cold", "Warm", "Hot", "Ready to commit"][level], level };
 }
 
@@ -149,7 +162,9 @@ export function hsCareer(L: League, p: Player): { year: string; g: number; pts: 
 }
 
 export const OFFICIAL_VISITS = 12;
-export const BASE_POINTS = 50;
+export const BASE_POINTS = 100;
+/** Share of the way to committing where a recruit turns Hot and official visits open. */
+export const HOT = 0.5;
 const STAR_POINTS = [0, 4, 12, 30, 60, 100];
 export const NIL_VALUE = [0, 8, 25, 80, 250, 600]; // $K expected by stars
 const COMMIT_THRESHOLD = [0, 15, 20, 26, 34, 44];
@@ -463,6 +478,7 @@ export function canAct(L: League, tid: number, p: Player, a: ActionKey): { ok: b
   if (a === "visit") {
     if (r.visits.includes(tid)) return { ok: false, why: "Already visited" };
     if (t.officialVisitsUsed >= OFFICIAL_VISITS) return { ok: false, why: "No official visits left" };
+    if (heatOf(L, p, tid).v < HOT) return { ok: false, why: "Opens once he's Hot on you (halfway to committing)" };
     return { ok: true };
   }
   const last = r.lastAction[`${tid}:${a}`];
@@ -593,7 +609,8 @@ function pickTargets(L: League, t: Team, pool: Player[], needs: number, pecking:
 /** Weekly recruiting points for a program's staff. */
 export function staffPoints(L: League, t: Team): number {
   const ch = coachOf(L, t.id);
-  return Math.round(BASE_POINTS * (0.85 + 0.3 * ((ch?.recruiting ?? 50) / 100)) * (0.85 + 0.3 * (t.prestige / 100)));
+  // about 85 for the smallest programs up to about 115 for blue bloods; a good recruiter adds a little
+  return Math.round(BASE_POINTS * (0.85 + 0.3 * (t.prestige / 100)) * (0.94 + 0.12 * ((ch?.recruiting ?? 50) / 100)));
 }
 
 export function aiRecruitWeek(L: League, kind: "hs" | "portal" | "both" = "both") {
@@ -645,7 +662,7 @@ export function aiRecruitWeek(L: League, kind: "hs" | "portal" | "both" = "both"
         if (Number(k) !== t.id && v > bestOther) bestOther = v;
       }
       const mine = r.interest[t.id] ?? 0;
-      const thr = COMMIT_THRESHOLD[r.stars] * (r.kind === "portal" ? 0.6 : 1);
+      const thr = commitBar(L, p);
       let mode: "commit" | "lead" | "chase" | "drop" = "chase";
       if (r.committedTo === t.id) mode = "commit";
       else if (mine >= thr && mine > bestOther * 1.2) mode = "lead";
@@ -674,8 +691,9 @@ export function aiRecruitWeek(L: League, kind: "hs" | "portal" | "both" = "both"
           }
         }
       }
-      if (i < needs * 1.2 && L.week >= 2 && canAct(L, t.id, p, "coach").ok) doAction(L, t.id, p, "coach");
-      if (i < needs * 1.5 && L.week >= 4 && r.offers.includes(t.id) && canAct(L, t.id, p, "visit").ok && rng.chance(0.4)) doAction(L, t.id, p, "visit");
+      // once he's Hot on us, bring him to campus to close; until then the head coach does the selling
+      if (i < needs * 2 && r.offers.includes(t.id) && canAct(L, t.id, p, "visit").ok && rng.chance(0.75)) doAction(L, t.id, p, "visit");
+      else if (i < needs * 1.2 && L.week >= 2 && canAct(L, t.id, p, "coach").ok) doAction(L, t.id, p, "coach");
       if (canAct(L, t.id, p, "assistant").ok) doAction(L, t.id, p, "assistant");
       else if (canAct(L, t.id, p, "call").ok) doAction(L, t.id, p, "call");
       i++;
@@ -767,9 +785,7 @@ export function recruitDecisions(L: League, kind: "hs" | "portal" | "both" = "bo
       continue;
     }
     if (wk < r.commitWeek) continue;
-    const late = wk - r.commitWeek;
-    const patience = Math.max(0.45, 1 - 0.07 * late);
-    const thr = COMMIT_THRESHOLD[r.stars] * (r.kind === "portal" ? 0.6 : 1) * patience;
+    const thr = commitBar(L, p);
     const cands = sorted.filter(([tid, v]) => r.offers.includes(tid) && v >= thr && spots(tid) > 0);
     if (!cands.length) continue;
     // weighted choice favouring the leader

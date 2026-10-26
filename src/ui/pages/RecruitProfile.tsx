@@ -5,8 +5,8 @@ import { classLabel, heightStr } from "../../engine/ratings";
 import { distanceMiles } from "../../engine/rng";
 import { regionOf } from "../../engine/data/cities";
 import {
-  ACTIONS, actionMult, canAct, CAT_KEYS, CATS, catValue, doAction, factorScores, fit, heatOf, hsCareer, NIL_VALUE, nilCommitted, OFFICIAL_VISITS, openSpots, PREF_LABELS, pullOffer, recruitingOpen,
-  SCOUT_COST, scoutedOvr, scoutGame, seenOf, setNilOffer, talkedTo, talkToCoach, watchFilm, type ActionKey,
+  ACTIONS, actionMult, canAct, CAT_KEYS, CATS, catValue, doAction, factorScores, fit, heatOf, HOT, hsCareer, NIL_VALUE, nilCommitted, OFFICIAL_VISITS, openSpots, PREF_LABELS, pullOffer, recruitingOpen,
+  SCOUT_COST, scoutedOvr, scoutGame, seenOf, setNilOffer, talkedTo, talkToCoach, watchFilm, weeksToDecide, type ActionKey,
 } from "../../engine/recruiting";
 import type { CatKey, League, Player, PrefKey } from "../../engine/types";
 import { PREF_KEYS } from "../../engine/types";
@@ -22,7 +22,7 @@ const ACTION_TEXT: Record<ActionKey, { label: string; desc: string }> = {
   call: { label: "Call", desc: "Small boost. Once a week." },
   assistant: { label: "Visit", desc: "An assistant visits. Solid boost. Once a week." },
   coach: { label: "Head coach visit", desc: "You go yourself. Big boost. Every 3 weeks." },
-  visit: { label: "Official visit", desc: "Bring him to campus. Huge boost. Once." },
+  visit: { label: "Official visit", desc: "Bring him to campus. Huge boost. Once, and only once he's Hot on you." },
   offer: { label: "Offer scholarship", desc: "He can only commit to schools that offered." },
 };
 
@@ -53,7 +53,7 @@ function fitWord(x: number): { t: string; c: string } {
 
 /** A school's heat with a recruit: Cold, Warm, Hot, Ready to commit, in its colors. */
 export function HeatMeter({ L, p, tid, showTeam = true, compact }: { L: League; p: Player; tid: number; showTeam?: boolean; compact?: boolean }) {
-  const h = heatOf(p, tid);
+  const h = heatOf(L, p, tid);
   const t = team(L, tid);
   const dark = document.documentElement.dataset.theme !== "light";
   const fill = inkOn(t.colors[0], dark ? "#151c2a" : "#f7f8fb", 2.2);
@@ -68,7 +68,7 @@ export function HeatMeter({ L, p, tid, showTeam = true, compact }: { L: League; 
       <div className="heat-track">
         <i style={{ width: `${Math.max(3, h.v * 100)}%`, background: fill }} />
         <b style={{ left: "25%" }} />
-        <b style={{ left: "60%" }} />
+        <b style={{ left: `${HOT * 100}%` }} />
       </div>
       <span className={`heat-label l${h.level}`}>{h.label}</span>
     </div>
@@ -109,7 +109,13 @@ function WhosAfterHim({ L, p }: { L: League; p: Player }) {
               </div>
             );
           })}
-          <div className="tiny muted">The meter fills toward Ready to commit. He only commits to a school that offered him.</div>
+          <div className="tiny muted">
+            {r.committedTo === null && (() => {
+              const w = weeksToDecide(L, p);
+              return w > 0 ? `He starts deciding in about ${w} week${w === 1 ? "" : "s"}. ` : "He's deciding now, and the longer he waits the less it takes. ";
+            })()}
+            Hot (halfway) opens an official visit. When he decides, he picks among schools that offered him and are Ready to commit, usually the one furthest ahead.
+          </div>
         </div>
       ) : (
         <div className="muted small">{L.phase === "preseason" && r.kind === "hs" ? "Recruiting opens when the season tips off." : "Be the first: a call or a visit gets you on his list."}</div>
@@ -483,7 +489,7 @@ export function RecruitProfile({ p }: { p: Player }) {
   const last = p.stats[p.stats.length - 1];
   const career = hsCareer(L, p);
   const hsNow = career.length ? (career[career.length - 1].g ? career[career.length - 1] : career[career.length - 2]) : null;
-  const heat = heatOf(p, L.userTid);
+  const heat = heatOf(L, p, L.userTid);
   return (
     <div className="col gap-16">
       <div className="hero-banner" style={heroStyle(colors as [string, string])}>

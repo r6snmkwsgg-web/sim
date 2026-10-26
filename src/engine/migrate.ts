@@ -3,8 +3,10 @@
 
 import type { League } from "./types";
 import confData from "./data/conferences.json";
+import { userTeam } from "./core";
+import { staffPoints } from "./recruiting";
 
-export const DATA_VERSION = 2;
+export const DATA_VERSION = 3;
 
 export function migrate(L: League): League {
   L.transferLog ??= [];
@@ -19,6 +21,12 @@ export function migrate(L: League): League {
   for (const t of L.teams) {
     for (const s of t.seasons) s.prestigeStart ??= s.prestige;
     t.boosters ??= boostersFor(t.slug);
+  }
+  if ((L.version ?? 1) < 3) {
+    // weekly points doubled (about 85-115): top up this week's points, keeping what was already spent
+    const spent = Math.max(0, L.recruitPtsMax - L.recruitPts);
+    L.recruitPtsMax = staffPoints(L, userTeam(L)) + (L.pointsBonus ?? 0);
+    L.recruitPts = L.settings.autoRecruit ? 0 : Math.max(0, L.recruitPtsMax - spent);
   }
   L.version = Math.max(L.version ?? 1, DATA_VERSION);
   return L;

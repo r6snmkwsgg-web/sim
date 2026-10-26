@@ -33,7 +33,7 @@ export function ensureGoals(L: League) {
   }
   // recruiting
   const stars = pr >= 70 ? 4 : pr >= 40 ? 3 : 2;
-  list.push({ id: "recruit", kind: "recruit", text: `Land a ${stars}-star recruit`, target: stars, reward: reward("points", 4), done: false });
+  list.push({ id: "recruit", kind: "recruit", text: `Land a ${stars}-star recruit`, target: stars, reward: reward("points", 8), done: false });
   // the stretch goal
   if (pr >= 78) list.push({ id: "stretch", kind: "final4", text: "Reach the Final Four", target: 1, stretch: true, reward: reward("prestige", 4), done: false });
   else if (pr >= 60) list.push({ id: "stretch", kind: "sweet16", text: "Reach the Sweet 16", target: 1, stretch: true, reward: reward("prestige", 4), done: false });

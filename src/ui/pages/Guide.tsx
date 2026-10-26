@@ -47,15 +47,17 @@ export function Guide() {
         </Card>
         <Card title="Recruiting">
           <ul className="small" style={{ margin: 0, paddingLeft: 18, lineHeight: 1.7 }}>
-            <li>You get coaching points every week. They reset on Mondays and don't carry over, so spend them: on recruits, or on <Link to={`${b}/prep`}>Game Prep</Link> to scout your next opponent (about +1 to +2.5 points in that game).</li>
+            <li>You get coaching points every week: about 85 at the smallest programs up to about 115 at blue bloods, plus a little for a good recruiter. They reset on Mondays and don't carry over, so spend them: on recruits, or on <Link to={`${b}/prep`}>Game Prep</Link> to scout your next opponent (about +1 to +2.5 points in that game).</li>
             <li>Every recruit weighs playing time, prestige, distance from home, contender status, the head coach, facilities and NIL. Your fit multiplies every action.</li>
             <li>
               <b>Scout</b> to see his ratings in seven categories (shooting, finishing, playmaking, perimeter D, interior D, rebounding, athleticism). Game film (2 pts) shows one at random, scouting a game (5 pts) shows the one you pick, and talking to his coach (3 pts) tells you his work ethic and potential. Star ratings are noisy, so there are hidden gems (and busts).
             </li>
             <li>Recruiting opens when the season tips off: the high school season starts with yours, and nobody (you or the AI) can contact recruits in the preseason.</li>
             <li>The heat meter shows how close a recruit is to committing to each school: Cold, Warm, Hot, Ready to commit. NIL offers ask you to confirm before they go out.</li>
+            <li>Each recruit has his own decision week (shown on his profile). From then on he commits to a school that offered him and is Ready to commit, usually the one furthest ahead; several schools can be Ready at once. The longer he waits, the less it takes.</li>
+            <li>The AI programs recruit under the same rules and points. Their moves (and recruits' decisions) happen at the start of each week, so what you do during the week counts before they decide.</li>
             <li>Recruits narrow their list to a top five, then commit to a school that has offered. Verbal commitments can flip until they sign (early signing period in week 3, or signing day).</li>
-            <li>Official visits are limited each season. Use them on players you can actually land.</li>
+            <li>Official visits are the biggest boost and are limited each season. One opens once a recruit is Hot on you (halfway to committing), so they close the deal rather than open it.</li>
             <li>Open roster spots depend on who's returning. Projected NBA early entries count as departures.</li>
             <li>
               Don't want to manage recruiting? Turn on <Link to={`${b}/settings`}>auto recruiting</Link> and your staff will handle it (about as well as an average AI program).
