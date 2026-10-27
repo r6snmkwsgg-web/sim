@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Football GM: Broadcast Booth
 // @namespace    was-dynasty-fbgm
-// @version      1.3.4
-// @description  Turns Football GM's live play-by-play into TV-style commentary. Real names, yards, downs, score and in-game stat callbacks; the flavor is made up to fit. Hover any line to see the original. Halftime and postgame shows, NFL-style kickoff windows on the schedule, and a score ticker.
+// @version      1.4.0
+// @description  Turns Football GM's live play-by-play into TV-style commentary. Real names, yards, downs, score and in-game stat callbacks; the flavor is made up to fit. Hover any line to see the original. Postgame show, NFL-style kickoff windows on the schedule, and a score ticker.
 // @match        https://play.football-gm.com/*
 // @grant        none
 // @inject-into  page
@@ -1533,7 +1533,8 @@ console.log(JSON.stringify(out));`;
 	const maybeShow = (r, isLast, container) => {
 		if (!enabled || !r || !r.orig || showDone.has(r.el)) return;
 		const s = stripStats(r.orig);
-		const kind = s === "Start of 3rd quarter" ? "half" : s === "End of game" ? "post" : null;
+		// halftime show retired in 1.4.0 (user found it annoying); only the postgame show remains
+		const kind = s === "End of game" ? "post" : null;
 		if (!kind) return;
 		showDone.add(r.el);
 		// pause right away so the 3rd quarter doesn't start under the show
